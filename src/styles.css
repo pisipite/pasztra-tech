@@ -1,0 +1,147 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap");
+
+:root {
+  font-family: "Manrope", system-ui, sans-serif;
+  color: #14201d;
+  background: #f1f0e9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --ink: #14201d;
+  --muted: #68716d;
+  --paper: #fbfaf5;
+  --line: #d8d9d0;
+  --solar: #dfff55;
+  --solar-deep: #aeca29;
+  --climate: #f47b52;
+  --night: #111b18;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(circle at 78% -10%, rgba(223, 255, 85, .18), transparent 30%), #f1f0e9; }
+
+button, input, select { font: inherit; }
+button { color: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 3px solid rgba(179, 207, 47, .55); outline-offset: 3px; }
+
+.app-shell { min-height: 100vh; }
+.topbar { height: 78px; padding: 0 clamp(20px, 4vw, 64px); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(20,32,29,.1); }
+.brand { display: inline-flex; gap: 12px; align-items: center; color: var(--ink); text-decoration: none; font-weight: 700; letter-spacing: -.04em; font-size: 19px; }
+.brand em { color: var(--solar-deep); font-style: normal; margin: 0 2px; }
+.brand__mark { width: 30px; height: 30px; border-radius: 50%; background: var(--solar); position: relative; box-shadow: 0 0 0 5px rgba(223,255,85,.19); }
+.brand__mark::before, .brand__mark::after, .brand__mark i::before, .brand__mark i::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 5px; background: var(--ink); border-radius: 2px; transform-origin: 1px 0; }
+.brand__mark::before { transform: translate(-50%, -21px); }
+.brand__mark::after { transform: translate(-50%, 16px); }
+.brand__mark i::before { transform: translate(-21px, -50%) rotate(90deg); }
+.brand__mark i::after { transform: translate(16px, -50%) rotate(90deg); }
+.topbar__actions { display: flex; align-items: center; gap: 10px; }
+.status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid #cbd0c8; background: rgba(255,255,255,.45); border-radius: 999px; font-size: 12px; font-weight: 700; }
+.status-pill i { width: 7px; height: 7px; border-radius: 50%; background: #75ab54; box-shadow: 0 0 0 4px rgba(117,171,84,.13); }
+.status-pill--demo i { background: #d09a36; box-shadow: 0 0 0 4px rgba(208,154,54,.13); }
+.icon-button { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #cbd0c8; background: rgba(255,255,255,.45); cursor: pointer; font-weight: 700; }
+.icon-button:hover { background: white; }
+
+main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 30px; }
+.intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 34px; }
+.eyebrow { margin: 0 0 10px; color: #6b746f; text-transform: uppercase; letter-spacing: .15em; font-size: 10px; font-weight: 700; }
+.eyebrow--light { color: #aab4ae; }
+.intro h1 { margin: 0; font-size: clamp(38px, 5vw, 72px); line-height: .98; letter-spacing: -.065em; font-weight: 600; }
+.range-tabs { display: flex; padding: 4px; border: 1px solid #d3d5cc; border-radius: 999px; background: rgba(255,255,255,.45); }
+.range-tabs button { border: 0; background: transparent; border-radius: 999px; padding: 10px 17px; color: #707873; cursor: pointer; font-size: 12px; font-weight: 700; }
+.range-tabs button.active { color: white; background: var(--night); }
+
+.notice { margin-bottom: 16px; background: #fff4de; color: #7e5412; padding: 13px 16px; border: 1px solid #edd5a8; border-radius: 12px; font-size: 13px; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, .8fr); gap: 18px; align-items: start; transition: opacity .2s ease; }
+.dashboard-grid.is-loading { opacity: .72; }
+.card { background: var(--paper); border: 1px solid rgba(20,32,29,.1); border-radius: 24px; overflow: hidden; box-shadow: 0 18px 50px rgba(38,49,45,.055); }
+.card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.card__head h2 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
+
+.solar-card { grid-row: span 2; position: relative; background: var(--night); color: #f5f7ef; padding: clamp(24px, 3vw, 38px); isolation: isolate; }
+.solar-orbit { position: absolute; z-index: -1; top: -125px; right: -90px; width: 360px; height: 360px; border: 1px solid rgba(223,255,85,.12); border-radius: 50%; }
+.solar-orbit::before, .solar-orbit::after { content: ""; position: absolute; border-radius: 50%; border: 1px solid rgba(223,255,85,.09); inset: 45px; }
+.solar-orbit::after { inset: 92px; background: radial-gradient(circle, rgba(223,255,85,.48) 0, rgba(223,255,85,.14) 24%, transparent 65%); border-color: rgba(223,255,85,.26); box-shadow: 0 0 80px rgba(223,255,85,.08); }
+.solar-orbit i { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--solar); box-shadow: 0 0 12px var(--solar); }
+.solar-orbit i:nth-child(1) { left: 30px; top: 210px; }
+.solar-orbit i:nth-child(2) { right: 69px; bottom: 30px; }
+.solar-orbit i:nth-child(3) { left: 80px; top: 32px; }
+.system-status { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600; }
+.dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot--online { background: var(--solar); box-shadow: 0 0 0 4px rgba(223,255,85,.13); }
+.dot--warning { background: #ffc25d; }.dot--offline { background: #88908c; }
+.refresh-button { border: 1px solid rgba(255,255,255,.18); color: #dbe0db; background: rgba(255,255,255,.05); border-radius: 999px; padding: 9px 13px; cursor: pointer; font-size: 11px; }
+.refresh-button:disabled { cursor: wait; }
+.solar-main { display: grid; grid-template-columns: 1fr .72fr; align-items: end; gap: 30px; padding: clamp(44px, 7vw, 84px) 0 34px; }
+.power-reading__value { font-family: "DM Mono", monospace; font-size: clamp(68px, 8.5vw, 128px); line-height: .8; letter-spacing: -.09em; color: var(--solar); }
+.power-reading__unit { color: var(--solar); font-family: "DM Mono", monospace; margin-left: 13px; font-size: 18px; }
+.power-reading p { margin: 17px 0 0; color: #9da7a1; font-size: 12px; }
+.energy-flow { border-left: 1px solid rgba(255,255,255,.12); padding-left: 25px; display: grid; gap: 18px; }
+.energy-flow div { display: grid; gap: 3px; }.energy-flow span { color: #94a09a; font-size: 11px; }.energy-flow strong { font-family: "DM Mono", monospace; font-size: 17px; font-weight: 500; }
+.solar-chart-wrap, .climate-chart-wrap { border-top: 1px solid rgba(255,255,255,.1); padding-top: 24px; }
+.section-title { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 10px; font-size: 11px; color: #8f9993; }
+.section-title strong { color: inherit; font-weight: 600; }
+.chart { height: 180px; color: var(--solar); position: relative; }
+.chart svg { position: absolute; inset: 0 0 24px; width: 100%; height: calc(100% - 24px); overflow: visible; }
+.chart__line { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chart__area { color: inherit; }
+.chart__labels { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; color: #728079; font-family: "DM Mono", monospace; font-size: 8px; }
+.solar-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(255,255,255,.1); margin: 20px calc(clamp(24px, 3vw, 38px) * -1) calc(clamp(24px, 3vw, 38px) * -1); }
+.solar-stats > div { background: #16231f; padding: 23px clamp(20px, 2.5vw, 34px); display: grid; gap: 8px; }
+.solar-stats span { color: #89948e; font-size: 10px; }.solar-stats strong { font-family: "DM Mono", monospace; font-size: 20px; font-weight: 500; }.solar-stats small { color: #8d9892; font-size: 9px; }
+
+.climate-card { padding: 28px; }
+.comfort-badge { border-radius: 999px; padding: 8px 11px; background: #e5efd9; color: #55753c; font-size: 10px; font-weight: 700; }
+.comfort-badge--alert { background: #fff0d8; color: #93611c; }
+.climate-reading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 30px 0 25px; }
+.temperature { display: flex; align-items: flex-start; }
+.temperature strong { font-family: "DM Mono", monospace; font-size: clamp(52px, 5vw, 72px); letter-spacing: -.08em; font-weight: 500; }.temperature span { font-size: 13px; margin: 8px 0 0 8px; color: var(--muted); }
+.humidity-gauge { --humidity: 180deg; width: 94px; height: 94px; padding: 8px; border-radius: 50%; background: conic-gradient(var(--climate) var(--humidity), #e7e5dc 0); position: relative; }
+.humidity-gauge::before { content: ""; position: absolute; inset: 8px; background: var(--paper); border-radius: 50%; }
+.humidity-gauge > div { position: relative; height: 100%; display: grid; place-content: center; text-align: center; }.humidity-gauge strong { font-family: "DM Mono", monospace; font-size: 18px; }.humidity-gauge span { color: var(--muted); font-size: 9px; }
+.climate-chart-wrap { border-color: #e1e1d8; }.chart--climate { height: 135px; color: var(--climate); }.climate-chart-wrap .section-title { color: #737b77; }
+.device-list { margin: 18px -28px -28px; border-top: 1px solid #e1e1d8; }
+.device-row { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 12px; padding: 15px 28px; border-bottom: 1px solid #e8e7df; }
+.device-row:last-child { border-bottom: 0; }.device-row > div { display: grid; gap: 3px; }.device-row strong { font-size: 12px; }.device-row span { color: #7a827d; font-size: 9px; }
+.device-row__values { text-align: right; }.device-row__values strong { font-family: "DM Mono", monospace; font-size: 14px; }
+.device-icon { width: 34px; height: 34px; display: block; position: relative; border: 1px solid #d9d9d0; border-radius: 11px; background: #f4f3ed; }.device-icon i:first-child { position: absolute; width: 5px; height: 14px; border-radius: 5px; background: var(--climate); top: 8px; left: 10px; }.device-icon i:first-child::after { content: ""; position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--climate); left: -2px; bottom: -4px; }.device-icon i:last-child { position: absolute; width: 7px; height: 10px; border: 1px solid #7f8f88; border-radius: 50% 50% 55% 55%; transform: rotate(45deg); right: 7px; bottom: 8px; }
+
+.insight-card { padding: 24px 28px; display: grid; grid-template-columns: 46px 1fr; gap: 16px 18px; }
+.insight-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--solar); display: grid; place-items: center; font-size: 20px; }
+.insight-card h2 { font-size: 16px; line-height: 1.4; letter-spacing: -.02em; margin: 0; max-width: 390px; }
+.progress-block { grid-column: 2; display: grid; gap: 7px; }.progress-block > div { display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; }.progress-block strong { color: var(--ink); font-family: "DM Mono", monospace; }
+.progress-track { height: 6px; overflow: hidden; background: #e1e2d9; border-radius: 99px; }.progress-track i { display: block; height: 100%; border-radius: inherit; background: var(--solar-deep); }
+
+footer { display: flex; justify-content: space-between; padding: 22px 4px 0; color: #7b847f; font-size: 10px; }
+footer button { border: 0; background: none; cursor: pointer; font-weight: 700; }
+
+.modal-backdrop { position: fixed; z-index: 20; inset: 0; background: rgba(7,14,12,.58); backdrop-filter: blur(5px); display: grid; justify-items: end; }
+.settings { width: min(460px, 100%); height: 100%; background: #f7f6f0; padding: 50px clamp(24px, 5vw, 44px); box-shadow: -20px 0 70px rgba(0,0,0,.2); position: relative; animation: slide-in .25s ease-out; }
+@keyframes slide-in { from { transform: translateX(40px); opacity: .5; } }
+.settings__close { position: absolute; top: 20px; right: 20px; font-size: 22px; font-weight: 400; }
+.settings h2 { font-size: 32px; letter-spacing: -.055em; margin: 0 0 14px; }.settings__intro { color: var(--muted); font-size: 13px; line-height: 1.6; margin-bottom: 28px; }
+.switch-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); cursor: pointer; }.switch-row span { display: grid; gap: 3px; }.switch-row strong { font-size: 13px; }.switch-row small { color: var(--muted); font-size: 10px; }
+.switch-row input { appearance: none; width: 42px; height: 24px; flex: 0 0 auto; padding: 3px; border-radius: 99px; background: #cfd2ca; cursor: pointer; transition: .2s; }.switch-row input::before { content: ""; display: block; width: 18px; height: 18px; border-radius: 50%; background: white; transition: .2s; }.switch-row input:checked { background: var(--solar-deep); }.switch-row input:checked::before { transform: translateX(18px); }
+.field { display: grid; gap: 8px; margin: 21px 0; }.field span { font-size: 11px; font-weight: 700; }.field input, .field select { width: 100%; border: 1px solid #cdd0c7; border-radius: 12px; background: white; padding: 13px 14px; color: var(--ink); font-size: 12px; }
+.primary-button { border: 0; width: 100%; background: var(--night); color: white; padding: 14px 18px; border-radius: 12px; cursor: pointer; font-weight: 700; margin-top: 7px; }.primary-button:hover { background: #24332f; }
+
+@media (max-width: 980px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .solar-card { grid-row: auto; }
+  .insight-card { order: 3; }
+}
+
+@media (max-width: 640px) {
+  .topbar { height: 68px; }.status-pill { display: none; }
+  main { padding-top: 35px; }
+  .intro { display: grid; }.intro h1 { font-size: 46px; }.range-tabs { justify-self: start; }
+  .solar-card { border-radius: 19px; }.solar-main { grid-template-columns: 1fr; padding-top: 55px; }.power-reading__value { font-size: 74px; }.energy-flow { grid-template-columns: 1fr 1fr; border-left: 0; border-top: 1px solid rgba(255,255,255,.12); padding: 18px 0 0; }
+  .solar-stats { grid-template-columns: 1fr 1fr; }.solar-stats > div:last-child { grid-column: 1 / -1; }
+  .climate-card { padding: 22px; }.device-list { margin-left: -22px; margin-right: -22px; margin-bottom: -22px; }.device-row { padding-left: 22px; padding-right: 22px; }
+  footer { display: grid; gap: 8px; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
