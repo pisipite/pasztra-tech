@@ -7,7 +7,7 @@ if [[ -n "${SUNGROW_USER:-}" && -n "${SUNGROW_PASSWORD:-}" && -n "${SUNGROW_PS_I
   archive="$tool_dir/gosungrow.tar.gz"
   gosungrow_bin="$(find "$tool_dir" -type f -name GoSungrow -print -quit)"
   if [[ -z "$gosungrow_bin" ]] \
-    && curl -fsSL "https://github.com/MickMake/GoSungrow/releases/download/v3.0.7/GoSungrow-linux_amd64.tar.gz" -o "$archive" \
+    && curl -fsSL "https://github.com/triamazikamno/GoSungrow/releases/download/v3.0.7/GoSungrow-linux_amd64.tar.gz" -o "$archive" \
     && tar -xzf "$archive" -C "$tool_dir"; then
     gosungrow_bin="$(find "$tool_dir" -type f -name GoSungrow -print -quit)"
   elif [[ -z "$gosungrow_bin" ]]; then

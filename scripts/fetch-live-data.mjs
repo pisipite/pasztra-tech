@@ -101,6 +101,7 @@ async function sungrowJson(endpoint, args) {
     ...process.env,
     GOSUNGROW_QUIET: "true",
     GOSUNGROW_HOST: process.env.SUNGROW_HOST || "https://gateway.isolarcloud.eu",
+    GOSUNGROW_APPKEY: process.env.SUNGROW_APPKEY || "B0455FBE7AA0328DB57B59AA729F05D8",
     GOSUNGROW_USER: process.env.SUNGROW_USER,
     GOSUNGROW_PASSWORD: process.env.SUNGROW_PASSWORD,
   };
