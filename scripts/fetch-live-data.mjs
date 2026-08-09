@@ -70,6 +70,12 @@ function numberList(value) {
   return Array.isArray(value) ? value.map((item) => numberValue(item, Number.NaN)).filter(Number.isFinite) : [];
 }
 
+function powerKwList(value) {
+  const values = numberList(value);
+  const maximum = Math.max(0, ...values.map(Math.abs));
+  return maximum > 100 ? values.map((item) => item / 1000) : values;
+}
+
 function currentValue(values) {
   if (!values.length) return 0;
   const minute = now.getHours() * 60 + now.getMinutes();
@@ -142,8 +148,8 @@ async function getSungrow() {
     sungrowJson("WebAppService.showPSView", [`PsId:${psId}`]),
   ]);
 
-  const production = numberList(deepFind(day, ["p83033List"]));
-  const load = numberList(deepFind(day, ["p83106List"]));
+  const production = powerKwList(deepFind(day, ["p83033List"]));
+  const load = powerKwList(deepFind(day, ["p83106List"]));
   const dailyEnergy = numberList(deepFind(month, ["p83022List"]));
   const currentPowerKw = currentValue(production);
   const houseLoadKw = currentValue(load);
