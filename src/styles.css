@@ -48,11 +48,53 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .eyebrow { margin: 0 0 10px; color: #6b746f; text-transform: uppercase; letter-spacing: .15em; font-size: 10px; font-weight: 700; }
 .eyebrow--light { color: #aab4ae; }
 .intro h1 { margin: 0; font-size: clamp(38px, 5vw, 72px); line-height: .98; letter-spacing: -.065em; font-weight: 600; }
+.intro__aside { max-width: 330px; margin: 0 0 7px; color: var(--muted); font-size: 13px; line-height: 1.6; text-align: right; }
 .range-tabs { display: flex; padding: 4px; border: 1px solid #d3d5cc; border-radius: 999px; background: rgba(255,255,255,.45); }
 .range-tabs button { border: 0; background: transparent; border-radius: 999px; padding: 10px 17px; color: #707873; cursor: pointer; font-size: 12px; font-weight: 700; }
 .range-tabs button.active { color: white; background: var(--night); }
 
 .notice { margin-bottom: 16px; background: #fff4de; color: #7e5412; padding: 13px 16px; border: 1px solid #edd5a8; border-radius: 12px; font-size: 13px; }
+.energy-analysis { margin-bottom: 18px; padding: clamp(22px, 3vw, 34px); overflow: visible; }
+.analysis-toolbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.analysis-toolbar h2 { margin: 0; font-size: clamp(24px, 3vw, 34px); letter-spacing: -.045em; }
+.period-tabs { display: flex; flex-wrap: wrap; justify-content: flex-end; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: #f1f0e9; }
+.period-tabs button { border: 0; border-radius: 10px; background: transparent; padding: 10px 15px; color: #727a76; cursor: pointer; font-size: 11px; font-weight: 700; }
+.period-tabs button:hover { color: var(--ink); }
+.period-tabs button.active { color: white; background: var(--night); box-shadow: 0 5px 14px rgba(17,27,24,.16); }
+.analysis-controls { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 24px 0 17px; }
+.period-stepper { display: grid; grid-template-columns: 38px minmax(220px, auto) 38px; align-items: center; border: 1px solid var(--line); border-radius: 13px; overflow: hidden; background: white; }
+.period-stepper button { width: 38px; height: 38px; border: 0; background: transparent; cursor: pointer; color: #5f6964; }
+.period-stepper button:hover:not(:disabled) { background: #eeeee7; }
+.period-stepper button:disabled { opacity: .3; cursor: not-allowed; }
+.period-stepper strong { padding: 0 14px; text-align: center; font-size: 11px; font-weight: 700; }
+.overlay-toggles { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.overlay-toggles button { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; background: white; padding: 9px 12px; color: #717a75; cursor: pointer; font-size: 10px; font-weight: 700; }
+.overlay-toggles button i { width: 7px; height: 7px; border-radius: 50%; background: #aeb5b1; }
+.overlay-toggles button.active { color: var(--ink); border-color: #adb3aa; box-shadow: 0 4px 12px rgba(20,32,29,.07); }
+.overlay-toggles button.temperature i { background: #f36f45; box-shadow: 0 0 0 3px rgba(243,111,69,.13); }
+.overlay-toggles button.humidity i { background: #6d58d9; box-shadow: 0 0 0 3px rgba(109,88,217,.13); }
+.custom-range { display: flex; align-items: end; gap: 12px; padding: 0 0 18px; }
+.custom-range label { display: grid; gap: 6px; }
+.custom-range label span { color: var(--muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; }
+.custom-range input { min-height: 38px; border: 1px solid var(--line); border-radius: 10px; background: white; padding: 8px 11px; color: var(--ink); font-size: 11px; }
+.custom-range > span { padding-bottom: 10px; color: #8b938f; }
+.chart-legend { display: flex; flex-wrap: wrap; gap: 10px 20px; min-height: 27px; padding: 10px 0 4px; border-top: 1px solid #e3e3da; color: #626b67; font-size: 9px; font-weight: 700; }
+.chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.chart-legend i { width: 18px; height: 3px; border-radius: 4px; }
+.energy-chart { position: relative; min-height: 330px; }
+.energy-chart svg { display: block; width: 100%; height: auto; min-height: 290px; overflow: visible; }
+.energy-gridline { stroke: #dde0d8; stroke-width: 1; stroke-dasharray: 2 4; }
+.energy-zero { stroke: #9fa7a2; stroke-width: 1.2; }
+.energy-axis-label, .energy-x-label, .energy-axis-title { fill: #7a837e; font-family: "DM Mono", monospace; font-size: 9px; }
+.energy-axis-title { font-family: "Manrope", sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.chart-hit { fill: transparent; cursor: crosshair; }
+.hover-line { stroke: #66706b; stroke-width: 1; stroke-dasharray: 3 4; pointer-events: none; }
+.chart-tooltip { position: absolute; z-index: 3; right: 14px; top: 14px; width: 190px; display: grid; gap: 6px; padding: 13px 14px; border: 1px solid rgba(20,32,29,.12); border-radius: 12px; background: rgba(251,250,245,.94); box-shadow: 0 14px 35px rgba(20,32,29,.13); backdrop-filter: blur(8px); pointer-events: none; }
+.chart-tooltip strong { margin-bottom: 3px; font-size: 11px; }
+.chart-tooltip span { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 9px; }
+.chart-tooltip b { color: var(--ink); font-family: "DM Mono", monospace; font-weight: 500; }
+.chart-empty { min-height: 290px; display: grid; place-content: center; gap: 6px; text-align: center; }
+.chart-empty strong { font-size: 14px; }.chart-empty span { color: var(--muted); font-size: 11px; }
 .dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, .8fr); gap: 18px; align-items: start; transition: opacity .2s ease; }
 .dashboard-grid.is-loading { opacity: .72; }
 .card { background: var(--paper); border: 1px solid rgba(20,32,29,.1); border-radius: 24px; overflow: hidden; box-shadow: 0 18px 50px rgba(38,49,45,.055); }
@@ -135,7 +177,16 @@ footer button { border: 0; background: none; cursor: pointer; font-weight: 700; 
 @media (max-width: 640px) {
   .topbar { height: 68px; }.status-pill { display: none; }
   main { padding-top: 35px; }
-  .intro { display: grid; }.intro h1 { font-size: 46px; }.range-tabs { justify-self: start; }
+  .intro { display: grid; }.intro h1 { font-size: 46px; }.intro__aside { text-align: left; }.range-tabs { justify-self: start; }
+  .analysis-toolbar, .analysis-controls { display: grid; }
+  .period-tabs { justify-content: stretch; display: grid; grid-template-columns: repeat(5, 1fr); width: 100%; }
+  .period-tabs button { padding: 10px 6px; }
+  .period-stepper { grid-template-columns: 38px minmax(0, 1fr) 38px; width: 100%; }
+  .overlay-toggles { justify-content: flex-start; }
+  .energy-analysis { margin-left: -10px; margin-right: -10px; padding: 20px 14px; border-radius: 18px; }
+  .energy-chart { overflow-x: auto; }
+  .energy-chart svg { width: 760px; max-width: none; }
+  .chart-tooltip { position: sticky; left: 12px; right: auto; }
   .solar-card { border-radius: 19px; }.solar-main { grid-template-columns: 1fr; padding-top: 55px; }.power-reading__value { font-size: 74px; }.energy-flow { grid-template-columns: 1fr 1fr; border-left: 0; border-top: 1px solid rgba(255,255,255,.12); padding: 18px 0 0; }
   .solar-stats { grid-template-columns: 1fr 1fr; }.solar-stats > div:last-child { grid-column: 1 / -1; }
   .climate-card { padding: 22px; }.device-list { margin-left: -22px; margin-right: -22px; margin-bottom: -22px; }.device-row { padding-left: 22px; padding-right: 22px; }
