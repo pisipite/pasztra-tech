@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-if [[ -n "${SUNGROW_USER:-}" && -n "${SUNGROW_PASSWORD:-}" && -n "${SUNGROW_PS_ID:-}" ]]; then
+if [[ -n "${SUNGROW_USER:-}" && -n "${SUNGROW_PASSWORD:-}" ]]; then
   tool_dir="${HOME}/gosungrow"
   mkdir -p "$tool_dir"
   archive="$tool_dir/gosungrow.tar.gz"
