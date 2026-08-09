@@ -112,7 +112,8 @@ function App() {
       const endpoint = currentSettings.endpoint.replace("{range}", currentRange);
       const url = new URL(endpoint, window.location.href);
       url.searchParams.set("range", currentRange);
-      const response = await fetch(url);
+      url.searchParams.set("updated", String(Date.now()));
+      const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       setData(await response.json() as DashboardData);
       setError("");
