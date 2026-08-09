@@ -94,10 +94,8 @@ function parseJsonOutput(stdout) {
   return JSON.parse(text.slice(first, last + 1));
 }
 
-async function sungrowJson(endpoint, args) {
-  const bin = process.env.GOSUNGROW_BIN;
-  if (!bin) throw new Error("A GoSungrow bináris nem érhető el.");
-  const env = {
+function sungrowEnvironment() {
+  return {
     ...process.env,
     GOSUNGROW_QUIET: "true",
     GOSUNGROW_HOST: process.env.SUNGROW_HOST || "https://gateway.isolarcloud.eu",
@@ -105,13 +103,39 @@ async function sungrowJson(endpoint, args) {
     GOSUNGROW_USER: process.env.SUNGROW_USER,
     GOSUNGROW_PASSWORD: process.env.SUNGROW_PASSWORD,
   };
+}
+
+async function sungrowJson(endpoint, args) {
+  const bin = process.env.GOSUNGROW_BIN;
+  if (!bin) throw new Error("A GoSungrow bináris nem érhető el.");
+  const env = sungrowEnvironment();
   const { stdout } = await execFileAsync(bin, ["data", "json", endpoint, ...args], { env, maxBuffer: 20 * 1024 * 1024, timeout: 120_000 });
   return parseJsonOutput(stdout);
 }
 
+async function resolveSungrowPsId() {
+  const configured = String(process.env.SUNGROW_PS_ID || "").trim();
+  if (/^\d+$/.test(configured)) return configured;
+
+  const bin = process.env.GOSUNGROW_BIN;
+  if (!bin) throw new Error("A GoSungrow bináris nem érhető el.");
+  const { stdout } = await execFileAsync(bin, ["show", "ps", "tree"], {
+    env: sungrowEnvironment(),
+    maxBuffer: 20 * 1024 * 1024,
+    timeout: 120_000,
+  });
+  const ids = [...new Set([...stdout.matchAll(/PsId:(\d+)/g)].map((match) => match[1]))];
+  if (ids.length === 1) {
+    console.log(`Sungrow erőmű automatikusan kiválasztva: ${ids[0]}.`);
+    return ids[0];
+  }
+  if (ids.length > 1) throw new Error(`Több Sungrow erőmű található (${ids.join(", ")}); add meg a megfelelő numerikus SUNGROW_PS_ID-t.`);
+  throw new Error("Nem található Sungrow erőmű az iSolarCloud-fiókban.");
+}
+
 async function getSungrow() {
-  if (!process.env.SUNGROW_USER || !process.env.SUNGROW_PASSWORD || !process.env.SUNGROW_PS_ID) return null;
-  const psId = process.env.SUNGROW_PS_ID;
+  if (!process.env.SUNGROW_USER || !process.env.SUNGROW_PASSWORD) return null;
+  const psId = await resolveSungrowPsId();
   const [day, month, overview] = await Promise.all([
     sungrowJson("AppService.getPowerStationData", [`DateId:${dayId}`, "DateType:1", `PsId:${psId}`]),
     sungrowJson("AppService.getPowerStationData", [`DateId:${monthId}`, "DateType:2", `PsId:${psId}`]),
