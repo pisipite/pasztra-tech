@@ -32,7 +32,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/gosungrow
-          key: gosungrow-v3.0.7-linux-amd64
+          key: gosungrow-encryption-v3.0.7-linux-amd64
       - name: Friss Sungrow és Govee adatok
         env:
           TZ: Europe/Budapest
@@ -40,6 +40,7 @@ jobs:
           SUNGROW_PASSWORD: ${{ secrets.SUNGROW_PASSWORD }}
           SUNGROW_PS_ID: ${{ vars.SUNGROW_PS_ID }}
           SUNGROW_HOST: ${{ vars.SUNGROW_HOST }}
+          SUNGROW_APPKEY: ${{ vars.SUNGROW_APPKEY }}
           GOVEE_API_KEY: ${{ secrets.GOVEE_API_KEY }}
           GOVEE_DEVICE_ID: ${{ vars.GOVEE_DEVICE_ID }}
           GOVEE_DEVICE_SKU: ${{ vars.GOVEE_DEVICE_SKU }}
