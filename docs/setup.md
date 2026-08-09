@@ -24,7 +24,7 @@ Az **Actions → Variables** részen add meg:
 
 | Név | Kötelező | Érték |
 | --- | --- | --- |
-| `SUNGROW_PS_ID` | igen | Az iSolarCloud erőmű azonosítója |
+| `SUNGROW_PS_ID` | nem | Numerikus iSolarCloud erőmű-azonosító; egyetlen erőműnél automatikusan felismeri |
 | `SUNGROW_HOST` | ajánlott | Magyarországról: `https://gateway.isolarcloud.eu` |
 | `SUNGROW_APPKEY` | nem | iSolarCloud klienskulcs; ha üres, a jelenlegi közösségi kulcsot használja |
 | `GOVEE_DEVICE_ID` | nem | A Govee eszköz azonosítója; ha üres, az első hőmérőt választja |
