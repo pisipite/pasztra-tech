@@ -10,13 +10,16 @@ const now = new Date();
 const pad = (value) => String(value).padStart(2, "0");
 const dayId = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
 const monthId = dayId.slice(0, 6);
+const yearId = dayId.slice(0, 4);
 
 function demoDashboard(range) {
   const chart = range === "today"
     ? [0, 0.2, 1.1, 2.6, 4.1, 5.2, 5.8, 5.5, 4.7, 3.3, 1.8, 0.5, 0].map((value, index) => ({ label: String(index + 6), value }))
     : range === "7d"
       ? [24.1, 28.7, 19.4, 31.2, 30.4, 26.8, 29.6].map((value, index) => ({ label: String(index + 1), value }))
-      : [26.2, 22.4, 30.8, 27.1, 18.9, 29.7, 31.4, 25.8].map((value, index) => ({ label: String(index * 4 + 1), value }));
+      : range === "30d"
+        ? [26.2, 22.4, 30.8, 27.1, 18.9, 29.7, 31.4, 25.8].map((value, index) => ({ label: String(index * 4 + 1), value }))
+        : [183, 215, 342, 428, 516, 588, 632, 410, 322, 241, 126, 71].map((value, index) => ({ label: String(index + 1), value }));
   return {
     source: "demo",
     updatedAt: now.toISOString(),
@@ -147,10 +150,15 @@ async function getSungrow() {
     sungrowJson("AppService.getPowerStationData", [`DateId:${monthId}`, "DateType:2", `PsId:${psId}`]),
     sungrowJson("WebAppService.showPSView", [`PsId:${psId}`]),
   ]);
+  const year = await sungrowJson("AppService.getPowerStationData", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]).catch((error) => {
+    console.error(`Sungrow éves összesítés nem érhető el: ${error.message}`);
+    return null;
+  });
 
   const production = powerKwList(deepFind(day, ["p83033List"]));
   const load = powerKwList(deepFind(day, ["p83106List"]));
   const dailyEnergy = numberList(deepFind(month, ["p83022List"]));
+  const monthlyEnergy = year ? numberList(deepFind(year, ["p83022List"])) : [];
   const currentPowerKw = currentValue(production);
   const houseLoadKw = currentValue(load);
   const todayKwh = numberValue(deepFind(day, ["dayPowerQuantityTotal", "p83022"]), dailyEnergy.at(-1) ?? 0);
@@ -159,11 +167,21 @@ async function getSungrow() {
   const selfConsumptionPct = currentPowerKw > 0 ? Math.round((usedDirectly / currentPowerKw) * 100) : 0;
   const co2Factor = numberValue(process.env.CO2_KG_PER_KWH, 0.233);
 
-  const todayChart = production.map((value, index) => ({
-    label: pad(Math.floor((index / Math.max(production.length - 1, 1)) * 24)),
-    value,
-  }));
-  const monthChart = dailyEnergy.map((value, index) => ({ label: String(index + 1), value }));
+  const todayChart = production.map((value, index) => {
+    const minute = Math.floor((index / Math.max(production.length - 1, 1)) * 1439);
+    return { label: `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`, value };
+  });
+  const monthChart = dailyEnergy.map((value, index) => ({ label: `${index + 1}.`, value }));
+  const yearChart = monthlyEnergy.map((value, index) => ({ label: ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][index] ?? String(index + 1), value }));
+  const todayEnergy = todayChart.map((point, index) => {
+    const timestamp = new Date(now);
+    const minute = Math.floor((index / Math.max(todayChart.length - 1, 1)) * 1439);
+    timestamp.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+    const loadValue = load[index] ?? 0;
+    return { label: point.label, timestamp: timestamp.toISOString(), pv: point.value, load: loadValue, grid: loadValue - point.value };
+  });
+  const monthEnergy = monthChart.map((point, index) => ({ label: point.label, timestamp: new Date(now.getFullYear(), now.getMonth(), index + 1, 12).toISOString(), pv: point.value }));
+  const yearEnergy = yearChart.map((point, index) => ({ label: point.label, timestamp: new Date(now.getFullYear(), index, 1, 12).toISOString(), pv: point.value }));
 
   return {
     metrics: {
@@ -181,6 +199,13 @@ async function getSungrow() {
       today: todayChart.length ? todayChart : [{ label: pad(now.getHours()), value: currentPowerKw }],
       "7d": monthChart.slice(-7),
       "30d": monthChart.slice(-30),
+      year: yearChart,
+    },
+    energyCharts: {
+      today: todayEnergy,
+      "7d": monthEnergy.slice(-7),
+      "30d": monthEnergy.slice(-30),
+      year: yearEnergy,
     },
   };
 }
@@ -240,11 +265,11 @@ if (!sungrow && !govee) {
 }
 
 await mkdir(outputDir, { recursive: true });
-for (const range of ["today", "7d", "30d"]) {
+for (const range of ["today", "7d", "30d", "year"]) {
   const dashboard = demoDashboard(range);
   dashboard.source = sungrow && govee ? "live" : "partial";
   dashboard.updatedAt = now.toISOString();
-  if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range] };
+  if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] };
   if (govee) dashboard.govee = govee;
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
 }
