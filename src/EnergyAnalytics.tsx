@@ -84,13 +84,59 @@ function formatValue(value: number, unit: string) {
   return `${value.toLocaleString("hu-HU", { maximumFractionDigits: 2 })} ${unit}`;
 }
 
+function climateBucketKey(timestamp: string, period: PeriodKey) {
+  const time = new Date(timestamp);
+  const year = time.getFullYear();
+  const month = String(time.getMonth() + 1).padStart(2, "0");
+  if (period === "year") return `${year}-${month}`;
+  return `${year}-${month}-${String(time.getDate()).padStart(2, "0")}`;
+}
+
+function averageClimateByPeriod(climate: DashboardData["govee"]["chart"], period: PeriodKey) {
+  if (period === "day" || !climate.every((point) => point.timestamp)) return climate;
+
+  const grouped = new Map<string, {
+    first: DashboardData["govee"]["chart"][number];
+    temperatureTotal: number;
+    temperatureCount: number;
+    humidityTotal: number;
+    humidityCount: number;
+  }>();
+
+  for (const point of climate) {
+    const key = climateBucketKey(point.timestamp!, period);
+    const group = grouped.get(key) ?? {
+      first: point,
+      temperatureTotal: 0,
+      temperatureCount: 0,
+      humidityTotal: 0,
+      humidityCount: 0,
+    };
+    if (Number.isFinite(point.temperature)) {
+      group.temperatureTotal += point.temperature;
+      group.temperatureCount += 1;
+    }
+    if (Number.isFinite(point.humidity)) {
+      group.humidityTotal += point.humidity;
+      group.humidityCount += 1;
+    }
+    grouped.set(key, group);
+  }
+
+  return [...grouped.values()].map((group) => ({
+    ...group.first,
+    temperature: group.temperatureCount ? group.temperatureTotal / group.temperatureCount : group.first.temperature,
+    humidity: group.humidityCount ? group.humidityTotal / group.humidityCount : group.first.humidity,
+  }));
+}
+
 export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, onPeriodChange, onStep, onCustomChange }: Props) {
   const [temperatureVisible, setTemperatureVisible] = useState(false);
   const [humidityVisible, setHumidityVisible] = useState(false);
   const [hovered, setHovered] = useState<number | null>(null);
 
   const rawPoints = useMemo<EnergyChartPoint[]>(() => {
-    const climate = data.govee.chart;
+    const climate = averageClimateByPeriod(data.govee.chart, period);
     const energy: EnergyChartPoint[] = data.solar.energyChart ?? data.solar.chart.map((point, index) => ({
       label: point.label,
       pv: point.value,
@@ -114,10 +160,8 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
             }
           });
         } else {
-          const key = period === "year"
-            ? climatePoint.timestamp.slice(0, 7)
-            : climatePoint.timestamp.slice(0, 10);
-          match = merged.findIndex((point) => point.timestamp?.startsWith(key));
+          const key = climateBucketKey(climatePoint.timestamp, period);
+          match = merged.findIndex((point) => point.timestamp && climateBucketKey(point.timestamp, period) === key);
         }
       }
       if (match < 0 && climate.length === merged.length) match = climate.indexOf(climatePoint);
@@ -150,6 +194,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   );
 
   const isLine = period === "day";
+  const climateIsAverage = period === "week" || period === "month" || period === "year";
   const unit = isLine ? "kW" : "kWh";
   const width = 1000;
   const height = 330;
@@ -229,8 +274,8 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
       <div className="chart-legend" aria-label="Jelmagyarázat">
         {lineSeries.map((series) => <span key={series.key}><i style={{ background: series.color }} />{series.label}</span>)}
         {points.some((point) => Number.isFinite(point.batterySoc)) && <span><i style={{ background: colors.batterySoc }} />Akkumulátor töltöttség</span>}
-        {temperatureVisible && <span><i style={{ background: colors.temperature }} />Hőmérséklet</span>}
-        {humidityVisible && <span><i style={{ background: colors.humidity }} />Páratartalom</span>}
+        {temperatureVisible && <span><i style={{ background: colors.temperature }} />Hőmérséklet{climateIsAverage ? " (átlag)" : ""}</span>}
+        {humidityVisible && <span><i style={{ background: colors.humidity }} />Páratartalom{climateIsAverage ? " (átlag)" : ""}</span>}
       </div>
 
       <div className="energy-chart" onMouseLeave={() => setHovered(null)}>
@@ -276,7 +321,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               ))}
               {hovered !== null && <line className="hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={margin.top + plotHeight} />}
             </svg>
-            {active && <div className="chart-tooltip"><strong>{active.label}</strong>{Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>Hőmérséklet <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>Páratartalom <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
+            {active && <div className="chart-tooltip"><strong>{active.label}</strong>{Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>{climateIsAverage ? "Átlaghőmérséklet" : "Hőmérséklet"} <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>{climateIsAverage ? "Átlagos páratartalom" : "Páratartalom"} <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
           </>
         ) : <div className="chart-empty"><strong>Nincs adat ebben az időszakban</strong><span>Válassz másik dátumot, vagy várd meg a következő adatfrissítést.</span></div>}
       </div>
