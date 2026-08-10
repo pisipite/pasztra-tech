@@ -91,21 +91,58 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
 
   const rawPoints = useMemo<EnergyChartPoint[]>(() => {
     const climate = data.govee.chart;
-    const energy = data.solar.energyChart ?? data.solar.chart.map((point, index) => ({
+    const energy: EnergyChartPoint[] = data.solar.energyChart ?? data.solar.chart.map((point, index) => ({
       label: point.label,
       pv: point.value,
       temperature: climate[index]?.temperature,
       humidity: climate[index]?.humidity,
     }));
-    return energy.map((point, index) => {
-      const climatePoint = climate.length === energy.length ? climate[index] : index === energy.length - 1 ? climate.at(-1) : undefined;
-      return {
-        ...point,
-        temperature: point.temperature ?? climatePoint?.temperature,
-        humidity: point.humidity ?? climatePoint?.humidity,
-      };
+    const merged = energy.map((point) => ({ ...point }));
+
+    for (const climatePoint of climate) {
+      let match = -1;
+      if (climatePoint.timestamp) {
+        const climateTime = new Date(climatePoint.timestamp).getTime();
+        if (period === "day") {
+          let smallestDistance = 11 * 60_000;
+          merged.forEach((point, index) => {
+            if (!point.timestamp) return;
+            const distance = Math.abs(new Date(point.timestamp).getTime() - climateTime);
+            if (distance < smallestDistance) {
+              smallestDistance = distance;
+              match = index;
+            }
+          });
+        } else {
+          const key = period === "year"
+            ? climatePoint.timestamp.slice(0, 7)
+            : climatePoint.timestamp.slice(0, 10);
+          match = merged.findIndex((point) => point.timestamp?.startsWith(key));
+        }
+      }
+      if (match < 0 && climate.length === merged.length) match = climate.indexOf(climatePoint);
+
+      if (match >= 0) {
+        merged[match] = {
+          ...merged[match],
+          temperature: climatePoint.temperature,
+          humidity: climatePoint.humidity,
+        };
+      } else {
+        merged.push({
+          label: climatePoint.label,
+          timestamp: climatePoint.timestamp,
+          temperature: climatePoint.temperature,
+          humidity: climatePoint.humidity,
+        });
+      }
+    }
+
+    return merged.sort((a, b) => {
+      if (!a.timestamp || !b.timestamp) return 0;
+      return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
     });
-  }, [data]);
+  }, [data, period]);
 
   const points = useMemo(
     () => rawPoints.filter((point) => withinSelectedPeriod(point, period, anchor, customStart, customEnd)),
@@ -209,9 +246,9 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               {(temperatureVisible || humidityVisible) && <text className="energy-axis-title" x={width - margin.right} y={14} textAnchor="end">Klíma (°C / %)</text>}
 
               {isLine ? lineSeries.map((series) => {
-                const coords = points.map((point, index) => ({ x: x(index), y: y(Number(point[series.key] ?? 0)) }));
+                const coords = points.flatMap((point, index) => Number.isFinite(point[series.key]) ? [{ x: x(index), y: y(Number(point[series.key])) }] : []);
                 const path = smoothPath(coords);
-                return <g key={series.key}>{series.key === "pv" && <path d={`${path} L${coords.at(-1)?.x},${zeroY} L${coords[0]?.x},${zeroY} Z`} fill="url(#pv-area)" />}<path d={path} fill="none" stroke={series.color} strokeWidth="2.4" vectorEffect="non-scaling-stroke" /></g>;
+                return <g key={series.key}>{series.key === "pv" && coords.length > 1 && <path d={`${path} L${coords.at(-1)?.x},${zeroY} L${coords[0]?.x},${zeroY} Z`} fill="url(#pv-area)" />}<path d={path} fill="none" stroke={series.color} strokeWidth="2.4" vectorEffect="non-scaling-stroke" /></g>;
               }) : points.map((point, index) => {
                 const groupWidth = Math.min(54, plotWidth / Math.max(points.length, 1) * .7);
                 const available = lineSeries.filter((series) => Number.isFinite(point[series.key]));
@@ -229,7 +266,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               {temperatureVisible && temperatureCoords.map((point, index) => <circle key={`temperature-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.temperature} />)}
               {humidityVisible && humidityCoords.length > 1 && <path d={smoothPath(humidityCoords)} fill="none" stroke={colors.humidity} strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
               {humidityVisible && humidityCoords.map((point, index) => <circle key={`humidity-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.humidity} />)}
-              {points.some((point) => Number.isFinite(point.batterySoc)) && <path d={smoothPath(points.map((point, index) => ({ x: x(index), y: climateY(point.batterySoc ?? 0, "humidity") })))} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
+              {points.some((point) => Number.isFinite(point.batterySoc)) && <path d={smoothPath(points.flatMap((point, index) => Number.isFinite(point.batterySoc) ? [{ x: x(index), y: climateY(point.batterySoc!, "humidity") }] : []))} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
 
               {points.map((point, index) => (
                 <g key={`tick-${point.label}-${index}`}>
@@ -239,7 +276,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               ))}
               {hovered !== null && <line className="hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={margin.top + plotHeight} />}
             </svg>
-            {active && <div className="chart-tooltip"><strong>{active.label}</strong><span>PV <b>{formatValue(active.pv, unit)}</b></span>{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>Hőmérséklet <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>Páratartalom <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
+            {active && <div className="chart-tooltip"><strong>{active.label}</strong>{Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>Hőmérséklet <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>Páratartalom <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
           </>
         ) : <div className="chart-empty"><strong>Nincs adat ebben az időszakban</strong><span>Válassz másik dátumot, vagy várd meg a következő adatfrissítést.</span></div>}
       </div>

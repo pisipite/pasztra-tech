@@ -5,7 +5,29 @@ import { EnergyAnalytics } from "./EnergyAnalytics";
 import type { DashboardData, PeriodKey, RangeKey } from "./types";
 import "./styles.css";
 
-const periodRange: Record<PeriodKey, RangeKey> = { day: "today", week: "7d", month: "30d", year: "year", custom: "year" };
+const periodRange: Record<PeriodKey, RangeKey> = { day: "today", week: "7d", month: "30d", year: "year", custom: "30d" };
+
+function rangeForPeriod(period: PeriodKey, from?: string, to?: string): RangeKey {
+  if (period !== "custom" || !from || !to) return periodRange[period];
+  const days = Math.max(1, (new Date(`${to}T12:00:00`).getTime() - new Date(`${from}T12:00:00`).getTime()) / 86_400_000 + 1);
+  return days > 62 ? "year" : "30d";
+}
+
+function climatePointIsVisible(timestamp: string | undefined, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
+  if (!timestamp) return true;
+  const time = new Date(timestamp);
+  if (period === "day") return time.toDateString() === anchor.toDateString();
+  if (period === "month") return time.getFullYear() === anchor.getFullYear() && time.getMonth() === anchor.getMonth();
+  if (period === "year") return time.getFullYear() === anchor.getFullYear();
+  if (period === "custom") return time >= new Date(`${customStart}T00:00:00`) && time <= new Date(`${customEnd}T23:59:59`);
+  const start = new Date(anchor);
+  const weekday = start.getDay() || 7;
+  start.setDate(start.getDate() - weekday + 1);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  return time >= start && time < end;
+}
 
 type Settings = { live: boolean; endpoint: string; refreshSeconds: number };
 
@@ -102,7 +124,7 @@ function App() {
   const [error, setError] = useState("");
 
   const loadData = useCallback(async (currentPeriod: PeriodKey, currentSettings: Settings, currentAnchor: Date, from?: string, to?: string) => {
-    const currentRange = periodRange[currentPeriod];
+    const currentRange = rangeForPeriod(currentPeriod, from, to);
     if (!currentSettings.live || !currentSettings.endpoint) {
       setData(makeDemoData(currentRange));
       setError("");
@@ -141,7 +163,12 @@ function App() {
   }, [period, anchor, customStart, customEnd, settings, loadData]);
 
   const activeDevice = data.govee.devices[0];
-  const climateSeries = useMemo(() => data.govee.chart.map((point) => ({ label: point.label, value: point.temperature })), [data]);
+  const climateSeries = useMemo(
+    () => data.govee.chart
+      .filter((point) => climatePointIsVisible(point.timestamp, period, anchor, customStart, customEnd))
+      .map((point) => ({ label: point.label, value: point.temperature })),
+    [data, period, anchor, customStart, customEnd],
+  );
   const comfort = activeDevice.temperatureC >= 20 && activeDevice.temperatureC <= 25 && activeDevice.humidityPct >= 40 && activeDevice.humidityPct <= 60;
   const source = data.source ?? (!settings.live || !settings.endpoint ? "demo" : "live");
   const sourceLabel = source === "live" ? "Élő kapcsolat" : source === "partial" ? "Részleges élő adat" : "Bemutató adatok";

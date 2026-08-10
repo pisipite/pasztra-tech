@@ -1,16 +1,105 @@
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 const outputDir = resolve("public/data");
+const historyDir = resolve(".data-history");
+const historyFile = resolve(historyDir, "govee-history.json");
 const now = new Date();
 const pad = (value) => String(value).padStart(2, "0");
 const dayId = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
 const monthId = dayId.slice(0, 6);
 const yearId = dayId.slice(0, 4);
+const climateRetentionMs = 370 * 86_400_000;
+
+function localDateKey(value) {
+  const date = new Date(value);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function localMonthKey(value) {
+  return localDateKey(value).slice(0, 7);
+}
+
+function averageClimate(samples, keyType) {
+  const groups = new Map();
+  for (const sample of samples) {
+    const key = keyType === "month" ? localMonthKey(sample.timestamp) : localDateKey(sample.timestamp);
+    const group = groups.get(key) ?? { temperature: 0, humidity: 0, count: 0 };
+    group.temperature += sample.temperature;
+    group.humidity += sample.humidity;
+    group.count += 1;
+    groups.set(key, group);
+  }
+  return [...groups.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([key, group]) => {
+    const [year, month, day = "1"] = key.split("-").map(Number);
+    const timestamp = new Date(year, month - 1, day, 12).toISOString();
+    return {
+      label: keyType === "month"
+        ? new Intl.DateTimeFormat("hu-HU", { month: "short" }).format(new Date(timestamp))
+        : `${day}.${month}.`,
+      timestamp,
+      temperature: group.temperature / group.count,
+      humidity: group.humidity / group.count,
+    };
+  });
+}
+
+async function readClimateHistory() {
+  try {
+    return JSON.parse(await readFile(historyFile, "utf8"));
+  } catch { /* restore from the last published Pages deployment */ }
+
+  const historyUrl = process.env.CLIMATE_HISTORY_URL;
+  if (!historyUrl) return [];
+  try {
+    const response = await fetch(historyUrl, { headers: { Accept: "application/json" } });
+    if (!response.ok) return [];
+    return await response.json();
+  } catch {
+    return [];
+  }
+}
+
+async function updateClimateHistory(govee) {
+  const stored = await readClimateHistory();
+  const current = govee.devices[0];
+  const bucketTime = Math.floor(now.getTime() / 300_000) * 300_000;
+  const sample = {
+    timestamp: new Date(bucketTime).toISOString(),
+    temperature: current.temperatureC,
+    humidity: current.humidityPct,
+  };
+  const earliest = now.getTime() - climateRetentionMs;
+  const byTimestamp = new Map(
+    (Array.isArray(stored) ? stored : [])
+      .filter((item) => Number.isFinite(item?.temperature) && Number.isFinite(item?.humidity) && new Date(item?.timestamp).getTime() >= earliest)
+      .map((item) => [item.timestamp, item]),
+  );
+  byTimestamp.set(sample.timestamp, sample);
+  const history = [...byTimestamp.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  await Promise.all([mkdir(historyDir, { recursive: true }), mkdir(outputDir, { recursive: true })]);
+  const serialized = `${JSON.stringify(history, null, 2)}\n`;
+  await Promise.all([
+    writeFile(historyFile, serialized, "utf8"),
+    writeFile(resolve(outputDir, "govee-history.json"), serialized, "utf8"),
+  ]);
+
+  const todayKey = localDateKey(now);
+  return {
+    today: history.filter((item) => localDateKey(item.timestamp) === todayKey).map((item) => ({
+      label: new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" }).format(new Date(item.timestamp)),
+      ...item,
+    })),
+    "7d": averageClimate(history, "day"),
+    "30d": averageClimate(history, "day"),
+    year: averageClimate(history, "month"),
+  };
+}
 
 function demoDashboard(range) {
   const chart = range === "today"
@@ -265,12 +354,13 @@ if (!sungrow && !govee) {
 }
 
 await mkdir(outputDir, { recursive: true });
+const climateCharts = govee ? await updateClimateHistory(govee) : null;
 for (const range of ["today", "7d", "30d", "year"]) {
   const dashboard = demoDashboard(range);
   dashboard.source = sungrow && govee ? "live" : "partial";
   dashboard.updatedAt = now.toISOString();
   if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] };
-  if (govee) dashboard.govee = govee;
+  if (govee) dashboard.govee = { ...govee, chart: climateCharts[range] };
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
 }
 
