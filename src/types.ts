@@ -1,8 +1,21 @@
-export type RangeKey = "today" | "7d" | "30d";
+export type RangeKey = "today" | "7d" | "30d" | "year";
+export type PeriodKey = "day" | "week" | "month" | "year" | "custom";
 
 export interface ChartPoint {
   label: string;
   value: number;
+}
+
+export interface EnergyChartPoint {
+  label: string;
+  timestamp?: string;
+  pv: number;
+  grid?: number;
+  battery?: number;
+  load?: number;
+  batterySoc?: number;
+  temperature?: number;
+  humidity?: number;
 }
 
 export interface ClimatePoint {
@@ -22,6 +35,7 @@ export interface SolarData {
   houseLoadKw: number;
   gridPowerKw: number;
   chart: ChartPoint[];
+  energyChart?: EnergyChartPoint[];
 }
 
 export interface GoveeDevice {

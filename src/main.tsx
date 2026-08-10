@@ -1,14 +1,11 @@
 import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { makeDemoData } from "./demoData";
-import type { DashboardData, RangeKey } from "./types";
+import { EnergyAnalytics } from "./EnergyAnalytics";
+import type { DashboardData, PeriodKey, RangeKey } from "./types";
 import "./styles.css";
 
-const ranges: { key: RangeKey; label: string }[] = [
-  { key: "today", label: "Ma" },
-  { key: "7d", label: "7 nap" },
-  { key: "30d", label: "30 nap" },
-];
+const periodRange: Record<PeriodKey, RangeKey> = { day: "today", week: "7d", month: "30d", year: "year", custom: "year" };
 
 type Settings = { live: boolean; endpoint: string; refreshSeconds: number };
 
@@ -94,14 +91,18 @@ function SettingsPanel({ settings, onClose, onSave }: { settings: Settings; onCl
 }
 
 function App() {
-  const [range, setRange] = useState<RangeKey>("today");
+  const [period, setPeriod] = useState<PeriodKey>("day");
+  const [anchor, setAnchor] = useState(() => new Date());
+  const [customStart, setCustomStart] = useState(() => new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10));
+  const [customEnd, setCustomEnd] = useState(() => new Date().toISOString().slice(0, 10));
   const [settings, setSettings] = useState<Settings>(getInitialSettings);
   const [data, setData] = useState(() => makeDemoData("today"));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadData = useCallback(async (currentRange: RangeKey, currentSettings: Settings) => {
+  const loadData = useCallback(async (currentPeriod: PeriodKey, currentSettings: Settings, currentAnchor: Date, from?: string, to?: string) => {
+    const currentRange = periodRange[currentPeriod];
     if (!currentSettings.live || !currentSettings.endpoint) {
       setData(makeDemoData(currentRange));
       setError("");
@@ -112,6 +113,12 @@ function App() {
       const endpoint = currentSettings.endpoint.replace("{range}", currentRange);
       const url = new URL(endpoint, window.location.href);
       url.searchParams.set("range", currentRange);
+      url.searchParams.set("period", currentPeriod);
+      url.searchParams.set("date", currentAnchor.toISOString().slice(0, 10));
+      if (currentPeriod === "custom" && from && to) {
+        url.searchParams.set("from", from);
+        url.searchParams.set("to", to);
+      }
       url.searchParams.set("updated", String(Date.now()));
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -125,13 +132,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    const initial = window.setTimeout(() => void loadData(range, settings), 0);
-    const timer = window.setInterval(() => void loadData(range, settings), settings.refreshSeconds * 1000);
+    const initial = window.setTimeout(() => void loadData(period, settings, anchor, customStart, customEnd), 0);
+    const timer = window.setInterval(() => void loadData(period, settings, anchor, customStart, customEnd), settings.refreshSeconds * 1000);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(timer);
     };
-  }, [range, settings, loadData]);
+  }, [period, anchor, customStart, customEnd, settings, loadData]);
 
   const activeDevice = data.govee.devices[0];
   const climateSeries = useMemo(() => data.govee.chart.map((point) => ({ label: point.label, value: point.temperature })), [data]);
@@ -142,8 +149,27 @@ function App() {
   const saveSettings = (next: Settings) => {
     localStorage.setItem("solar-home-settings", JSON.stringify(next));
     setSettings(next);
-    void loadData(range, next);
+    void loadData(period, next, anchor, customStart, customEnd);
     setSettingsOpen(false);
+  };
+
+  const stepPeriod = (direction: -1 | 1) => {
+    if (period === "custom") {
+      const start = new Date(`${customStart}T12:00:00`);
+      const end = new Date(`${customEnd}T12:00:00`);
+      const span = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1);
+      start.setDate(start.getDate() + direction * span);
+      end.setDate(end.getDate() + direction * span);
+      setCustomStart(start.toISOString().slice(0, 10));
+      setCustomEnd(end.toISOString().slice(0, 10));
+      return;
+    }
+    const next = new Date(anchor);
+    if (period === "day") next.setDate(next.getDate() + direction);
+    if (period === "week") next.setDate(next.getDate() + direction * 7);
+    if (period === "month") next.setMonth(next.getMonth() + direction);
+    if (period === "year") next.setFullYear(next.getFullYear() + direction);
+    setAnchor(next);
   };
 
   return (
@@ -165,12 +191,21 @@ function App() {
             <p className="eyebrow">{new Intl.DateTimeFormat("hu-HU", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
             <h1>Jó napot!<br />Itthon minden rendben.</h1>
           </div>
-          <div className="range-tabs" aria-label="Időtáv">
-            {ranges.map((item) => <button key={item.key} className={range === item.key ? "active" : ""} onClick={() => { setRange(item.key); void loadData(item.key, settings); }}>{item.label}</button>)}
-          </div>
+          <p className="intro__aside">A termelés, fogyasztás és otthonklíma egyetlen, részletes nézetben.</p>
         </section>
 
         {error && <div className="notice" role="status">{error}</div>}
+
+        <EnergyAnalytics
+          data={data}
+          period={period}
+          anchor={anchor}
+          customStart={customStart}
+          customEnd={customEnd}
+          onPeriodChange={(next) => { setPeriod(next); setAnchor(new Date()); }}
+          onStep={stepPeriod}
+          onCustomChange={(start, end) => { setCustomStart(start); setCustomEnd(end); }}
+        />
 
         <section className={`dashboard-grid ${loading ? "is-loading" : ""}`} aria-busy={loading}>
           <article className="card solar-card">
@@ -180,7 +215,7 @@ function App() {
                 <p className="eyebrow eyebrow--light">Sungrow napelem</p>
                 <div className="system-status"><span className={`dot dot--${data.solar.status}`} />{statusText(data.solar.status)}</div>
               </div>
-              <button className="refresh-button" onClick={() => void loadData(range, settings)} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button>
+              <button className="refresh-button" onClick={() => void loadData(period, settings, anchor, customStart, customEnd)} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button>
             </div>
             <div className="solar-main">
               <div className="power-reading">
@@ -194,8 +229,8 @@ function App() {
               </div>
             </div>
             <div className="solar-chart-wrap">
-              <div className="section-title"><span>Termelés</span><strong>{range === "today" ? `${data.solar.todayKwh.toFixed(1)} kWh ma` : "összesített energia"}</strong></div>
-              <LineChart data={data.solar.chart} suffix={range === "today" ? "kW" : "kWh"} />
+              <div className="section-title"><span>Termelés</span><strong>{period === "day" ? `${data.solar.todayKwh.toFixed(1)} kWh ma` : "összesített energia"}</strong></div>
+              <LineChart data={data.solar.chart} suffix={period === "day" ? "kW" : "kWh"} />
             </div>
             <div className="solar-stats">
               <div><span>Ebben a hónapban</span><strong>{data.solar.monthKwh.toLocaleString("hu-HU")} <small>kWh</small></strong></div>
