@@ -14,6 +14,12 @@ GET ./data/dashboard-today.json
 
 A `range` értéke `today`, `7d`, `30d` vagy `year`. A frontend az aktív napot, hetet, hónapot, évet vagy egyedi intervallumot dátum alapján szűri az `energyChart` idősorából.
 
+## Govee mérési előzmények
+
+A 15 percenként futó munkafolyamat minden Govee-mérést időbélyeggel hozzáfűz a `.data-history/govee-history.json` előzményhez. A fájlt a GitHub Actions gyorsítótára őrzi meg a futások között, a legutóbbi Pages-kiadásban található `data/govee-history.json` pedig tartalék visszaállítási forrás. Az előzmény legfeljebb 370 napot tart meg.
+
+A napi grafikon az időbélyeges méréseket, a heti és havi grafikon a napi átlagokat, az éves grafikon pedig a havi átlagokat használja. Mivel a Govee API aktuális állapotot ad vissza, a történeti vonal a funkció bekapcsolása utáni mérésekből épül fel.
+
 ## Válaszformátum
 
 ```json
@@ -52,7 +58,12 @@ A `range` értéke `today`, `7d`, `30d` vagy `year`. A frontend az aktív napot,
       "batteryPct": 86,
       "updatedAt": "2026-08-07T11:58:00.000Z"
     }],
-    "chart": [{ "label": "12:00", "temperature": 23.4, "humidity": 48 }]
+    "chart": [{
+      "label": "12:00",
+      "timestamp": "2026-08-07T12:00:00.000Z",
+      "temperature": 23.4,
+      "humidity": 48
+    }]
   }
 }
 ```
