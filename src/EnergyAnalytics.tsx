@@ -21,13 +21,13 @@ const periods: { key: PeriodKey; label: string }[] = [
 ];
 
 const colors = {
-  pv: "#ff9f43",
-  grid: "#5d7cff",
-  battery: "#38bdf8",
-  load: "#d9c600",
-  batterySoc: "#0d9a7a",
-  temperature: "#f36f45",
-  humidity: "#6d58d9",
+  pv: "#d8902f",
+  grid: "#54778a",
+  battery: "#76a99a",
+  load: "#a96843",
+  batterySoc: "#2f7057",
+  temperature: "#b95734",
+  humidity: "#65738b",
 };
 
 function startOfWeek(value: Date) {

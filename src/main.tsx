@@ -232,11 +232,13 @@ function App() {
 
       <main id="main">
         <section className="intro">
-          <div>
+          <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-home.png`} alt="A hegyoldali otthon madártávlatból" />
+          <div className="intro__shade" aria-hidden="true" />
+          <div className="intro__content">
             <p className="eyebrow">{new Intl.DateTimeFormat("hu-HU", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
             <h1>Jó napot!<br />Itthon minden rendben.</h1>
           </div>
-          <p className="intro__aside">A termelés, fogyasztás és otthonklíma egyetlen, részletes nézetben.</p>
+          <p className="intro__aside"><span>Hegyoldali otthon</span>A termelés, fogyasztás és otthonklíma egyetlen, részletes nézetben.</p>
         </section>
 
         {error && <div className="notice" role="status">{error}</div>}

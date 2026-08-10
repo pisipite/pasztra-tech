@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Manrope:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap");
 
 :root {
   font-family: "Manrope", system-ui, sans-serif;
@@ -207,4 +207,203 @@ footer button { border: 0; background: none; cursor: pointer; font-weight: 700; 
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* Hegyoldali otthon — a ház anyagaiból és színeiből épített téma */
+:root {
+  color: #2b322b;
+  background: #ded8ca;
+  --ink: #2b322b;
+  --muted: #716e63;
+  --paper: #f7f3e9;
+  --line: #d5c9b6;
+  --solar: #e2aa45;
+  --solar-deep: #bc792d;
+  --climate: #b95734;
+  --night: #17382e;
+  --forest: #1f4a3a;
+  --terracotta: #b95734;
+  --wood: #76503a;
+}
+
+body {
+  background:
+    linear-gradient(rgba(255,255,255,.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.16) 1px, transparent 1px),
+    radial-gradient(circle at 15% 5%, rgba(185,87,52,.1), transparent 28%),
+    #ded8ca;
+  background-size: 38px 38px, 38px 38px, auto, auto;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
+  outline-color: rgba(185,87,52,.48);
+}
+
+.topbar {
+  height: 76px;
+  border-bottom: 1px solid rgba(45,55,45,.18);
+  background: rgba(247,243,233,.9);
+  box-shadow: 0 4px 24px rgba(70,53,37,.05);
+  backdrop-filter: blur(14px);
+}
+
+.brand { color: var(--forest); letter-spacing: -.035em; }
+.brand em { color: var(--terracotta); }
+.brand__mark {
+  background: var(--terracotta);
+  border-radius: 50% 50% 43% 57%;
+  box-shadow: 0 0 0 5px rgba(185,87,52,.12);
+}
+.brand__mark::before, .brand__mark::after, .brand__mark i::before, .brand__mark i::after { background: #f7f3e9; }
+
+.stream-indicator {
+  border-color: #d0c4b2;
+  background: rgba(255,252,244,.76);
+  border-radius: 10px;
+  box-shadow: inset 0 1px rgba(255,255,255,.7);
+}
+.stream-indicator.is-online > i { background: #4e8a59; }
+.stream-indicator.is-offline > i { background: #b95745; }
+.icon-button { border-color: #d0c4b2; background: rgba(255,252,244,.76); color: var(--forest); }
+
+main { max-width: 1500px; padding-top: 28px; }
+
+.intro {
+  position: relative;
+  display: block;
+  min-height: clamp(330px, 37vw, 500px);
+  margin-bottom: 20px;
+  overflow: hidden;
+  color: #fffaf0;
+  border: 1px solid rgba(45,39,31,.25);
+  border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(55,42,30,.16);
+  isolation: isolate;
+}
+.intro::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: linear-gradient(90deg, var(--terracotta) 0 36%, var(--solar) 36% 59%, var(--forest) 59%);
+}
+.intro__photo { position: absolute; z-index: -2; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 55%; }
+.intro__shade { position: absolute; z-index: -1; inset: 0; background: linear-gradient(90deg, rgba(19,35,29,.82) 0%, rgba(23,34,28,.4) 48%, rgba(22,29,25,.12) 72%), linear-gradient(0deg, rgba(17,25,21,.56), transparent 55%); }
+.intro__content { position: absolute; left: clamp(28px, 5vw, 72px); bottom: clamp(36px, 6vw, 74px); max-width: 760px; }
+.intro .eyebrow { color: #eadfc9; text-shadow: 0 2px 10px rgba(0,0,0,.3); }
+.intro h1 {
+  max-width: 760px;
+  color: #fffaf0;
+  font-family: "Fraunces", Georgia, serif;
+  font-size: clamp(46px, 6.6vw, 94px);
+  line-height: .92;
+  letter-spacing: -.045em;
+  font-weight: 600;
+  text-shadow: 0 4px 24px rgba(0,0,0,.28);
+}
+.intro__aside {
+  position: absolute;
+  right: clamp(24px, 4vw, 54px);
+  bottom: clamp(30px, 5vw, 58px);
+  max-width: 290px;
+  margin: 0;
+  padding: 17px 19px;
+  color: #f2e9da;
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 10px;
+  background: rgba(24,49,39,.68);
+  text-align: left;
+  backdrop-filter: blur(10px);
+}
+.intro__aside span { display: block; margin-bottom: 7px; color: #e1aa57; text-transform: uppercase; letter-spacing: .13em; font-size: 9px; font-weight: 700; }
+
+.eyebrow { color: #7d5c43; }
+.eyebrow--light { color: #d2c5ad; }
+.analysis-toolbar h2, .card__head h2, .insight-card h2, .settings h2 { font-family: "Fraunces", Georgia, serif; font-weight: 600; }
+
+.card {
+  background: var(--paper);
+  border-color: rgba(94,72,52,.2);
+  border-radius: 16px;
+  box-shadow: 0 14px 38px rgba(70,53,37,.08), inset 0 1px rgba(255,255,255,.8);
+}
+.energy-analysis { border-top: 5px solid var(--terracotta); }
+.period-tabs { border-color: #d6cab7; border-radius: 10px; background: #e9e2d5; }
+.period-tabs button { border-radius: 7px; color: #756e62; }
+.period-tabs button.active { background: var(--forest); box-shadow: 0 5px 14px rgba(31,74,58,.18); }
+.period-stepper { border-color: #d3c7b4; border-radius: 9px; background: #fffaf0; }
+.period-stepper button:hover:not(:disabled) { background: #ece3d4; }
+.overlay-toggles button { border-color: #d3c7b4; background: #fffaf0; }
+.overlay-toggles button.active { border-color: #9f8a71; }
+.overlay-toggles button.temperature i { background: var(--terracotta); box-shadow: 0 0 0 3px rgba(185,87,52,.13); }
+.overlay-toggles button.humidity i { background: #65738b; box-shadow: 0 0 0 3px rgba(101,115,139,.13); }
+.custom-range input { border-color: #d3c7b4; background: #fffaf0; }
+.chart-legend { border-color: #ddd2c0; }
+.energy-gridline { stroke: #ddd3c3; }
+.energy-zero { stroke: #988b79; }
+.energy-axis-label, .energy-x-label, .energy-axis-title { fill: #756e62; }
+.chart-tooltip { border-color: rgba(94,72,52,.2); background: rgba(255,250,240,.95); box-shadow: 0 14px 35px rgba(70,53,37,.14); }
+
+.dashboard-grid { gap: 20px; }
+.solar-card {
+  background: radial-gradient(circle at 88% 4%, rgba(226,170,69,.16), transparent 27%), linear-gradient(145deg, #21483a, #142e27 68%);
+  color: #fff8e9;
+  box-shadow: 0 18px 45px rgba(20,46,39,.2);
+}
+.solar-orbit { border-color: rgba(226,170,69,.18); }
+.solar-orbit::before, .solar-orbit::after { border-color: rgba(226,170,69,.12); }
+.solar-orbit::after { background: radial-gradient(circle, rgba(226,170,69,.35) 0, rgba(226,170,69,.1) 24%, transparent 65%); box-shadow: 0 0 80px rgba(226,170,69,.08); }
+.solar-orbit i { background: var(--solar); box-shadow: 0 0 12px var(--solar); }
+.dot--online { background: var(--solar); box-shadow: 0 0 0 4px rgba(226,170,69,.14); }
+.power-reading__value, .power-reading__unit { color: #efbd61; }
+.power-reading p, .energy-flow span { color: #b7c3b8; }
+.solar-stats { background: rgba(255,247,229,.12); }
+.solar-stats > div { background: rgba(11,33,27,.62); }
+.solar-stats span, .solar-stats small { color: #aebcae; }
+
+.climate-card { border-top: 5px solid var(--terracotta); }
+.comfort-badge { border-radius: 8px; background: #dfe9d5; color: #456d46; }
+.comfort-badge--alert { background: #f2dfc3; color: #855529; }
+.humidity-gauge { background: conic-gradient(var(--terracotta) var(--humidity), #dfd6c7 0); }
+.climate-chart-wrap, .device-list { border-color: #ddd2c0; }
+.device-row { border-color: #e4dac9; }
+.device-icon { border-color: #d9cbb7; border-radius: 8px; background: #efe7da; }
+.device-icon i:first-child, .device-icon i:first-child::after { background: var(--terracotta); }
+
+.insight-card {
+  border-left: 5px solid var(--solar-deep);
+  background: linear-gradient(120deg, #f5ecdc, #eee2cc);
+}
+.insight-icon { border-radius: 9px; background: #dfa847; color: #17382e; }
+.progress-track { background: #d9cbb4; }
+.progress-track i { background: var(--terracotta); }
+
+.settings { background: #f4eee2; }
+.field input, .field select { border-color: #cdbfa9; background: #fffaf0; }
+.switch-row input:checked { background: var(--forest); }
+.primary-button { border-radius: 9px; background: var(--forest); }
+.primary-button:hover { background: #2b5646; }
+
+@media (max-width: 980px) {
+  .intro__aside { max-width: 250px; }
+}
+
+@media (max-width: 760px) {
+  .intro { min-height: 420px; }
+  .intro__photo { object-position: 52% center; }
+  .intro__shade { background: linear-gradient(0deg, rgba(17,31,26,.88), rgba(23,36,30,.12) 78%); }
+  .intro__content { left: 24px; right: 24px; bottom: 116px; }
+  .intro h1 { font-size: clamp(43px, 12vw, 62px); }
+  .intro__aside { left: 24px; right: 24px; bottom: 26px; max-width: none; padding: 12px 14px; }
+}
+
+@media (max-width: 640px) {
+  .topbar { height: 70px; }
+  main { padding-top: 18px; }
+  .intro { margin-left: -4px; margin-right: -4px; border-radius: 13px; }
+  .energy-analysis { border-radius: 13px; }
+  .solar-card { border-radius: 13px; }
 }
