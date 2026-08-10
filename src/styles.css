@@ -37,6 +37,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .brand__mark i::before { transform: translate(-21px, -50%) rotate(90deg); }
 .brand__mark i::after { transform: translate(16px, -50%) rotate(90deg); }
 .topbar__actions { display: flex; align-items: center; gap: 10px; }
+.stream-indicators { display: flex; align-items: center; gap: 7px; }
+.stream-indicator { display: inline-flex; align-items: center; gap: 9px; min-height: 42px; padding: 7px 12px; border: 1px solid #cbd0c8; background: rgba(255,255,255,.5); border-radius: 13px; }
+.stream-indicator > i { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; }
+.stream-indicator > span { display: grid; gap: 1px; }
+.stream-indicator strong { font-size: 10px; line-height: 1.2; }
+.stream-indicator small { color: var(--muted); font-size: 8px; line-height: 1.2; }
+.stream-indicator.is-online > i { background: #55a754; box-shadow: 0 0 0 4px rgba(85,167,84,.14), 0 0 12px rgba(85,167,84,.35); }
+.stream-indicator.is-offline > i { background: #d45145; box-shadow: 0 0 0 4px rgba(212,81,69,.13), 0 0 12px rgba(212,81,69,.24); }
 .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 9px 13px; border: 1px solid #cbd0c8; background: rgba(255,255,255,.45); border-radius: 999px; font-size: 12px; font-weight: 700; }
 .status-pill i { width: 7px; height: 7px; border-radius: 50%; background: #75ab54; box-shadow: 0 0 0 4px rgba(117,171,84,.13); }
 .status-pill--demo i { background: #d09a36; box-shadow: 0 0 0 4px rgba(208,154,54,.13); }
@@ -175,7 +183,11 @@ footer button { border: 0; background: none; cursor: pointer; font-weight: 700; 
 }
 
 @media (max-width: 640px) {
-  .topbar { height: 68px; }.status-pill { display: none; }
+  .topbar { height: 68px; padding-left: 16px; padding-right: 16px; }
+  .brand > span:last-child { display: none; }
+  .stream-indicator { min-height: 38px; padding: 6px 9px; gap: 7px; }
+  .stream-indicator strong { font-size: 9px; }
+  .stream-indicator small { display: none; }
   main { padding-top: 35px; }
   .intro { display: grid; }.intro h1 { font-size: 46px; }.intro__aside { text-align: left; }.range-tabs { justify-self: start; }
   .analysis-toolbar, .analysis-controls { display: grid; }

@@ -112,6 +112,10 @@ function demoDashboard(range) {
   return {
     source: "demo",
     updatedAt: now.toISOString(),
+    connections: {
+      solar: { connected: false },
+      climate: { connected: false },
+    },
     solar: {
       status: "online",
       currentPowerKw: 4.82,
@@ -359,10 +363,14 @@ for (const range of ["today", "7d", "30d", "year"]) {
   const dashboard = demoDashboard(range);
   dashboard.source = sungrow && govee ? "live" : "partial";
   dashboard.updatedAt = now.toISOString();
+  dashboard.connections = {
+    solar: { connected: Boolean(sungrow), ...(sungrow ? { updatedAt: now.toISOString() } : {}) },
+    climate: { connected: Boolean(govee), ...(govee ? { updatedAt: govee.devices[0].updatedAt } : {}) },
+  };
   if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] };
   if (govee) dashboard.govee = { ...govee, chart: climateCharts[range] };
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
 }
 
-await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 900\n};\n`, "utf8");
+await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");
 console.log(`Élő dashboard-adatok elkészítve (${sungrow ? "Sungrow" : ""}${sungrow && govee ? " + " : ""}${govee ? "Govee" : ""}).`);

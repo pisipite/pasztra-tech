@@ -2,10 +2,18 @@ import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
-import type { DashboardData, PeriodKey, RangeKey } from "./types";
+import type { DashboardData, DataConnection, PeriodKey, RangeKey } from "./types";
 import "./styles.css";
 
 const periodRange: Record<PeriodKey, RangeKey> = { day: "today", week: "7d", month: "30d", year: "year", custom: "30d" };
+const connectionStaleMs = 30 * 60 * 1000;
+
+function connectionIsFresh(connection: DataConnection | undefined, fallbackConnected: boolean, fallbackUpdatedAt: string, clock: number) {
+  const connected = connection?.connected ?? fallbackConnected;
+  const updatedAt = connection?.updatedAt ?? fallbackUpdatedAt;
+  const age = clock - new Date(updatedAt).getTime();
+  return connected && Number.isFinite(age) && age >= -5 * 60_000 && age <= connectionStaleMs;
+}
 
 function rangeForPeriod(period: PeriodKey, from?: string, to?: string): RangeKey {
   if (period !== "custom" || !from || !to) return periodRange[period];
@@ -122,6 +130,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [clock, setClock] = useState(() => Date.now());
 
   const loadData = useCallback(async (currentPeriod: PeriodKey, currentSettings: Settings, currentAnchor: Date, from?: string, to?: string) => {
     const currentRange = rangeForPeriod(currentPeriod, from, to);
@@ -155,12 +164,17 @@ function App() {
 
   useEffect(() => {
     const initial = window.setTimeout(() => void loadData(period, settings, anchor, customStart, customEnd), 0);
-    const timer = window.setInterval(() => void loadData(period, settings, anchor, customStart, customEnd), settings.refreshSeconds * 1000);
+    const timer = window.setInterval(() => void loadData(period, settings, anchor, customStart, customEnd), Math.min(settings.refreshSeconds, 300) * 1000);
     return () => {
       window.clearTimeout(initial);
       window.clearInterval(timer);
     };
   }, [period, anchor, customStart, customEnd, settings, loadData]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const activeDevice = data.govee.devices[0];
   const climateSeries = useMemo(
@@ -171,7 +185,8 @@ function App() {
   );
   const comfort = activeDevice.temperatureC >= 20 && activeDevice.temperatureC <= 25 && activeDevice.humidityPct >= 40 && activeDevice.humidityPct <= 60;
   const source = data.source ?? (!settings.live || !settings.endpoint ? "demo" : "live");
-  const sourceLabel = source === "live" ? "Élő kapcsolat" : source === "partial" ? "Részleges élő adat" : "Bemutató adatok";
+  const solarConnected = connectionIsFresh(data.connections?.solar, source === "live" && data.solar.status === "online", data.updatedAt, clock);
+  const climateConnected = connectionIsFresh(data.connections?.climate, source === "live" && data.govee.devices.length > 0, activeDevice.updatedAt, clock);
 
   const saveSettings = (next: Settings) => {
     localStorage.setItem("solar-home-settings", JSON.stringify(next));
@@ -207,7 +222,10 @@ function App() {
           <span>napfény<em>/</em>otthon</span>
         </a>
         <div className="topbar__actions">
-          <span className={`status-pill ${source !== "live" ? "status-pill--demo" : ""}`}><i />{sourceLabel}</span>
+          <div className="stream-indicators" aria-label="Adatfolyamok állapota">
+            <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
+            <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
+          </div>
           <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Adatkapcsolat beállításai">•••</button>
         </div>
       </header>

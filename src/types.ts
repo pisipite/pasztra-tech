@@ -49,9 +49,18 @@ export interface GoveeDevice {
   updatedAt: string;
 }
 
+export interface DataConnection {
+  connected: boolean;
+  updatedAt?: string;
+}
+
 export interface DashboardData {
   source?: "demo" | "live" | "partial";
   updatedAt: string;
+  connections?: {
+    solar: DataConnection;
+    climate: DataConnection;
+  };
   solar: SolarData;
   govee: {
     devices: GoveeDevice[];

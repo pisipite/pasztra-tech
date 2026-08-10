@@ -59,6 +59,10 @@ export function makeDemoData(range: RangeKey): DashboardData {
   return {
     source: "demo",
     updatedAt: new Date().toISOString(),
+    connections: {
+      solar: { connected: false },
+      climate: { connected: false },
+    },
     solar: {
       status: "online",
       currentPowerKw: 4.82,
