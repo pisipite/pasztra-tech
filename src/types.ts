@@ -9,7 +9,7 @@ export interface ChartPoint {
 export interface EnergyChartPoint {
   label: string;
   timestamp?: string;
-  pv: number;
+  pv?: number;
   grid?: number;
   battery?: number;
   load?: number;
@@ -20,6 +20,7 @@ export interface EnergyChartPoint {
 
 export interface ClimatePoint {
   label: string;
+  timestamp?: string;
   temperature: number;
   humidity: number;
 }
