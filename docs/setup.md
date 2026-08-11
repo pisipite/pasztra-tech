@@ -46,9 +46,7 @@ GoSungrow show ps list
 
 ## 4. Első futtatás
 
-Nyisd meg az **Actions → Deploy to GitHub Pages** munkafolyamatot, majd válaszd a **Run workflow** lehetőséget. Sikeres futás után az oldal címe:
-
-<https://pisipite.github.io/pasztra-tech/>
+Nyisd meg az **Actions → Deploy to GitHub Pages** munkafolyamatot, majd válaszd a **Run workflow** lehetőséget. Sikeres futás után az oldal címét a repository **Settings → Pages** felületén találod. A dokumentáció nem tartalmaz közvetlen hivatkozást, hogy csökkentse a nyilvános oldal felfedezhetőségét.
 
 ## Hogyan működik?
 

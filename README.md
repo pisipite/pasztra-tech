@@ -2,7 +2,7 @@
 
 Reszponzív, GitHub Pagesre kész webes dashboard Sungrow napelem- és Govee thermo-hygrometer adatokhoz.
 
-Tervezett publikus cím: <https://pisipite.github.io/pasztra-tech/>
+Az oldal címét a repository **Settings → Pages** felülete mutatja; a dokumentáció szándékosan nem hivatkozik rá közvetlenül.
 
 ## Helyi futtatás
 
