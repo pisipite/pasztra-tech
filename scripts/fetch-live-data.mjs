@@ -286,6 +286,20 @@ function normalizeBatteryPower(samples) {
   }));
 }
 
+function normalizeBatterySoc(samples, socPoint) {
+  return samples.map((sample) => {
+    if (!Number.isFinite(sample.soc)) return sample;
+
+    // The battery-level device point (p13141) is returned as a 0-1 ratio by
+    // iSolarCloud even though GoSungrow labels its unit as percent.
+    const percent = socPoint === "p13141" && sample.soc >= 0 && sample.soc <= 1
+      ? sample.soc * 100
+      : sample.soc;
+
+    return { ...sample, soc: Math.min(100, Math.max(0, percent)) };
+  });
+}
+
 function nearestBatterySample(samples, timestamp) {
   const target = new Date(timestamp).getTime();
   let closest;
@@ -394,7 +408,8 @@ async function getBatteryTelemetry(psId, devices) {
         `Points:${batteryDevice.psKey}.${point}`,
       ]).then((response) => extractBatterySamples(response, batteryDevice))))
       .then(mergeBatterySamples)
-      .then(normalizeBatteryPower);
+      .then(normalizeBatteryPower)
+      .then((samples) => normalizeBatterySoc(samples, batteryDevice.soc));
   };
 
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
