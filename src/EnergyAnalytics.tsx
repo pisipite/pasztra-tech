@@ -1,4 +1,7 @@
 import { useMemo, useState } from "react";
+import { smoothPath } from "./chartUtils";
+import { isCurrentPeriod, periodLabel, timestampInPeriod } from "./dateUtils";
+import { batteryChargeValue, batteryDischargeValue, mergeEnergyAndClimate } from "./energyData";
 import type { DashboardData, EnergyChartPoint, PeriodKey } from "./types";
 
 type Props = {
@@ -31,104 +34,8 @@ const colors = {
   humidity: "#65738b",
 };
 
-function startOfWeek(value: Date) {
-  const date = new Date(value);
-  const day = date.getDay() || 7;
-  date.setDate(date.getDate() - day + 1);
-  date.setHours(0, 0, 0, 0);
-  return date;
-}
-
-function endOfWeek(value: Date) {
-  const date = startOfWeek(value);
-  date.setDate(date.getDate() + 6);
-  return date;
-}
-
-function sameDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
-}
-
-function periodLabel(period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
-  const day = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric" });
-  if (period === "day") return day.format(anchor);
-  if (period === "week") return `${day.format(startOfWeek(anchor))} – ${day.format(endOfWeek(anchor))}`;
-  if (period === "month") return new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long" }).format(anchor);
-  if (period === "year") return `${anchor.getFullYear()}`;
-  const from = customStart ? day.format(new Date(`${customStart}T12:00:00`)) : "–";
-  const to = customEnd ? day.format(new Date(`${customEnd}T12:00:00`)) : "–";
-  return `${from} – ${to}`;
-}
-
-function withinSelectedPeriod(point: EnergyChartPoint, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
-  if (!point.timestamp) return true;
-  const time = new Date(point.timestamp);
-  if (period === "day") return sameDay(time, anchor);
-  if (period === "week") return time >= startOfWeek(anchor) && time <= new Date(endOfWeek(anchor).setHours(23, 59, 59, 999));
-  if (period === "month") return time.getFullYear() === anchor.getFullYear() && time.getMonth() === anchor.getMonth();
-  if (period === "year") return time.getFullYear() === anchor.getFullYear();
-  if (!customStart || !customEnd) return true;
-  return time >= new Date(`${customStart}T00:00:00`) && time <= new Date(`${customEnd}T23:59:59`);
-}
-
-function smoothPath(points: { x: number; y: number }[]) {
-  if (!points.length) return "";
-  if (points.length === 1) return `M${points[0].x},${points[0].y}`;
-  return points.slice(1).reduce((path, point, index) => {
-    const previous = points[index];
-    const mid = (previous.x + point.x) / 2;
-    return `${path} C${mid},${previous.y} ${mid},${point.y} ${point.x},${point.y}`;
-  }, `M${points[0].x},${points[0].y}`);
-}
-
 function formatValue(value: number, unit: string) {
   return `${value.toLocaleString("hu-HU", { maximumFractionDigits: 2 })} ${unit}`;
-}
-
-function climateBucketKey(timestamp: string, period: PeriodKey) {
-  const time = new Date(timestamp);
-  const year = time.getFullYear();
-  const month = String(time.getMonth() + 1).padStart(2, "0");
-  if (period === "year") return `${year}-${month}`;
-  return `${year}-${month}-${String(time.getDate()).padStart(2, "0")}`;
-}
-
-function averageClimateByPeriod(climate: DashboardData["govee"]["chart"], period: PeriodKey) {
-  if (period === "day" || !climate.every((point) => point.timestamp)) return climate;
-
-  const grouped = new Map<string, {
-    first: DashboardData["govee"]["chart"][number];
-    temperatureTotal: number;
-    temperatureCount: number;
-    humidityTotal: number;
-    humidityCount: number;
-  }>();
-
-  for (const point of climate) {
-    const key = climateBucketKey(point.timestamp!, period);
-    const group = grouped.get(key) ?? {
-      first: point,
-      temperatureTotal: 0,
-      temperatureCount: 0,
-      humidityTotal: 0,
-      humidityCount: 0,
-    };
-    if (Number.isFinite(point.temperature)) {
-      group.temperatureTotal += point.temperature;
-      group.temperatureCount += 1;
-    }
-    if (Number.isFinite(point.humidity)) {
-      group.humidityTotal += point.humidity;
-      group.humidityCount += 1;
-    }
-    grouped.set(key, group);
-  }
-
-  return [...grouped.values()].map((group) => ({
-    ...group.first,
-    temperature: group.temperatureCount ? group.temperatureTotal / group.temperatureCount : group.first.temperature,
-    humidity: group.humidityCount ? group.humidityTotal / group.humidityCount : group.first.humidity,
-  }));
 }
 
 export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, onPeriodChange, onStep, onCustomChange }: Props) {
@@ -136,61 +43,10 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const [humidityVisible, setHumidityVisible] = useState(false);
   const [hovered, setHovered] = useState<number | null>(null);
 
-  const rawPoints = useMemo<EnergyChartPoint[]>(() => {
-    const climate = averageClimateByPeriod(data.govee.chart, period);
-    const energy: EnergyChartPoint[] = data.solar.energyChart ?? data.solar.chart.map((point, index) => ({
-      label: point.label,
-      pv: point.value,
-      temperature: climate[index]?.temperature,
-      humidity: climate[index]?.humidity,
-    }));
-    const merged = energy.map((point) => ({ ...point }));
-
-    for (const climatePoint of climate) {
-      let match = -1;
-      if (climatePoint.timestamp) {
-        const climateTime = new Date(climatePoint.timestamp).getTime();
-        if (period === "day") {
-          let smallestDistance = 11 * 60_000;
-          merged.forEach((point, index) => {
-            if (!point.timestamp) return;
-            const distance = Math.abs(new Date(point.timestamp).getTime() - climateTime);
-            if (distance < smallestDistance) {
-              smallestDistance = distance;
-              match = index;
-            }
-          });
-        } else {
-          const key = climateBucketKey(climatePoint.timestamp, period);
-          match = merged.findIndex((point) => point.timestamp && climateBucketKey(point.timestamp, period) === key);
-        }
-      }
-      if (match < 0 && climate.length === merged.length) match = climate.indexOf(climatePoint);
-
-      if (match >= 0) {
-        merged[match] = {
-          ...merged[match],
-          temperature: climatePoint.temperature,
-          humidity: climatePoint.humidity,
-        };
-      } else {
-        merged.push({
-          label: climatePoint.label,
-          timestamp: climatePoint.timestamp,
-          temperature: climatePoint.temperature,
-          humidity: climatePoint.humidity,
-        });
-      }
-    }
-
-    return merged.sort((a, b) => {
-      if (!a.timestamp || !b.timestamp) return 0;
-      return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-    });
-  }, [data, period]);
+  const rawPoints = useMemo(() => mergeEnergyAndClimate(data, period), [data, period]);
 
   const points = useMemo(
-    () => rawPoints.filter((point) => withinSelectedPeriod(point, period, anchor, customStart, customEnd)),
+    () => rawPoints.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd)),
     [rawPoints, period, anchor, customStart, customEnd],
   );
 
@@ -202,12 +58,6 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const margin = { top: 24, right: 66, bottom: 46, left: 64 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const batteryChargeValue = (point: EnergyChartPoint) => Number.isFinite(point.batteryCharge)
-    ? -Math.abs(point.batteryCharge!)
-    : Number.isFinite(point.battery) && point.battery! < 0 ? point.battery! : undefined;
-  const batteryDischargeValue = (point: EnergyChartPoint) => Number.isFinite(point.batteryDischarge)
-    ? Math.abs(point.batteryDischarge!)
-    : Number.isFinite(point.battery) && point.battery! > 0 ? point.battery! : undefined;
   const values = points.flatMap((point) => [point.pv, point.grid, batteryChargeValue(point), batteryDischargeValue(point), point.load].filter((value): value is number => Number.isFinite(value)));
   const maxValue = Math.max(1, ...values.map((value) => Math.abs(value)));
   const minValue = Math.min(0, ...values);
@@ -229,13 +79,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const gridLines = Array.from({ length: 5 }, (_, index) => upper - (index / 4) * range);
   const tickStep = Math.max(1, Math.ceil(points.length / 8));
   const active = hovered === null ? null : points[hovered];
-  const today = new Date();
-  const nextDisabled = period !== "custom" && (
-    (period === "day" && sameDay(anchor, today))
-    || (period === "week" && sameDay(startOfWeek(anchor), startOfWeek(today)))
-    || (period === "month" && anchor.getFullYear() === today.getFullYear() && anchor.getMonth() === today.getMonth())
-    || (period === "year" && anchor.getFullYear() === today.getFullYear())
-  );
+  const nextDisabled = period !== "custom" && isCurrentPeriod(period, anchor);
 
   const lineSeries = [
     { key: "pv", label: "PV", color: colors.pv, value: (point: EnergyChartPoint) => point.pv },

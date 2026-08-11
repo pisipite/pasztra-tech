@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { smoothPath } from "./chartUtils";
 import type { DashboardData, SolarForecastPoint } from "./types";
 
 type Props = { data: DashboardData };
@@ -6,16 +7,6 @@ type Props = { data: DashboardData };
 function timePosition(label: string) {
   const [hour = 0, minute = 0] = label.split(":").map(Number);
   return (hour * 60 + minute) / 1440;
-}
-
-function smoothPath(points: { x: number; y: number }[]) {
-  if (!points.length) return "";
-  if (points.length === 1) return `M${points[0].x},${points[0].y}`;
-  return points.slice(1).reduce((path, point, index) => {
-    const previous = points[index];
-    const midpoint = (previous.x + point.x) / 2;
-    return `${path} C${midpoint},${previous.y} ${midpoint},${point.y} ${point.x},${point.y}`;
-  }, `M${points[0].x},${points[0].y}`);
 }
 
 export function SolarForecast({ data }: Props) {

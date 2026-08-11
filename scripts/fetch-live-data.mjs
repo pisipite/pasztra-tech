@@ -655,13 +655,20 @@ async function getGovee() {
   };
 }
 
-const results = await Promise.allSettled([getSungrow(), getGovee(), getSolarForecast()]);
-const sungrow = results[0].status === "fulfilled" ? results[0].value : null;
-const govee = results[1].status === "fulfilled" ? results[1].value : null;
-const forecast = results[2].status === "fulfilled" ? results[2].value : null;
-if (results[0].status === "rejected") console.error(`Sungrow: ${results[0].reason.message}`);
-if (results[1].status === "rejected") console.error(`Govee: ${results[1].reason.message}`);
-if (results[2].status === "rejected") console.error(`Előrejelzés: ${results[2].reason.message}`);
+async function optionalSource(name, fetcher) {
+  try {
+    return await fetcher();
+  } catch (error) {
+    console.error(`${name}: ${error.message}`);
+    return null;
+  }
+}
+
+const [sungrow, govee, forecast] = await Promise.all([
+  optionalSource("Sungrow", getSungrow),
+  optionalSource("Govee", getGovee),
+  optionalSource("Előrejelzés", getSolarForecast),
+]);
 
 if (!sungrow && !govee && !forecast) {
   console.log("Nincsenek beállítva élő adatforrások; a bemutató mód marad aktív.");
@@ -685,4 +692,5 @@ for (const range of ["today", "7d", "30d", "year"]) {
 }
 
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");
-console.log(`Élő dashboard-adatok elkészítve (${sungrow ? "Sungrow" : ""}${sungrow && govee ? " + " : ""}${govee ? "Govee" : ""}${forecast ? " + Open-Meteo" : ""}).`);
+const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo"].filter(Boolean);
+console.log(`Élő dashboard-adatok elkészítve (${activeSources.join(" + ")}).`);
