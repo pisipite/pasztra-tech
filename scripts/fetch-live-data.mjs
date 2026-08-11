@@ -221,7 +221,7 @@ function findBatteryDevice(root) {
 function extractBatterySamples(root, batteryDevice) {
   const pointIds = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc];
   const rows = new Map();
-  const queue = [{ value: root, key: "" }];
+  const queue = [{ value: root, key: "", pointId: undefined }];
   const seen = new Set();
   const add = (timestampValue, pointId, rawValue) => {
     const timestamp = parseSungrowTimestamp(timestampValue);
@@ -236,23 +236,31 @@ function extractBatterySamples(root, batteryDevice) {
   };
 
   while (queue.length) {
-    const { value, key: parentKey } = queue.shift();
+    const { value, key: parentKey, pointId: inheritedPointId } = queue.shift();
     if (!value || typeof value !== "object" || seen.has(value)) continue;
     seen.add(value);
 
     const points = value.points;
     if (points && typeof points === "object" && !Array.isArray(points)) {
       const timestamp = value.timestamp ?? parentKey;
-      for (const pointId of pointIds) {
-        if (Object.hasOwn(points, pointId)) add(timestamp, pointId, points[pointId]);
+      for (const [key, rawValue] of Object.entries(points)) {
+        const pointId = pointIds.find((candidate) => normalizeKey(key).endsWith(normalizeKey(candidate)));
+        if (pointId) add(timestamp, pointId, rawValue);
       }
     }
 
     for (const [key, child] of Object.entries(value)) {
-      if (pointIds.includes(key) && child && typeof child === "object" && !Array.isArray(child)) {
-        for (const [timestamp, rawValue] of Object.entries(child)) add(timestamp, key, rawValue);
+      const pointId = pointIds.find((candidate) => normalizeKey(key).endsWith(normalizeKey(candidate))) ?? inheritedPointId;
+      if (pointId && child && typeof child === "object" && !Array.isArray(child)) {
+        for (const [timestamp, rawValue] of Object.entries(child)) {
+          if (/^\d{14}$/.test(timestamp)) add(timestamp, pointId, rawValue);
+        }
+        const timestamp = deepFind(child, ["timestamp", "timeStamp"]);
+        const rawValue = deepFind(child, ["value", "valueFloat", "valueInt"]);
+        if (timestamp !== undefined && rawValue !== undefined) add(timestamp, pointId, rawValue);
       }
-      if (child && typeof child === "object") queue.push({ value: child, key });
+      if (pointId && /^\d{14}$/.test(key) && (typeof child !== "object" || child === null)) add(key, pointId, child);
+      if (child && typeof child === "object") queue.push({ value: child, key, pointId });
     }
   }
   return [...rows.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
@@ -386,6 +394,9 @@ async function getBatteryTelemetry(psId, devices) {
   ]);
   if (todayResult.status === "rejected") console.error(`Sungrow napi akkumulátor-adatok: ${todayResult.reason.message}`);
   if (historyResult.status === "rejected") console.error(`Sungrow összesített akkumulátor-adatok: ${historyResult.reason.message}`);
+  if (todayResult.status === "fulfilled" || historyResult.status === "fulfilled") {
+    console.log(`Sungrow akkumulátor-minták: napi ${todayResult.status === "fulfilled" ? todayResult.value.length : 0}, összesített ${historyResult.status === "fulfilled" ? historyResult.value.length : 0}.`);
+  }
   return {
     today: todayResult.status === "fulfilled" ? todayResult.value : [],
     history: historyResult.status === "fulfilled" ? historyResult.value : [],
