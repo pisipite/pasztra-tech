@@ -276,6 +276,16 @@ function mergeBatterySamples(sampleLists) {
   return [...byTimestamp.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 }
 
+function normalizeBatteryPower(samples) {
+  const maximum = Math.max(0, ...samples.flatMap((sample) => [sample.chargeKw, sample.dischargeKw].filter(Number.isFinite)).map(Math.abs));
+  if (maximum <= 100) return samples;
+  return samples.map((sample) => ({
+    ...sample,
+    chargeKw: Number.isFinite(sample.chargeKw) ? sample.chargeKw / 1000 : sample.chargeKw,
+    dischargeKw: Number.isFinite(sample.dischargeKw) ? sample.dischargeKw / 1000 : sample.dischargeKw,
+  }));
+}
+
 function nearestBatterySample(samples, timestamp) {
   const target = new Date(timestamp).getTime();
   let closest;
@@ -383,7 +393,8 @@ async function getBatteryTelemetry(psId, devices) {
         `MinuteInterval:${interval}`,
         `Points:${batteryDevice.psKey}.${point}`,
       ]).then((response) => extractBatterySamples(response, batteryDevice))))
-      .then(mergeBatterySamples);
+      .then(mergeBatterySamples)
+      .then(normalizeBatteryPower);
   };
 
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
