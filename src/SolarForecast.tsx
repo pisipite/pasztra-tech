@@ -48,7 +48,7 @@ export function SolarForecast({ data }: Props) {
       <span className="sun-charm sun-charm--forecast" aria-hidden="true"><i /></span>
       <div className="forecast-head">
         <div>
-          <p className="eyebrow">Open-Meteo · 48 óra</p>
+          <p className="eyebrow">Open-Meteo · 72 óra</p>
           <h2>Termelési előrejelzés</h2>
           <p className="forecast-subtitle">5 kWp rendszer · becsült 27° dőlés · dél–délnyugati tájolás</p>
         </div>

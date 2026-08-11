@@ -690,9 +690,9 @@ async function getSolarForecast() {
     groups.set(date, day);
   });
 
-  const days = [...groups.entries()].slice(0, 2).map(([date, points], index) => ({
+  const days = [...groups.entries()].slice(0, 3).map(([date, points], index) => ({
     date,
-    label: index === 0 ? "Ma" : "Holnap",
+    label: index === 0 ? "Ma" : index === 1 ? "Holnap" : "Holnapután",
     expectedKwh: points.reduce((sum, point) => sum + point.expectedPowerKw, 0),
     bestWindow: bestConsumptionWindow(points),
     points,

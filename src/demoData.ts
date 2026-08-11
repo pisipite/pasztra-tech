@@ -27,7 +27,7 @@ export function makeDemoData(range: RangeKey): DashboardData {
     ? ["0", "3", "6", "9", "12", "15", "18", "21", "24"]
     : labels[range];
   const now = new Date();
-  const forecastDays = Array.from({ length: 2 }, (_, dayIndex) => {
+  const forecastDays = Array.from({ length: 3 }, (_, dayIndex) => {
     const date = new Date(now);
     date.setDate(date.getDate() + dayIndex);
     const points = Array.from({ length: 24 }, (_, hour) => {
@@ -47,7 +47,7 @@ export function makeDemoData(range: RangeKey): DashboardData {
     });
     return {
       date: date.toISOString().slice(0, 10),
-      label: dayIndex ? "Holnap" : "Ma",
+      label: dayIndex === 0 ? "Ma" : dayIndex === 1 ? "Holnap" : "Holnapután",
       expectedKwh: Number(points.reduce((sum, point) => sum + point.expectedPowerKw, 0).toFixed(1)),
       bestWindow: dayIndex ? "11:00–14:00" : "10:00–13:00",
       points,
