@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardData, SolarForecast } from "./types";
 
 type DayOffset = 0 | 1;
@@ -33,6 +33,12 @@ type DeviceSchedule = {
   gridKwh: number;
   solarSharePct: number;
   manual: boolean;
+};
+
+type DragState = {
+  deviceId: string;
+  pointerId: number;
+  offsetMinutes: number;
 };
 
 type PlannerResult = {
@@ -270,6 +276,9 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   const [baseLoadKw, setBaseLoadKw] = useState(initial.baseLoadKw);
   const [manualStarts, setManualStarts] = useState(initial.manualStarts);
   const [viewDay, setViewDay] = useState<DayOffset>(flexibleDay);
+  const [expandedDevices, setExpandedDevices] = useState<Set<string>>(() => new Set());
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
   const forecast = data.forecast;
   const slots = useMemo(() => forecast ? makeSlots(forecast) : [], [forecast]);
   const result = useMemo(() => planDevices(devices, slots, baseLoadKw, manualStarts), [baseLoadKw, devices, manualStarts, slots]);
@@ -302,6 +311,31 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
     setManualStarts((current) => ({ ...current, [schedule.device.id]: slots[nextIndex].timestamp }));
   };
 
+  const moveScheduleToPointer = (schedule: DeviceSchedule, clientX: number, offsetMinutes: number) => {
+    const bounds = timelineRef.current?.getBoundingClientRect();
+    if (!bounds?.width) return;
+    const targetMinute = Math.max(0, Math.min(1440, (clientX - bounds.left) / bounds.width * 1440 - offsetMinutes));
+    const candidates = candidateStarts(schedule.device, slots);
+    const closest = candidates.reduce<number | undefined>((best, candidate) => {
+      const date = new Date(slots[candidate].timestamp);
+      const candidateMinute = date.getHours() * 60 + date.getMinutes();
+      if (best === undefined) return candidate;
+      const bestDate = new Date(slots[best].timestamp);
+      const bestMinute = bestDate.getHours() * 60 + bestDate.getMinutes();
+      return Math.abs(candidateMinute - targetMinute) < Math.abs(bestMinute - targetMinute) ? candidate : best;
+    }, undefined);
+    if (closest !== undefined) setManualStarts((current) => ({ ...current, [schedule.device.id]: slots[closest].timestamp }));
+  };
+
+  const toggleDeviceDetails = (id: string) => {
+    setExpandedDevices((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const addDevice = () => {
     const id = `custom-${Date.now()}`;
     setDevices((current) => [...current, {
@@ -317,6 +351,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
       custom: true,
       sourceNote: "Saját becslés - add meg az egy használatra jutó energiát és időtartamot.",
     }]);
+    setExpandedDevices((current) => new Set(current).add(id));
   };
 
   return (
@@ -342,11 +377,12 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
         <div className="planner-day-tabs" role="tablist" aria-label="Tervezési nap">
           {forecast.days.slice(0, 2).map((day, index) => <button key={day.date} role="tab" aria-selected={viewDay === index} className={viewDay === index ? "active" : ""} onClick={() => setViewDay(index as DayOffset)}>{formatDay(day.date, day.label)}</button>)}
         </div>
+        <p className="planner-drag-hint" id="planner-drag-hint">Fogd meg a blokkokat, és húzd őket a kívánt időpontra.</p>
         <label className="planner-base-load">Háttérfogyasztás <span><input type="number" min="0" max="5" step="0.05" value={baseLoadKw} onChange={(event) => setBaseLoadKw(Math.max(0, Number(event.target.value)))} /> kW</span></label>
       </div>
 
       <section className="planner-timeline-wrap" aria-label={`${forecast.days[viewDay].label} fogyasztási idővonala`}>
-        <div className="planner-timeline" style={{ minHeight: `${Math.max(230, daySchedules.length * 34 + 88)}px` }}>
+        <div ref={timelineRef} className={`planner-timeline ${dragState ? "is-dragging" : ""}`} style={{ minHeight: `${Math.max(230, daySchedules.length * 34 + 88)}px` }}>
           <div className="planner-solar-profile" aria-hidden="true">
             {daySlots.map((slot, index) => <i key={slot.timestamp} style={{ left: `${index / daySlots.length * 100}%`, width: `${100 / daySlots.length + .1}%`, height: `${slot.expectedPowerKw / maximum * 100}%` }} />)}
           </div>
@@ -355,7 +391,42 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
             {daySchedules.map((schedule, lane) => {
               const start = new Date(slots[schedule.startIndex].timestamp);
               const minute = start.getHours() * 60 + start.getMinutes();
-              return <button key={schedule.device.id} className={`planner-block ${shareClass(schedule.solarSharePct)}`} style={{ left: `${minute / 1440 * 100}%`, width: `${schedule.slotCount * 15 / 1440 * 100}%`, top: `${lane * 34 + 14}px` }} title={`${schedule.device.name}: ${formatClock(start.getTime())}, ${schedule.solarSharePct.toFixed(0)}% napelem`} onClick={() => document.getElementById(`planner-device-${schedule.device.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" })}><span>{schedule.device.shortName}</span><b>{formatClock(start.getTime())}</b></button>;
+              const dragging = dragState?.deviceId === schedule.device.id;
+              return <button
+                key={schedule.device.id}
+                className={`planner-block ${shareClass(schedule.solarSharePct)} ${dragging ? "is-dragging" : ""}`}
+                style={{ left: `${minute / 1440 * 100}%`, width: `${schedule.slotCount * 15 / 1440 * 100}%`, top: `${lane * 34 + 14}px` }}
+                title={`${schedule.device.name}: ${formatClock(start.getTime())}, ${schedule.solarSharePct.toFixed(0)}% napelem`}
+                aria-label={`${schedule.device.name}, ${formatClock(start.getTime())}. Húzd az idővonalon, vagy használd a bal és jobb nyilat 15 perces lépésekhez.`}
+                aria-describedby="planner-drag-hint"
+                onPointerDown={(event) => {
+                  if (event.button !== 0) return;
+                  event.preventDefault();
+                  const bounds = event.currentTarget.getBoundingClientRect();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  setDragState({
+                    deviceId: schedule.device.id,
+                    pointerId: event.pointerId,
+                    offsetMinutes: Math.max(0, Math.min(schedule.slotCount * 15, (event.clientX - bounds.left) / Math.max(1, bounds.width) * schedule.slotCount * 15)),
+                  });
+                }}
+                onPointerMove={(event) => {
+                  if (dragState?.deviceId !== schedule.device.id || dragState.pointerId !== event.pointerId) return;
+                  moveScheduleToPointer(schedule, event.clientX, dragState.offsetMinutes);
+                }}
+                onPointerUp={(event) => {
+                  if (dragState?.pointerId !== event.pointerId) return;
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                  setDragState(null);
+                }}
+                onPointerCancel={() => setDragState(null)}
+                onKeyDown={(event) => {
+                  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                    event.preventDefault();
+                    shiftSchedule(schedule, event.key === "ArrowLeft" ? -1 : 1);
+                  }
+                }}
+              ><span className="planner-grip" aria-hidden="true">⋮⋮</span><span>{schedule.device.shortName}</span><b>{formatClock(start.getTime())}</b></button>;
             })}
           </div>
           <div className="planner-hours" aria-hidden="true">{[0, 4, 8, 12, 16, 20, 24].map((hour) => <span key={hour} style={{ left: `${hour / 24 * 100}%` }}>{String(hour).padStart(2, "0")}</span>)}</div>
@@ -371,27 +442,28 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
             const endTime = schedule ? slots[schedule.startIndex + schedule.slotCount - 1].timestamp + 15 * 60_000 : undefined;
             const candidates = schedule ? candidateStarts(device, slots) : [];
             const candidatePosition = schedule ? candidates.indexOf(schedule.startIndex) : -1;
-            return <div id={`planner-device-${device.id}`} className={`planner-device ${device.enabled ? "" : "is-disabled"}`} key={device.id}>
-              <div className="planner-device-head">
+            const expanded = expandedDevices.has(device.id);
+            return <div id={`planner-device-${device.id}`} className={`planner-device ${device.enabled ? "" : "is-disabled"} ${expanded ? "is-expanded" : ""}`} key={device.id}>
+              <div className="planner-device-row">
                 <label className="planner-toggle"><input type="checkbox" checked={device.enabled} onChange={(event) => updateDevice(device.id, { enabled: event.target.checked })} /><span /></label>
                 <span className="planner-device-mark">{device.shortName}</span>
-                <input className="planner-device-name" aria-label="Fogyasztó neve" value={device.name} onChange={(event) => updateDevice(device.id, { name: event.target.value }, false)} />
-                {device.custom && <button className="planner-remove" aria-label={`${device.name} törlése`} onClick={() => setDevices((current) => current.filter((item) => item.id !== device.id))}>×</button>}
+                <div className="planner-device-title"><strong>{device.name}</strong><span>{device.energyKwh.toFixed(1)} kWh · {device.durationMinutes} perc</span></div>
+                <span className="planner-device-window"><b>{device.dayOffset === 0 ? "Ma" : "Holnap"}</b>{device.earliest}–{device.latest}</span>
+                {schedule && startTime && endTime ? <div className={`planner-device-time ${shareClass(schedule.solarSharePct)}`}><strong>{formatClock(startTime)}–{formatClock(endTime)}</strong><span>{schedule.solarSharePct.toFixed(0)}% napenergia</span></div> : <span className="planner-warning">Nincs időablak</span>}
+                {schedule && <div className="planner-step-buttons planner-step-buttons--compact"><button disabled={candidatePosition <= 0} onClick={() => shiftSchedule(schedule, -1)} aria-label={`${device.name} 15 perccel korábban`}>−15</button><button className={!schedule.manual ? "is-auto" : ""} onClick={() => setManualStarts((current) => { const next = { ...current }; delete next[device.id]; return next; })} aria-label={`${device.name} automatikus időzítése`}>A</button><button disabled={candidatePosition >= candidates.length - 1} onClick={() => shiftSchedule(schedule, 1)} aria-label={`${device.name} 15 perccel később`}>+15</button></div>}
+                <button className="planner-edit" aria-expanded={expanded} aria-controls={`planner-details-${device.id}`} onClick={() => toggleDeviceDetails(device.id)}>{expanded ? "Bezárás" : "Szerkesztés"}<span aria-hidden="true">⌄</span></button>
               </div>
-              <div className="planner-device-fields">
-                <label>Energia / használat<span><input type="number" min="0.1" max="30" step="0.1" value={device.energyKwh} onChange={(event) => updateDevice(device.id, { energyKwh: Math.max(.1, Number(event.target.value)) })} /> kWh</span></label>
-                <label>Időtartam<span><input type="number" min="15" max="720" step="15" value={device.durationMinutes} onChange={(event) => updateDevice(device.id, { durationMinutes: Math.max(15, Number(event.target.value)) })} /> perc</span></label>
-                <label>Nap<select value={device.dayOffset} onChange={(event) => updateDevice(device.id, { dayOffset: Number(event.target.value) as DayOffset })}><option value="0">{formatDay(forecast.days[0].date, "Ma")}</option><option value="1">{formatDay(forecast.days[1].date, "Holnap")}</option></select></label>
-                <label>Indítható<input type="time" step="900" value={device.earliest} onChange={(event) => updateDevice(device.id, { earliest: event.target.value })} /></label>
-                <label>Legkésőbb kész<input type="time" step="900" value={device.latest} onChange={(event) => updateDevice(device.id, { latest: event.target.value })} /></label>
-              </div>
-              <p className="planner-device-note">{device.sourceNote} {device.sourceUrl && <a href={device.sourceUrl} target="_blank" rel="noreferrer">{device.sourceLabel} ↗</a>}</p>
-              <div className="planner-recommendation">
-                {schedule && startTime && endTime ? <>
-                  <div><span>{schedule.manual ? "Beállított idő" : "Ajánlott idő"}</span><strong>{formatClock(startTime)}–{formatClock(endTime)}</strong><small>{schedule.solarSharePct.toFixed(0)}% várhatóan napelemből</small></div>
-                  <div className="planner-step-buttons"><button disabled={candidatePosition <= 0} onClick={() => shiftSchedule(schedule, -1)} aria-label={`${device.name} 15 perccel korábban`}>−15</button><button className={!schedule.manual ? "is-auto" : ""} onClick={() => setManualStarts((current) => { const next = { ...current }; delete next[device.id]; return next; })}>Ajánlott</button><button disabled={candidatePosition >= candidates.length - 1} onClick={() => shiftSchedule(schedule, 1)} aria-label={`${device.name} 15 perccel később`}>+15</button></div>
-                </> : <span className="planner-warning">Nincs elegendő hely a megadott időablakban.</span>}
-              </div>
+              {expanded && <div className="planner-device-details" id={`planner-details-${device.id}`}>
+                <div className="planner-device-fields">
+                  <label>Név<input className="planner-device-name" aria-label="Fogyasztó neve" value={device.name} onChange={(event) => updateDevice(device.id, { name: event.target.value }, false)} /></label>
+                  <label>Energia / használat<span><input type="number" min="0.1" max="30" step="0.1" value={device.energyKwh} onChange={(event) => updateDevice(device.id, { energyKwh: Math.max(.1, Number(event.target.value)) })} /> kWh</span></label>
+                  <label>Időtartam<span><input type="number" min="15" max="720" step="15" value={device.durationMinutes} onChange={(event) => updateDevice(device.id, { durationMinutes: Math.max(15, Number(event.target.value)) })} /> perc</span></label>
+                  <label>Nap<select value={device.dayOffset} onChange={(event) => { const dayOffset = Number(event.target.value) as DayOffset; updateDevice(device.id, { dayOffset }); setViewDay(dayOffset); }}><option value="0">{formatDay(forecast.days[0].date, "Ma")}</option><option value="1">{formatDay(forecast.days[1].date, "Holnap")}</option></select></label>
+                  <label>Indítható<input type="time" step="900" value={device.earliest} onChange={(event) => updateDevice(device.id, { earliest: event.target.value })} /></label>
+                  <label>Legkésőbb kész<input type="time" step="900" value={device.latest} onChange={(event) => updateDevice(device.id, { latest: event.target.value })} /></label>
+                </div>
+                <div className="planner-device-detail-foot"><p className="planner-device-note">{device.sourceNote} {device.sourceUrl && <a href={device.sourceUrl} target="_blank" rel="noreferrer">{device.sourceLabel} ↗</a>}</p>{device.custom && <button className="planner-remove" aria-label={`${device.name} törlése`} onClick={() => setDevices((current) => current.filter((item) => item.id !== device.id))}>Fogyasztó törlése</button>}</div>
+              </div>}
             </div>;
           })}
           <button className="planner-add" onClick={addDevice}>+ Saját fogyasztó hozzáadása</button>
