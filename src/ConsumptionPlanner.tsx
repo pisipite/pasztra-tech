@@ -202,7 +202,16 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   const [dragState, setDragState] = useState<DragState | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const forecast = data.forecast;
-  const slots = useMemo(() => forecast ? makeSlots(forecast) : [], [forecast]);
+  const slots = useMemo(() => {
+    if (!forecast) return [];
+    const forecastSlots = makeSlots(forecast);
+    if (!forecastSlots.length) return forecastSlots;
+    if (!data.connections.solar.connected || !Number.isFinite(data.solar.currentPowerKw)) return forecastSlots;
+    const now = Date.now();
+    const closestIndex = forecastSlots.reduce((best, slot, index) => Math.abs(slot.timestamp - now) < Math.abs(forecastSlots[best].timestamp - now) ? index : best, 0);
+    if (Math.abs(forecastSlots[closestIndex].timestamp - now) > 30 * 60_000) return forecastSlots;
+    return forecastSlots.map((slot, index) => index === closestIndex ? { ...slot, expectedPowerKw: data.solar.currentPowerKw } : slot);
+  }, [data.connections.solar.connected, data.solar.currentPowerKw, forecast]);
   const latestSoc = [...(data.solar.energyChart ?? [])].reverse().find((point) => Number.isFinite(point.batterySoc))?.batterySoc;
   const startSocPct = Number.isFinite(latestSoc) ? Math.max(0, Math.min(100, latestSoc!)) : batterySettings.fallbackSocPct;
   const plan = useMemo(() => makePlan(trial, slots, baseLoadKw, batterySettings, startSocPct, manualStart), [baseLoadKw, batterySettings, manualStart, slots, startSocPct, trial]);
@@ -319,7 +328,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
           </>}
           <div className="planner-hours" aria-hidden="true">{[0, 4, 8, 12, 16, 20, 24].map((hour) => <span key={hour} style={{ left: `${hour / 24 * 100}%` }}>{String(hour).padStart(2, "0")}</span>)}</div>
         </div>
-        <div className="planner-key"><span><i className="solar" />PV-előrejelzés</span><span><i className="battery" />akku töltöttség</span><span>Fogd meg a színes blokkot, és húzd 15 perces lépésekben.</span></div>
+        <div className="planner-key"><span><i className="solar" />PV: élő most, előrejelzés később</span><span><i className="battery" />akku töltöttség</span><span>Fogd meg a színes blokkot, és húzd 15 perces lépésekben.</span></div>
       </section>
 
       {plan && start && endTimestamp && <div className="planner-simple-result">
