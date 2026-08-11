@@ -373,8 +373,7 @@ async function getBatteryTelemetry(psId, devices) {
         `StartTimeStamp:${sungrowTimestamp(start)}`,
         `EndTimeStamp:${sungrowTimestamp(end)}`,
         `MinuteInterval:${interval}`,
-        `PsKey:${batteryDevice.psKey}`,
-        `Points:${point}`,
+        `Points:${batteryDevice.psKey}.${point}`,
       ]).then((response) => extractBatterySamples(response, batteryDevice))))
       .then(mergeBatterySamples);
   };
