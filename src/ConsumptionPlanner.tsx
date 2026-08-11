@@ -206,12 +206,12 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
     if (!forecast) return [];
     const forecastSlots = makeSlots(forecast);
     if (!forecastSlots.length) return forecastSlots;
-    if (!data.connections.solar.connected || !Number.isFinite(data.solar.currentPowerKw)) return forecastSlots;
-    const now = Date.now();
+    if (!data.connections?.solar.connected || !Number.isFinite(data.solar.currentPowerKw)) return forecastSlots;
+    const now = new Date(data.updatedAt).getTime();
     const closestIndex = forecastSlots.reduce((best, slot, index) => Math.abs(slot.timestamp - now) < Math.abs(forecastSlots[best].timestamp - now) ? index : best, 0);
     if (Math.abs(forecastSlots[closestIndex].timestamp - now) > 30 * 60_000) return forecastSlots;
     return forecastSlots.map((slot, index) => index === closestIndex ? { ...slot, expectedPowerKw: data.solar.currentPowerKw } : slot);
-  }, [data.connections.solar.connected, data.solar.currentPowerKw, forecast]);
+  }, [data.connections?.solar.connected, data.solar.currentPowerKw, data.updatedAt, forecast]);
   const latestSoc = [...(data.solar.energyChart ?? [])].reverse().find((point) => Number.isFinite(point.batterySoc))?.batterySoc;
   const startSocPct = Number.isFinite(latestSoc) ? Math.max(0, Math.min(100, latestSoc!)) : batterySettings.fallbackSocPct;
   const plan = useMemo(() => makePlan(trial, slots, baseLoadKw, batterySettings, startSocPct, manualStart), [baseLoadKw, batterySettings, manualStart, slots, startSocPct, trial]);
