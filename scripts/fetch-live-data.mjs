@@ -335,27 +335,6 @@ function nearestBatterySample(samples, timestamp) {
   return closest;
 }
 
-function aggregateBattery(samples, unit) {
-  const groups = new Map();
-  for (const sample of samples) {
-    const timestamp = new Date(sample.timestamp);
-    const key = unit === "month" ? localMonthKey(timestamp) : localDateKey(timestamp);
-    const group = groups.get(key) ?? { batteryCharge: 0, batteryDischarge: 0, socTotal: 0, socCount: 0 };
-    group.batteryCharge += Number.isFinite(sample.chargeKw) ? sample.chargeKw : 0;
-    group.batteryDischarge += Number.isFinite(sample.dischargeKw) ? sample.dischargeKw : 0;
-    if (Number.isFinite(sample.soc)) {
-      group.socTotal += sample.soc;
-      group.socCount += 1;
-    }
-    groups.set(key, group);
-  }
-  return new Map([...groups].map(([key, group]) => [key, {
-    batteryCharge: group.batteryCharge,
-    batteryDischarge: group.batteryDischarge,
-    batterySoc: group.socCount ? group.socTotal / group.socCount : undefined,
-  }]));
-}
-
 function unitToMwh(value) {
   const amount = numberValue(value);
   const unit = String(value?.unit ?? "kWh").toLowerCase();
@@ -485,24 +464,26 @@ function reportRowKey(row, period) {
   return undefined;
 }
 
-function gridMapFromReport(report, listName, period, feedInPoint, purchasedPoint) {
+function energyMapFromReport(report, listName, period, points) {
   const rows = deepFind(report, [listName]);
   if (!Array.isArray(rows)) return new Map();
   const entries = rows.flatMap((row) => {
     const key = reportRowKey(row, period);
-    const feedIn = energyKwh(row, feedInPoint);
-    const purchased = energyKwh(row, purchasedPoint);
-    if (!key || (!Number.isFinite(feedIn) && !Number.isFinite(purchased))) return [];
-    return [[key, {
-      grid: (purchased ?? 0) - (feedIn ?? 0),
-      gridPurchase: purchased ?? 0,
-      gridFeedIn: feedIn ?? 0,
-    }]];
+    if (!key) return [];
+    const values = Object.fromEntries(Object.entries(points).flatMap(([name, pointId]) => {
+      const value = energyKwh(row, pointId);
+      return Number.isFinite(value) ? [[name, value]] : [];
+    }));
+    if (!Object.keys(values).length) return [];
+    if (Number.isFinite(values.gridPurchase) || Number.isFinite(values.gridFeedIn)) {
+      values.grid = (values.gridPurchase ?? 0) - (values.gridFeedIn ?? 0);
+    }
+    return [[key, values]];
   });
   return new Map(entries);
 }
 
-async function getGridHistory(psId) {
+async function getEnergyHistory(psId) {
   const [monthResult, yearResult] = await Promise.allSettled([
     sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${monthId}`, "DateType:2", `PsId:${psId}`]),
     sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]),
@@ -510,10 +491,24 @@ async function getGridHistory(psId) {
   if (monthResult.status === "rejected") console.error(`Sungrow napi hálózati energia: ${monthResult.reason.message}`);
   if (yearResult.status === "rejected") console.error(`Sungrow havi hálózati energia: ${yearResult.reason.message}`);
   const daily = monthResult.status === "fulfilled"
-    ? gridMapFromReport(monthResult.value, "monthDataDayList", "day", "p83072", "p83102")
+    ? energyMapFromReport(monthResult.value, "monthDataDayList", "day", {
+      pv: "p83077",
+      gridPurchase: "p83102",
+      gridFeedIn: "p83072",
+      batteryCharge: "p83088",
+      batteryDischarge: "p83089",
+      load: "p83118",
+    })
     : new Map();
   const monthly = yearResult.status === "fulfilled"
-    ? gridMapFromReport(yearResult.value, "yearDataMonthList", "month", "p83073", "p83103")
+    ? energyMapFromReport(yearResult.value, "yearDataMonthList", "month", {
+      pv: "p83078",
+      gridPurchase: "p83103",
+      gridFeedIn: "p83073",
+      batteryCharge: "p83088",
+      batteryDischarge: "p83091",
+      load: "p83118",
+    })
     : new Map();
   console.log(`Sungrow hálózati energia: ${daily.size} nap, ${monthly.size} hónap.`);
   return { daily, monthly };
@@ -531,9 +526,9 @@ async function getSungrow() {
       return null;
     }),
   ]);
-  const [battery, gridHistory] = await Promise.all([
+  const [battery, energyHistory] = await Promise.all([
     getBatteryTelemetry(psId, devices),
-    getGridHistory(psId),
+    getEnergyHistory(psId),
   ]);
   const year = await sungrowJson("AppService.getPowerStationData", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]).catch((error) => {
     console.error(`Sungrow éves összesítés nem érhető el: ${error.message}`);
@@ -580,24 +575,21 @@ async function getSungrow() {
       } : {}),
     };
   });
-  const dailyBattery = aggregateBattery(battery.history, "day");
-  const monthlyBattery = aggregateBattery(battery.history, "month");
-  const dailyGrid = gridHistory.daily;
-  const monthlyGrid = gridHistory.monthly;
-  const batteryDays = [...dailyBattery.keys()];
-  console.log(`Sungrow akkumulátor-időszak: ${batteryDays[0] ?? "nincs"} – ${batteryDays.at(-1) ?? "nincs"}; mai összesítés: ${dailyBattery.has(localDateKey(now)) ? "van" : "nincs"}.`);
+  const dailyEnergyReport = energyHistory.daily;
+  const monthlyEnergyReport = energyHistory.monthly;
+  const reportDays = [...dailyEnergyReport.keys()];
   const currentMonthKeys = Array.from({ length: now.getDate() }, (_, index) => localDateKey(new Date(now.getFullYear(), now.getMonth(), index + 1, 12)));
-  const dailyEnergyKeys = [...new Set([...batteryDays, ...currentMonthKeys])].filter((key) => key <= localDateKey(now)).sort();
+  const dailyEnergyKeys = [...new Set([...reportDays, ...currentMonthKeys])].filter((key) => key <= localDateKey(now)).sort();
   const monthEnergy = dailyEnergyKeys.map((key) => {
     const [year, month, day] = key.split("-").map(Number);
     const timestamp = new Date(year, month - 1, day, 12);
     const point = year === now.getFullYear() && month === now.getMonth() + 1 ? monthChart[day - 1] : undefined;
-    return { label: `${day}.${month}.`, timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...dailyBattery.get(key), ...dailyGrid.get(key) };
+    return { label: `${day}.${month}.`, timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...dailyEnergyReport.get(key) };
   });
   const yearEnergy = Array.from({ length: Math.max(yearChart.length, now.getMonth() + 1) }, (_, index) => {
     const point = yearChart[index];
     const timestamp = new Date(now.getFullYear(), index, 1, 12);
-    return { label: point?.label ?? ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][index], timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...monthlyBattery.get(localMonthKey(timestamp)), ...monthlyGrid.get(localMonthKey(timestamp)) };
+    return { label: point?.label ?? ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][index], timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...monthlyEnergyReport.get(localMonthKey(timestamp)) };
   });
 
   return {

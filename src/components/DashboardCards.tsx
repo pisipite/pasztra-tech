@@ -117,11 +117,6 @@ export function DashboardCards(props: Props) {
     <section className={`dashboard-grid ${loading ? "is-loading" : ""}`} aria-busy={loading}>
       <SolarCard {...props} />
       <ClimateCard data={data} climateSeries={climateSeries} />
-      <article className="card insight-card">
-        <div className="insight-icon">↗</div>
-        <div><p className="eyebrow">Mai energiaegyensúly</p><h2>A nap fedezi az otthonod fogyasztásának nagy részét.</h2></div>
-        <div className="progress-block"><div><span>Pillanatnyi saját felhasználás</span><strong>{data.solar.selfConsumptionPct}%</strong></div><span className="progress-track"><i style={{ width: `${data.solar.selfConsumptionPct}%` }} /></span></div>
-      </article>
     </section>
   );
 }

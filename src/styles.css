@@ -116,7 +116,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .card__head h2 { margin: 0; font-size: 24px; letter-spacing: -.04em; }
 
-.solar-card { grid-row: span 2; position: relative; background: var(--night); color: #f5f7ef; padding: clamp(24px, 3vw, 38px); isolation: isolate; }
+.solar-card { position: relative; background: var(--night); color: #f5f7ef; padding: clamp(24px, 3vw, 38px); isolation: isolate; }
 .solar-orbit { position: absolute; z-index: -1; top: -125px; right: -90px; width: 360px; height: 360px; border: 1px solid rgba(223,255,85,.12); border-radius: 50%; }
 .solar-orbit::before, .solar-orbit::after { content: ""; position: absolute; border-radius: 50%; border: 1px solid rgba(223,255,85,.09); inset: 45px; }
 .solar-orbit::after { inset: 92px; background: radial-gradient(circle, rgba(223,255,85,.48) 0, rgba(223,255,85,.14) 24%, transparent 65%); border-color: rgba(223,255,85,.26); box-shadow: 0 0 80px rgba(223,255,85,.08); }
@@ -164,12 +164,6 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .device-row__values { text-align: right; }.device-row__values strong { font-family: "DM Mono", monospace; font-size: 14px; }
 .device-icon { width: 34px; height: 34px; display: block; position: relative; border: 1px solid #d9d9d0; border-radius: 11px; background: #f4f3ed; }.device-icon i:first-child { position: absolute; width: 5px; height: 14px; border-radius: 5px; background: var(--climate); top: 8px; left: 10px; }.device-icon i:first-child::after { content: ""; position: absolute; width: 9px; height: 9px; border-radius: 50%; background: var(--climate); left: -2px; bottom: -4px; }.device-icon i:last-child { position: absolute; width: 7px; height: 10px; border: 1px solid #7f8f88; border-radius: 50% 50% 55% 55%; transform: rotate(45deg); right: 7px; bottom: 8px; }
 
-.insight-card { padding: 24px 28px; display: grid; grid-template-columns: 46px 1fr; gap: 16px 18px; }
-.insight-icon { width: 44px; height: 44px; border-radius: 14px; background: var(--solar); display: grid; place-items: center; font-size: 20px; }
-.insight-card h2 { font-size: 16px; line-height: 1.4; letter-spacing: -.02em; margin: 0; max-width: 390px; }
-.progress-block { grid-column: 2; display: grid; gap: 7px; }.progress-block > div { display: flex; justify-content: space-between; color: var(--muted); font-size: 9px; }.progress-block strong { color: var(--ink); font-family: "DM Mono", monospace; }
-.progress-track { height: 6px; overflow: hidden; background: #e1e2d9; border-radius: 99px; }.progress-track i { display: block; height: 100%; border-radius: inherit; background: var(--solar-deep); }
-
 footer { display: flex; justify-content: space-between; padding: 22px 4px 0; color: #7b847f; font-size: 10px; }
 footer button { border: 0; background: none; cursor: pointer; font-weight: 700; }
 
@@ -185,8 +179,6 @@ footer button { border: 0; background: none; cursor: pointer; font-weight: 700; 
 
 @media (max-width: 980px) {
   .dashboard-grid { grid-template-columns: 1fr; }
-  .solar-card { grid-row: auto; }
-  .insight-card { order: 3; }
 }
 
 @media (max-width: 640px) {
@@ -329,7 +321,7 @@ main { max-width: 1500px; padding-top: 28px; }
 
 .eyebrow { color: #7d5c43; }
 .eyebrow--light { color: #d2c5ad; }
-.analysis-toolbar h2, .card__head h2, .insight-card h2, .settings h2 { font-family: "Fraunces", Georgia, serif; font-weight: 600; }
+.analysis-toolbar h2, .card__head h2, .settings h2 { font-family: "Fraunces", Georgia, serif; font-weight: 600; }
 
 .card {
   background: var(--paper);
@@ -379,14 +371,6 @@ main { max-width: 1500px; padding-top: 28px; }
 .device-row { border-color: #e4dac9; }
 .device-icon { border-color: #d9cbb7; border-radius: 8px; background: #efe7da; }
 .device-icon i:first-child, .device-icon i:first-child::after { background: var(--terracotta); }
-
-.insight-card {
-  border-left: 5px solid var(--solar-deep);
-  background: linear-gradient(120deg, #f5ecdc, #eee2cc);
-}
-.insight-icon { border-radius: 9px; background: #dfa847; color: #17382e; }
-.progress-track { background: #d9cbb4; }
-.progress-track i { background: var(--terracotta); }
 
 .settings { background: #f4eee2; }
 .field input, .field select { border-color: #cdbfa9; background: #fffaf0; }
@@ -514,7 +498,6 @@ main { max-width: 1500px; padding-top: 28px; }
 .dashboard-grid { grid-template-columns: minmax(0, 1.55fr) minmax(340px, .8fr); column-gap: 27px; row-gap: 18px; }
 .solar-card { border-radius: 4px 21px 7px 14px; transform: rotate(-.08deg); }
 .climate-card { position: relative; border-radius: 17px 5px 19px 8px; transform: translateY(22px) rotate(.12deg); }
-.insight-card { border-radius: 5px 18px 7px 15px; transform: translateX(-13px) translateY(12px) rotate(-.14deg); }
 
 .period-tabs { border-radius: 5px 13px 6px 10px; transform: rotate(.12deg); }
 .period-tabs button:nth-child(2n) { transform: translateY(1px); }
@@ -687,7 +670,7 @@ main { max-width: 1500px; padding-top: 28px; }
 
 @media (max-width: 980px) {
   .dashboard-grid { grid-template-columns: 1fr; }
-  .climate-card, .insight-card { transform: none; }
+  .climate-card { transform: none; }
   .forecast-card { transform: none; }
   .sun-horizon-card { transform: none; }
 }
