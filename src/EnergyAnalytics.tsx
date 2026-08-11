@@ -221,14 +221,17 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               }) : points.map((point, index) => {
                 const groupWidth = Math.min(92, bucketWidth * .82);
                 const available = lineSeries.filter((series) => Number.isFinite(series.value(point)));
-                const barGap = Math.min(3, groupWidth / Math.max(available.length * 5, 1));
-                const barWidth = Math.max(2, (groupWidth - barGap * Math.max(available.length - 1, 0)) / Math.max(available.length, 1));
+                const slotFor = (key: string) => key === "gridPurchase" || key === "gridFeedIn" ? "grid" : key;
+                const slots = [...new Set(available.map((series) => slotFor(series.key)))];
+                const barGap = Math.min(3, groupWidth / Math.max(slots.length * 5, 1));
+                const barWidth = Math.max(2, (groupWidth - barGap * Math.max(slots.length - 1, 0)) / Math.max(slots.length, 1));
                 const center = bucketCenter(index);
-                return <g key={`${point.label}-${index}`}>{available.map((series, seriesIndex) => {
+                return <g key={`${point.label}-${index}`}>{available.map((series) => {
                   const value = Number(series.value(point) ?? 0);
                   const barY = value >= 0 ? y(value) : zeroY;
                   const barHeight = Math.max(1, Math.abs(y(value) - zeroY));
-                  return <rect className="energy-bar" key={series.key} x={center - groupWidth / 2 + seriesIndex * (barWidth + barGap)} y={barY} width={barWidth} height={barHeight} rx="1.5" fill={series.color} />;
+                  const slotIndex = slots.indexOf(slotFor(series.key));
+                  return <rect className="energy-bar" key={series.key} x={center - groupWidth / 2 + slotIndex * (barWidth + barGap)} y={barY} width={barWidth} height={barHeight} rx="1.5" fill={series.color} />;
                 })}</g>;
               })}
 
