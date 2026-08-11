@@ -54,6 +54,7 @@ export function SolarForecast({ data }: Props) {
 
   return (
     <article className="forecast-card card">
+      <span className="wood-slat wood-slat--forecast" aria-hidden="true"><i /></span>
       <div className="forecast-head">
         <div>
           <p className="eyebrow">Open-Meteo · 48 óra</p>

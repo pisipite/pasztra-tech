@@ -7,7 +7,7 @@ import type { DashboardData, DataConnection, PeriodKey, RangeKey } from "./types
 import "./styles.css";
 
 const periodRange: Record<PeriodKey, RangeKey> = { day: "today", week: "7d", month: "30d", year: "year", custom: "30d" };
-const connectionStaleMs = 30 * 60 * 1000;
+const connectionStaleMs = 45 * 60 * 1000;
 
 function connectionIsFresh(connection: DataConnection | undefined, fallbackConnected: boolean, fallbackUpdatedAt: string, clock: number) {
   const connected = connection?.connected ?? fallbackConnected;
@@ -184,6 +184,10 @@ function App() {
       .map((point) => ({ label: point.label, value: point.temperature })),
     [data, period, anchor, customStart, customEnd],
   );
+  const batterySoc = useMemo(() => {
+    const point = [...(data.solar.energyChart ?? [])].reverse().find((item) => Number.isFinite(item.batterySoc));
+    return point?.batterySoc;
+  }, [data.solar.energyChart]);
   const comfort = activeDevice.temperatureC >= 20 && activeDevice.temperatureC <= 25 && activeDevice.humidityPct >= 40 && activeDevice.humidityPct <= 60;
   const source = data.source ?? (!settings.live || !settings.endpoint ? "demo" : "live");
   const solarConnected = connectionIsFresh(data.connections?.solar, source === "live" && data.solar.status === "online", data.updatedAt, clock);
@@ -218,9 +222,9 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a href="#main" className="brand" aria-label="Napfény Otthon kezdőlap">
+        <a href="#main" className="brand" aria-label="Pasztra tech: Napfény kezdőlap">
           <span className="brand__mark"><i /></span>
-          <span>napfény<em>/</em>otthon</span>
+          <span>Pasztra tech<em>:</em> Napfény</span>
         </a>
         <div className="topbar__actions">
           <div className="stream-indicators" aria-label="Adatfolyamok állapota">
@@ -235,11 +239,11 @@ function App() {
         <section className="intro">
           <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-home.png`} alt="A hegyoldali otthon madártávlatból" />
           <div className="intro__shade" aria-hidden="true" />
+          <span className="wood-slat wood-slat--hero" aria-hidden="true"><i /></span>
           <div className="intro__content">
             <p className="eyebrow">{new Intl.DateTimeFormat("hu-HU", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
             <h1>Jó napot!<br />Itthon minden rendben.</h1>
           </div>
-          <p className="intro__aside"><span>Hegyoldali otthon</span>A termelés, fogyasztás és otthonklíma egyetlen, részletes nézetben.</p>
         </section>
 
         {error && <div className="notice" role="status">{error}</div>}
@@ -260,6 +264,7 @@ function App() {
         <section className={`dashboard-grid ${loading ? "is-loading" : ""}`} aria-busy={loading}>
           <article className="card solar-card">
             <div className="solar-orbit" aria-hidden="true"><i /><i /><i /></div>
+            <span className="wood-slat wood-slat--solar" aria-hidden="true"><i /></span>
             <div className="card__head">
               <div>
                 <p className="eyebrow eyebrow--light">Sungrow napelem</p>
@@ -278,18 +283,23 @@ function App() {
                 <div><span>{data.solar.gridPowerKw < 0 ? "Hálózatba táplálva" : "Hálózatból véve"}</span><strong>{Math.abs(data.solar.gridPowerKw).toFixed(2)} kW</strong></div>
               </div>
             </div>
-            <div className="solar-chart-wrap">
-              <div className="section-title"><span>Termelés</span><strong>{period === "day" ? `${data.solar.todayKwh.toFixed(1)} kWh ma` : "összesített energia"}</strong></div>
-              <LineChart data={data.solar.chart} suffix={period === "day" ? "kW" : "kWh"} />
+            <div className="battery-status-panel" aria-label={`Akkumulátor töltöttsége: ${Number.isFinite(batterySoc) ? `${batterySoc!.toFixed(0)} százalék` : "nincs adat"}`}>
+              <div>
+                <span>Akkumulátor</span>
+                <strong>{Number.isFinite(batterySoc) ? batterySoc!.toFixed(0) : "—"}<small>%</small></strong>
+                <p>aktuális töltöttségi szint</p>
+              </div>
+              <span className="battery-shape" aria-hidden="true"><i style={{ width: `${Math.max(0, Math.min(100, batterySoc ?? 0))}%` }} /></span>
             </div>
             <div className="solar-stats">
+              <div><span>Termelés ma</span><strong>{data.solar.todayKwh.toFixed(1)} <small>kWh</small></strong></div>
               <div><span>Ebben a hónapban</span><strong>{data.solar.monthKwh.toLocaleString("hu-HU")} <small>kWh</small></strong></div>
               <div><span>Összes termelés</span><strong>{data.solar.lifetimeMwh.toFixed(1)} <small>MWh</small></strong></div>
-              <div><span>CO₂ megtakarítás ma</span><strong>{data.solar.co2SavedKg.toFixed(1)} <small>kg</small></strong></div>
             </div>
           </article>
 
           <article className="card climate-card">
+            <span className="plant-sprout plant-sprout--climate" aria-hidden="true"><i /><i /><i /></span>
             <div className="card__head">
               <div><p className="eyebrow">Govee otthonklíma</p><h2>{activeDevice.room}</h2></div>
               <span className={`comfort-badge ${comfort ? "" : "comfort-badge--alert"}`}>{comfort ? "Kellemes" : "Ellenőrizendő"}</span>

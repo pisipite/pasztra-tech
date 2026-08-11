@@ -248,6 +248,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
 
   return (
     <article className="energy-analysis card">
+      <span className="plant-sprout plant-sprout--energy" aria-hidden="true"><i /><i /><i /></span>
       <div className="analysis-toolbar">
         <div>
           <p className="eyebrow">Energiafolyam</p>

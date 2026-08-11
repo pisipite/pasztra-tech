@@ -463,3 +463,173 @@ main { max-width: 1500px; padding-top: 28px; }
   .forecast-chart svg { width: 720px; max-width: none; }
   .forecast-tooltip { position: sticky; left: 12px; right: auto; }
 }
+
+/* Szabálytalan, kézzel épített részletek */
+.brand { letter-spacing: -.025em; }
+.brand em { margin: 0 1px; }
+
+.card {
+  border-radius: 7px 19px 9px 15px;
+}
+.energy-analysis {
+  position: relative;
+  border-top: 0;
+  border-left: 4px solid var(--terracotta);
+  border-radius: 5px 22px 8px 16px;
+}
+.energy-analysis::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 7%;
+  width: 42%;
+  height: 5px;
+  background: linear-gradient(90deg, var(--terracotta) 0 37%, transparent 37% 42%, var(--terracotta) 42% 76%, transparent 76% 80%, var(--terracotta) 80%);
+  transform: rotate(-.35deg);
+}
+.forecast-card {
+  position: relative;
+  border-top: 0;
+  border-right: 5px solid var(--solar-deep);
+  border-radius: 18px 5px 17px 8px;
+  transform: translateX(7px);
+}
+.forecast-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: 13%;
+  width: 48%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--solar-deep) 0 25%, transparent 25% 31%, var(--solar-deep) 31% 67%, transparent 67% 72%, var(--solar-deep) 72%);
+  transform: rotate(.45deg);
+}
+.dashboard-grid { grid-template-columns: minmax(0, 1.55fr) minmax(340px, .8fr); column-gap: 27px; row-gap: 18px; }
+.solar-card { border-radius: 4px 21px 7px 14px; transform: rotate(-.08deg); }
+.climate-card { position: relative; border-radius: 17px 5px 19px 8px; transform: translateY(22px) rotate(.12deg); }
+.insight-card { border-radius: 5px 18px 7px 15px; transform: translateX(-13px) translateY(12px) rotate(-.14deg); }
+
+.period-tabs { border-radius: 5px 13px 6px 10px; transform: rotate(.12deg); }
+.period-tabs button:nth-child(2n) { transform: translateY(1px); }
+.period-stepper { border-radius: 11px 4px 9px 6px; }
+.overlay-toggles button:nth-child(odd) { border-radius: 13px 7px 12px 5px; }
+.overlay-toggles button:nth-child(even) { border-radius: 6px 15px 5px 12px; transform: translateY(2px); }
+.forecast-summary { border-radius: 5px 14px 7px 10px; transform: rotate(-.05deg); }
+
+.wood-slat {
+  position: absolute;
+  z-index: 4;
+  display: block;
+  width: 158px;
+  height: 22px;
+  pointer-events: none;
+  background:
+    linear-gradient(94deg, transparent 0 7%, rgba(255,255,255,.12) 8%, transparent 10% 38%, rgba(35,19,10,.2) 39% 41%, transparent 42%),
+    repeating-linear-gradient(3deg, #6d452f 0 3px, #82573b 3px 7px, #75482f 7px 10px);
+  clip-path: polygon(0 22%, 8% 5%, 31% 10%, 38% 0, 73% 12%, 91% 3%, 100% 28%, 97% 84%, 82% 100%, 53% 88%, 27% 100%, 4% 79%);
+  box-shadow: 0 5px 10px rgba(29,17,9,.24);
+}
+.wood-slat::before, .wood-slat::after {
+  content: "";
+  position: absolute;
+  top: 8px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #332b26;
+  box-shadow: inset 1px 1px rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.5);
+}
+.wood-slat::before { left: 18px; }
+.wood-slat::after { right: 19px; }
+.wood-slat--hero { top: 18px; right: -24px; transform: rotate(7deg); }
+.wood-slat--solar { top: 97px; right: -37px; width: 184px; transform: rotate(-5deg); opacity: .86; }
+.wood-slat--forecast { top: -9px; left: 17%; width: 132px; transform: rotate(-2.2deg); }
+
+.plant-sprout {
+  position: absolute;
+  z-index: 5;
+  width: 56px;
+  height: 53px;
+  pointer-events: none;
+}
+.plant-sprout::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  bottom: 2px;
+  width: 49px;
+  height: 17px;
+  border-top: 2px solid rgba(72,58,42,.48);
+  clip-path: polygon(0 34%, 22% 54%, 37% 19%, 59% 72%, 72% 35%, 100% 66%, 100% 82%, 72% 54%, 59% 90%, 37% 38%, 22% 75%, 0 50%);
+  background: rgba(82,67,48,.34);
+}
+.plant-sprout::after {
+  content: "";
+  position: absolute;
+  left: 28px;
+  bottom: 10px;
+  width: 2px;
+  height: 34px;
+  border-radius: 50%;
+  background: #52724d;
+  transform: rotate(6deg);
+  transform-origin: bottom;
+}
+.plant-sprout i { position: absolute; z-index: 1; width: 17px; height: 9px; border-radius: 100% 0 100% 0; background: #63845a; box-shadow: inset 0 -2px rgba(31,74,58,.25); }
+.plant-sprout i:nth-child(1) { left: 13px; top: 12px; transform: rotate(18deg); }
+.plant-sprout i:nth-child(2) { left: 29px; top: 5px; transform: rotate(-32deg) scale(.86); }
+.plant-sprout i:nth-child(3) { left: 31px; top: 22px; transform: rotate(-12deg) scale(.72); }
+.plant-sprout--energy { right: 7%; bottom: -8px; transform: rotate(3deg); }
+.plant-sprout--climate { right: 36px; top: -23px; transform: rotate(-7deg) scale(.82); }
+
+.battery-status-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 30px;
+  min-height: 164px;
+  padding: 26px 30px;
+  border-top: 1px solid rgba(255,255,255,.12);
+  border-left: 3px solid rgba(239,189,97,.62);
+  background: linear-gradient(115deg, rgba(255,255,255,.055), rgba(255,255,255,.012));
+  clip-path: polygon(0 4%, 41% 0, 64% 3%, 100% 0, 99% 93%, 77% 100%, 46% 96%, 19% 100%, 0 95%);
+}
+.battery-status-panel > div { display: grid; gap: 4px; }
+.battery-status-panel span { color: #b7c3b8; font-size: 10px; text-transform: uppercase; letter-spacing: .12em; }
+.battery-status-panel strong { color: #efbd61; font-family: "DM Mono", monospace; font-size: clamp(48px, 6vw, 82px); line-height: 1; font-weight: 500; letter-spacing: -.07em; }
+.battery-status-panel strong small { margin-left: 7px; color: #d8c8a8; font-size: 18px; letter-spacing: 0; }
+.battery-status-panel p { margin: 2px 0 0; color: #8f9e96; font-size: 10px; }
+.battery-shape {
+  position: relative;
+  display: block;
+  width: clamp(120px, 15vw, 190px);
+  height: 64px;
+  padding: 7px;
+  border: 3px solid #c7d0c8;
+  border-radius: 6px 13px 5px 9px;
+}
+.battery-shape::after { content: ""; position: absolute; right: -12px; top: 18px; width: 9px; height: 24px; border-radius: 0 4px 4px 0; background: #c7d0c8; }
+.battery-shape i { display: block; height: 100%; min-width: 3px; border-radius: 2px 7px 2px 5px; background: repeating-linear-gradient(105deg, #efbd61 0 12px, #d99c3d 12px 15px); box-shadow: 0 0 20px rgba(239,189,97,.18); }
+
+.solar-stats { margin-top: 25px; transform: rotate(.05deg); }
+.solar-stats > div:nth-child(2) { transform: translateY(3px); }
+
+@media (max-width: 980px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .climate-card, .insight-card { transform: none; }
+  .forecast-card { transform: none; }
+}
+
+@media (max-width: 640px) {
+  .brand > span:last-child { display: inline; max-width: 150px; font-size: 14px; line-height: 1.05; }
+  .intro { min-height: 350px; }
+  .intro__content { bottom: 42px; }
+  .wood-slat--hero { width: 112px; right: -29px; }
+  .wood-slat--forecast { left: 52%; }
+  .battery-status-panel { grid-template-columns: 1fr; gap: 18px; padding: 24px 20px 31px; }
+  .battery-shape { width: min(210px, 82%); }
+  .solar-stats { grid-template-columns: 1fr; }
+  .solar-stats > div:last-child { grid-column: auto; }
+  .plant-sprout--energy { right: 2%; }
+}
