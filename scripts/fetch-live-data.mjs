@@ -410,6 +410,7 @@ async function getBatteryTelemetry(psId, devices) {
   }
 
   const query = (start, end, interval, includeDetails = false) => {
+    const requiredPoints = new Set([batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc]);
     const points = [
       batteryDevice.charge,
       batteryDevice.discharge,
@@ -422,7 +423,11 @@ async function getBatteryTelemetry(psId, devices) {
         `EndTimeStamp:${sungrowTimestamp(end)}`,
         `MinuteInterval:${interval}`,
         `Points:${batteryDevice.psKey}.${point}`,
-      ]).then((response) => extractBatterySamples(response, batteryDevice))))
+      ]).then((response) => extractBatterySamples(response, batteryDevice)).catch((error) => {
+        if (requiredPoints.has(point)) throw error;
+        console.error(`Sungrow opcionális akkumulátor-adatpont (${point}): ${error.message}`);
+        return [];
+      })))
       .then(mergeBatterySamples)
       .then(normalizeBatteryPower)
       .then((samples) => normalizeBatterySoc(samples, batteryDevice.soc));
