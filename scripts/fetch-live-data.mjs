@@ -473,13 +473,15 @@ async function getSungrow() {
   });
   const dailyBattery = aggregateBattery(battery.history, "day");
   const monthlyBattery = aggregateBattery(battery.history, "month");
-  const monthEnergy = monthChart.map((point, index) => {
+  const monthEnergy = Array.from({ length: Math.max(monthChart.length, now.getDate()) }, (_, index) => {
+    const point = monthChart[index];
     const timestamp = new Date(now.getFullYear(), now.getMonth(), index + 1, 12);
-    return { label: point.label, timestamp: timestamp.toISOString(), pv: point.value, ...dailyBattery.get(localDateKey(timestamp)) };
+    return { label: point?.label ?? `${index + 1}.`, timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...dailyBattery.get(localDateKey(timestamp)) };
   });
-  const yearEnergy = yearChart.map((point, index) => {
+  const yearEnergy = Array.from({ length: Math.max(yearChart.length, now.getMonth() + 1) }, (_, index) => {
+    const point = yearChart[index];
     const timestamp = new Date(now.getFullYear(), index, 1, 12);
-    return { label: point.label, timestamp: timestamp.toISOString(), pv: point.value, ...monthlyBattery.get(localMonthKey(timestamp)) };
+    return { label: point?.label ?? ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][index], timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...monthlyBattery.get(localMonthKey(timestamp)) };
   });
 
   return {
