@@ -75,6 +75,10 @@ export function makeDemoData(range: RangeKey): DashboardData {
       pv,
       load,
       grid: Number((load - pv).toFixed(2)),
+      ...(!isPower ? {
+        gridPurchase: Number((load * (.16 + Math.max(0, Math.sin(index * .91)) * .08)).toFixed(1)),
+        gridFeedIn: Number((Math.max(0, pv - load) * (.62 + Math.max(0, Math.cos(index * .67)) * .12)).toFixed(1)),
+      } : {}),
       batteryCharge: isPower ? Number(Math.max(0, -Math.sin(index * .9) * .28).toFixed(2)) : Number((pv * .08).toFixed(1)),
       batteryDischarge: isPower ? Number(Math.max(0, Math.sin(index * .9) * .28).toFixed(2)) : Number((pv * .05).toFixed(1)),
       batterySoc: isPower ? Math.min(100, 74 + index * 1.7) : Math.min(96, 58 + index * 2.1),

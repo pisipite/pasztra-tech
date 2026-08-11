@@ -101,3 +101,13 @@ export function batteryDischargeValue(point: EnergyChartPoint) {
   if (Number.isFinite(point.batteryDischarge)) return Math.abs(point.batteryDischarge!);
   return Number.isFinite(point.battery) && point.battery! > 0 ? point.battery : undefined;
 }
+
+export function gridPurchaseValue(point: EnergyChartPoint) {
+  if (Number.isFinite(point.gridPurchase)) return Math.abs(point.gridPurchase!);
+  return Number.isFinite(point.grid) && point.grid! > 0 ? point.grid : undefined;
+}
+
+export function gridFeedInValue(point: EnergyChartPoint) {
+  if (Number.isFinite(point.gridFeedIn)) return -Math.abs(point.gridFeedIn!);
+  return Number.isFinite(point.grid) && point.grid! < 0 ? point.grid : undefined;
+}

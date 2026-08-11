@@ -92,10 +92,13 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .chart-legend button:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; border-radius: 2px; }
 .chart-legend button.is-hidden { opacity: .38; text-decoration: line-through; text-decoration-thickness: 1px; }
 .chart-legend i { width: 18px; height: 3px; border-radius: 4px; }
+.chart-legend.is-bar-legend i { height: 10px; border-radius: 3px 2px 3px 2px; }
 .energy-chart { position: relative; min-height: 330px; }
 .energy-chart svg { display: block; width: 100%; height: auto; min-height: 290px; overflow: visible; }
 .energy-gridline { stroke: #dde0d8; stroke-width: 1; stroke-dasharray: 2 4; }
 .energy-zero { stroke: #9fa7a2; stroke-width: 1.2; }
+.energy-bar { opacity: .94; transition: opacity .15s ease; }
+.energy-chart:has(.chart-hit:hover) .energy-bar { opacity: .72; }
 .energy-axis-label, .energy-x-label, .energy-axis-title { fill: #7a837e; font-family: "DM Mono", monospace; font-size: 9px; }
 .energy-axis-title { font-family: "Manrope", sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .chart-hit { fill: transparent; cursor: crosshair; }

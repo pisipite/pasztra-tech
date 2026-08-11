@@ -21,6 +21,21 @@ const monthFormatter = new Intl.DateTimeFormat("hu-HU", {
   month: "long",
 });
 
+const monthDayFormatter = new Intl.DateTimeFormat("hu-HU", {
+  month: "long",
+  day: "numeric",
+});
+
+function compactDateRange(start: Date, end: Date) {
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const sameMonth = sameYear && start.getMonth() === end.getMonth();
+  if (sameMonth) {
+    return `${start.getFullYear()}. ${new Intl.DateTimeFormat("hu-HU", { month: "long" }).format(start)} ${start.getDate()}–${end.getDate()}.`;
+  }
+  if (sameYear) return `${start.getFullYear()}. ${monthDayFormatter.format(start)} – ${monthDayFormatter.format(end)}`;
+  return `${dayFormatter.format(start)} – ${dayFormatter.format(end)}`;
+}
+
 export function dateInputValue(value: Date) {
   const year = value.getFullYear();
   const month = String(value.getMonth() + 1).padStart(2, "0");
@@ -55,11 +70,12 @@ export function sameDay(a: Date, b: Date) {
 
 export function periodLabel(period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
   if (period === "day") return dayFormatter.format(anchor);
-  if (period === "week") return `${dayFormatter.format(startOfWeek(anchor))} – ${dayFormatter.format(endOfWeek(anchor))}`;
+  if (period === "week") return compactDateRange(startOfWeek(anchor), endOfWeek(anchor));
   if (period === "month") return monthFormatter.format(anchor);
   if (period === "year") return `${anchor.getFullYear()}`;
   const from = customStart ? dayFormatter.format(dateFromInput(customStart)) : "–";
   const to = customEnd ? dayFormatter.format(dateFromInput(customEnd)) : "–";
+  if (customStart && customEnd) return compactDateRange(dateFromInput(customStart), dateFromInput(customEnd));
   return `${from} – ${to}`;
 }
 

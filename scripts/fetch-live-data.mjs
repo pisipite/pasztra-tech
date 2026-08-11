@@ -493,7 +493,11 @@ function gridMapFromReport(report, listName, period, feedInPoint, purchasedPoint
     const feedIn = energyKwh(row, feedInPoint);
     const purchased = energyKwh(row, purchasedPoint);
     if (!key || (!Number.isFinite(feedIn) && !Number.isFinite(purchased))) return [];
-    return [[key, { grid: (purchased ?? 0) - (feedIn ?? 0) }]];
+    return [[key, {
+      grid: (purchased ?? 0) - (feedIn ?? 0),
+      gridPurchase: purchased ?? 0,
+      gridFeedIn: feedIn ?? 0,
+    }]];
   });
   return new Map(entries);
 }

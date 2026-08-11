@@ -11,6 +11,8 @@ export interface EnergyChartPoint {
   timestamp?: string;
   pv?: number;
   grid?: number;
+  gridPurchase?: number;
+  gridFeedIn?: number;
   battery?: number;
   batteryCharge?: number;
   batteryDischarge?: number;
