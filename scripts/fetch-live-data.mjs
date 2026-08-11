@@ -258,6 +258,16 @@ function extractBatterySamples(root, batteryDevice) {
   return [...rows.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 }
 
+function mergeBatterySamples(sampleLists) {
+  const byTimestamp = new Map();
+  for (const samples of sampleLists) {
+    for (const sample of samples) {
+      byTimestamp.set(sample.timestamp, { ...byTimestamp.get(sample.timestamp), ...sample });
+    }
+  }
+  return [...byTimestamp.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
 function nearestBatterySample(samples, timestamp) {
   const target = new Date(timestamp).getTime();
   let closest;
@@ -358,14 +368,15 @@ async function getBatteryTelemetry(psId, devices) {
 
   const query = (start, end, interval) => {
     const points = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc];
-    return sungrowJson("AppService.queryMutiPointDataList", [
-      `PsId:${psId}`,
-      `StartTimeStamp:${sungrowTimestamp(start)}`,
-      `EndTimeStamp:${sungrowTimestamp(end)}`,
-      `MinuteInterval:${interval}`,
-      `PsKeys:${points.map(() => batteryDevice.psKey).join(",")}`,
-      `Points:${points.join(",")}`,
-    ]).then((response) => extractBatterySamples(response, batteryDevice));
+    return Promise.all(points.map((point) => sungrowJson("AppService.queryMutiPointDataList", [
+        `PsId:${psId}`,
+        `StartTimeStamp:${sungrowTimestamp(start)}`,
+        `EndTimeStamp:${sungrowTimestamp(end)}`,
+        `MinuteInterval:${interval}`,
+        `PsKeys:${batteryDevice.psKey}`,
+        `Points:${point}`,
+      ]).then((response) => extractBatterySamples(response, batteryDevice))))
+      .then(mergeBatterySamples);
   };
 
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
