@@ -8,6 +8,7 @@ import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
 import { formatHeadingDate, formatTime } from "./formatUtils";
 import { SolarForecast } from "./SolarForecast";
+import { SunHorizon } from "./SunHorizon";
 import type { DashboardData, DataConnection, PeriodKey } from "./types";
 import "./styles.css";
 
@@ -158,6 +159,8 @@ function App() {
         />
 
         <SolarForecast data={data} />
+
+        <SunHorizon />
 
         <DashboardCards
           data={data}
