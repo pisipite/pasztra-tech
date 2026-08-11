@@ -15,6 +15,8 @@ A **Settings → Secrets and variables → Actions → Secrets** részen hozd l�
 | `SUNGROW_USER` | iSolarCloud felhasználónév vagy e-mail |
 | `SUNGROW_PASSWORD` | iSolarCloud jelszó |
 | `GOVEE_API_KEY` | Govee Developer API-kulcs |
+| `SOLAR_LATITUDE` | A rendszer pontos földrajzi szélessége az időjárási előrejelzéshez |
+| `SOLAR_LONGITUDE` | A rendszer pontos földrajzi hosszúsága az időjárási előrejelzéshez |
 
 A Govee API-kulcsot a Govee Home alkalmazásban lehet igényelni. A kulcsot soha ne írd fájlba vagy commitba.
 
@@ -31,6 +33,10 @@ Az **Actions → Variables** részen add meg:
 | `GOVEE_DEVICE_SKU` | nem | Például `H5179`; eszközválasztáshoz használható |
 | `GOVEE_ROOM_NAME` | nem | Például `Nappali` |
 | `CO2_KG_PER_KWH` | nem | Becsült kg CO₂/kWh szorzó; alapérték: `0.233` |
+| `SOLAR_SYSTEM_KWP` | nem | Névleges rendszerteljesítmény; alapérték: `5` |
+| `SOLAR_TILT_DEG` | nem | Paneldőlés fokban; jelenlegi fotóalapú becslés: `27` |
+| `SOLAR_AZIMUTH_DEG` | nem | Open-Meteo azimut: `0` = dél, pozitív = nyugat; jelenlegi becslés: `12` |
+| `SOLAR_PERFORMANCE_RATIO` | nem | Rendszerveszteségi szorzó; alapérték: `0.82` |
 
 A `SUNGROW_PS_ID` helyben a következő GoSungrow paranccsal kereshető meg:
 

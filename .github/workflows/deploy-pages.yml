@@ -54,6 +54,12 @@ jobs:
           GOVEE_ROOM_NAME: ${{ vars.GOVEE_ROOM_NAME }}
           CLIMATE_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/govee-history.json
           CO2_KG_PER_KWH: ${{ vars.CO2_KG_PER_KWH }}
+          SOLAR_LATITUDE: ${{ secrets.SOLAR_LATITUDE }}
+          SOLAR_LONGITUDE: ${{ secrets.SOLAR_LONGITUDE }}
+          SOLAR_SYSTEM_KWP: ${{ vars.SOLAR_SYSTEM_KWP }}
+          SOLAR_TILT_DEG: ${{ vars.SOLAR_TILT_DEG }}
+          SOLAR_AZIMUTH_DEG: ${{ vars.SOLAR_AZIMUTH_DEG }}
+          SOLAR_PERFORMANCE_RATIO: ${{ vars.SOLAR_PERFORMANCE_RATIO }}
         run: bash scripts/fetch-live-data.sh
       - run: pnpm install --frozen-lockfile
       - run: pnpm build

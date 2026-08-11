@@ -25,6 +25,32 @@ export interface ClimatePoint {
   humidity: number;
 }
 
+export interface SolarForecastPoint {
+  label: string;
+  timestamp: string;
+  expectedPowerKw: number;
+  irradianceWm2: number;
+  cloudCoverPct: number;
+  precipitationProbabilityPct: number;
+}
+
+export interface SolarForecastDay {
+  date: string;
+  label: string;
+  expectedKwh: number;
+  bestWindow: string;
+  points: SolarForecastPoint[];
+}
+
+export interface SolarForecast {
+  updatedAt: string;
+  systemKwp: number;
+  tiltDeg: number;
+  azimuthDeg: number;
+  performanceRatio: number;
+  days: SolarForecastDay[];
+}
+
 export interface SolarData {
   status: "online" | "offline" | "warning";
   currentPowerKw: number;
@@ -66,6 +92,7 @@ export interface DashboardData {
     devices: GoveeDevice[];
     chart: ClimatePoint[];
   };
+  forecast?: SolarForecast;
 }
 
 declare global {

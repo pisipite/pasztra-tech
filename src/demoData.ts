@@ -27,6 +27,32 @@ export function makeDemoData(range: RangeKey): DashboardData {
     ? ["0", "3", "6", "9", "12", "15", "18", "21", "24"]
     : labels[range];
   const now = new Date();
+  const forecastDays = Array.from({ length: 2 }, (_, dayIndex) => {
+    const date = new Date(now);
+    date.setDate(date.getDate() + dayIndex);
+    const points = Array.from({ length: 24 }, (_, hour) => {
+      const daylight = Math.max(0, Math.sin(((hour - 6) / 14) * Math.PI));
+      const cloudFactor = dayIndex ? .72 + Math.sin(hour * .8) * .1 : .86 + Math.sin(hour * .6) * .08;
+      const expectedPowerKw = Number((Math.max(0, daylight * 5 * cloudFactor)).toFixed(2));
+      const timestamp = new Date(date);
+      timestamp.setHours(hour, 0, 0, 0);
+      return {
+        label: `${String(hour).padStart(2, "0")}:00`,
+        timestamp: timestamp.toISOString(),
+        expectedPowerKw,
+        irradianceWm2: Math.round(expectedPowerKw / 5 / .82 * 1000),
+        cloudCoverPct: Math.round(dayIndex ? 38 + Math.sin(hour * .8) * 18 : 19 + Math.sin(hour * .6) * 12),
+        precipitationProbabilityPct: dayIndex ? 24 : 6,
+      };
+    });
+    return {
+      date: date.toISOString().slice(0, 10),
+      label: dayIndex ? "Holnap" : "Ma",
+      expectedKwh: Number(points.reduce((sum, point) => sum + point.expectedPowerKw, 0).toFixed(1)),
+      bestWindow: dayIndex ? "11:00–14:00" : "10:00–13:00",
+      points,
+    };
+  });
   const climate = climateLabels.map((label, index) => ({
     label,
     temperature: Number((22.3 + Math.sin(index * 0.72 - 1) * 1.4).toFixed(1)),
@@ -98,6 +124,14 @@ export function makeDemoData(range: RangeKey): DashboardData {
         },
       ],
       chart: climate,
+    },
+    forecast: {
+      updatedAt: now.toISOString(),
+      systemKwp: 5,
+      tiltDeg: 27,
+      azimuthDeg: 12,
+      performanceRatio: .82,
+      days: forecastDays,
     },
   };
 }

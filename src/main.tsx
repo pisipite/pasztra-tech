@@ -2,6 +2,7 @@ import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
+import { SolarForecast } from "./SolarForecast";
 import type { DashboardData, DataConnection, PeriodKey, RangeKey } from "./types";
 import "./styles.css";
 
@@ -253,6 +254,8 @@ function App() {
           onStep={stepPeriod}
           onCustomChange={(start, end) => { setCustomStart(start); setCustomEnd(end); }}
         />
+
+        <SolarForecast data={data} />
 
         <section className={`dashboard-grid ${loading ? "is-loading" : ""}`} aria-busy={loading}>
           <article className="card solar-card">

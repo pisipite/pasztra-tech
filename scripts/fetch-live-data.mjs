@@ -303,6 +303,87 @@ async function getSungrow() {
   };
 }
 
+function forecastSetting(name, fallback) {
+  const raw = process.env[name];
+  if (raw === undefined || raw.trim() === "") return fallback;
+  const configured = Number(raw);
+  return Number.isFinite(configured) ? configured : fallback;
+}
+
+function timestampWithOffset(localTime, offsetSeconds) {
+  const sign = offsetSeconds >= 0 ? "+" : "-";
+  const absolute = Math.abs(offsetSeconds);
+  return `${localTime}:00${sign}${pad(Math.floor(absolute / 3600))}:${pad(Math.floor((absolute % 3600) / 60))}`;
+}
+
+function bestConsumptionWindow(points, length = 3) {
+  let bestIndex = 0;
+  let bestTotal = -1;
+  for (let index = 0; index <= points.length - length; index += 1) {
+    const total = points.slice(index, index + length).reduce((sum, point) => sum + point.expectedPowerKw, 0);
+    if (total > bestTotal) {
+      bestIndex = index;
+      bestTotal = total;
+    }
+  }
+  const start = Number(points[bestIndex]?.label.slice(0, 2) ?? 0);
+  return `${pad(start)}:00–${pad(Math.min(24, start + length))}:00`;
+}
+
+async function getSolarForecast() {
+  // A nyilvános repóban csak közelítő koordináta szerepel; a pontos érték GitHub Secrettel adható meg.
+  const latitude = forecastSetting("SOLAR_LATITUDE", 42.13);
+  const longitude = forecastSetting("SOLAR_LONGITUDE", 23.22);
+  const systemKwp = forecastSetting("SOLAR_SYSTEM_KWP", 5);
+  const tiltDeg = forecastSetting("SOLAR_TILT_DEG", 27);
+  const azimuthDeg = forecastSetting("SOLAR_AZIMUTH_DEG", 12);
+  const performanceRatio = forecastSetting("SOLAR_PERFORMANCE_RATIO", .82);
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", String(latitude));
+  url.searchParams.set("longitude", String(longitude));
+  url.searchParams.set("hourly", "global_tilted_irradiance,cloud_cover,precipitation_probability");
+  url.searchParams.set("tilt", String(tiltDeg));
+  url.searchParams.set("azimuth", String(azimuthDeg));
+  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("forecast_days", "3");
+
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!response.ok) throw new Error(`Open-Meteo: HTTP ${response.status}`);
+  const body = await response.json();
+  const times = body.hourly?.time ?? [];
+  const irradiance = body.hourly?.global_tilted_irradiance ?? [];
+  const cloudCover = body.hourly?.cloud_cover ?? [];
+  const precipitation = body.hourly?.precipitation_probability ?? [];
+  const groups = new Map();
+
+  times.forEach((localTime, index) => {
+    const date = localTime.slice(0, 10);
+    const gti = Math.max(0, numberValue(irradiance[index]));
+    const point = {
+      label: localTime.slice(11, 16),
+      timestamp: timestampWithOffset(localTime, numberValue(body.utc_offset_seconds)),
+      expectedPowerKw: Math.min(systemKwp, systemKwp * (gti / 1000) * performanceRatio),
+      irradianceWm2: gti,
+      cloudCoverPct: numberValue(cloudCover[index]),
+      precipitationProbabilityPct: numberValue(precipitation[index]),
+    };
+    const day = groups.get(date) ?? [];
+    day.push(point);
+    groups.set(date, day);
+  });
+
+  const days = [...groups.entries()].slice(0, 2).map(([date, points], index) => ({
+    date,
+    label: index === 0 ? "Ma" : "Holnap",
+    expectedKwh: points.reduce((sum, point) => sum + point.expectedPowerKw, 0),
+    bestWindow: bestConsumptionWindow(points),
+    points,
+  }));
+
+  if (!days.length) throw new Error("Az Open-Meteo nem adott vissza előrejelzési adatot.");
+  return { updatedAt: now.toISOString(), systemKwp, tiltDeg, azimuthDeg, performanceRatio, days };
+}
+
 async function getGovee() {
   const apiKey = process.env.GOVEE_API_KEY;
   if (!apiKey) return null;
@@ -346,13 +427,15 @@ async function getGovee() {
   };
 }
 
-const results = await Promise.allSettled([getSungrow(), getGovee()]);
+const results = await Promise.allSettled([getSungrow(), getGovee(), getSolarForecast()]);
 const sungrow = results[0].status === "fulfilled" ? results[0].value : null;
 const govee = results[1].status === "fulfilled" ? results[1].value : null;
+const forecast = results[2].status === "fulfilled" ? results[2].value : null;
 if (results[0].status === "rejected") console.error(`Sungrow: ${results[0].reason.message}`);
 if (results[1].status === "rejected") console.error(`Govee: ${results[1].reason.message}`);
+if (results[2].status === "rejected") console.error(`Előrejelzés: ${results[2].reason.message}`);
 
-if (!sungrow && !govee) {
+if (!sungrow && !govee && !forecast) {
   console.log("Nincsenek beállítva élő adatforrások; a bemutató mód marad aktív.");
   process.exit(0);
 }
@@ -369,8 +452,9 @@ for (const range of ["today", "7d", "30d", "year"]) {
   };
   if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] };
   if (govee) dashboard.govee = { ...govee, chart: climateCharts[range] };
+  if (forecast) dashboard.forecast = forecast;
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
 }
 
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");
-console.log(`Élő dashboard-adatok elkészítve (${sungrow ? "Sungrow" : ""}${sungrow && govee ? " + " : ""}${govee ? "Govee" : ""}).`);
+console.log(`Élő dashboard-adatok elkészítve (${sungrow ? "Sungrow" : ""}${sungrow && govee ? " + " : ""}${govee ? "Govee" : ""}${forecast ? " + Open-Meteo" : ""}).`);
