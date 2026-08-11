@@ -473,6 +473,8 @@ async function getSungrow() {
   });
   const dailyBattery = aggregateBattery(battery.history, "day");
   const monthlyBattery = aggregateBattery(battery.history, "month");
+  const batteryDays = [...dailyBattery.keys()];
+  console.log(`Sungrow akkumulátor-időszak: ${batteryDays[0] ?? "nincs"} – ${batteryDays.at(-1) ?? "nincs"}; mai összesítés: ${dailyBattery.has(localDateKey(now)) ? "van" : "nincs"}.`);
   const monthEnergy = Array.from({ length: Math.max(monthChart.length, now.getDate()) }, (_, index) => {
     const point = monthChart[index];
     const timestamp = new Date(now.getFullYear(), now.getMonth(), index + 1, 12);
