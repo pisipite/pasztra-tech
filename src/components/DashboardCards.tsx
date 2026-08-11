@@ -24,7 +24,7 @@ function SolarCard({ data, batterySoc, loading, onRefresh }: Omit<Props, "climat
   return (
     <article className="card solar-card">
       <div className="solar-orbit" aria-hidden="true"><i /><i /><i /></div>
-      <span className="wood-slat wood-slat--solar" aria-hidden="true"><i /></span>
+      <span className="sun-charm sun-charm--solar" aria-hidden="true"><i /></span>
       <div className="card__head">
         <div>
           <p className="eyebrow eyebrow--light">Sungrow napelem</p>

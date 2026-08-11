@@ -516,34 +516,40 @@ main { max-width: 1500px; padding-top: 28px; }
 .overlay-toggles button:nth-child(even) { border-radius: 6px 15px 5px 12px; transform: translateY(2px); }
 .forecast-summary { border-radius: 5px 14px 7px 10px; transform: rotate(-.05deg); }
 
-.wood-slat {
+.sun-charm {
   position: absolute;
   z-index: 4;
   display: block;
-  width: 158px;
-  height: 22px;
+  width: 58px;
+  height: 58px;
   pointer-events: none;
-  background:
-    linear-gradient(94deg, transparent 0 7%, rgba(255,255,255,.12) 8%, transparent 10% 38%, rgba(35,19,10,.2) 39% 41%, transparent 42%),
-    repeating-linear-gradient(3deg, #6d452f 0 3px, #82573b 3px 7px, #75482f 7px 10px);
-  clip-path: polygon(0 22%, 8% 5%, 31% 10%, 38% 0, 73% 12%, 91% 3%, 100% 28%, 97% 84%, 82% 100%, 53% 88%, 27% 100%, 4% 79%);
-  box-shadow: 0 5px 10px rgba(29,17,9,.24);
+  border-radius: 48% 52% 46% 54%;
+  background: radial-gradient(circle at 38% 34%, #ffe59a 0 12%, #efbd61 38%, #d8902f 74%);
+  box-shadow: 0 8px 24px rgba(164,100,32,.25), inset -5px -5px 0 rgba(166,83,29,.12);
 }
-.wood-slat::before, .wood-slat::after {
+.sun-charm::before {
   content: "";
   position: absolute;
-  top: 8px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #332b26;
-  box-shadow: inset 1px 1px rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.5);
+  inset: -18px;
+  z-index: -1;
+  border-radius: 46% 54% 49% 51%;
+  background: repeating-conic-gradient(from -3deg, #e2aa45 0 5deg, transparent 5deg 27deg);
+  clip-path: polygon(45% 0, 55% 0, 58% 25%, 71% 5%, 79% 10%, 70% 32%, 94% 22%, 98% 31%, 76% 43%, 100% 48%, 99% 58%, 75% 57%, 94% 74%, 88% 82%, 68% 66%, 75% 94%, 64% 98%, 56% 72%, 50% 100%, 41% 96%, 42% 72%, 22% 91%, 15% 83%, 32% 64%, 4% 71%, 0 60%, 26% 54%, 1% 44%, 5% 34%, 31% 40%, 10% 20%, 18% 12%, 39% 31%);
 }
-.wood-slat::before { left: 18px; }
-.wood-slat::after { right: 19px; }
-.wood-slat--hero { top: 18px; right: -24px; transform: rotate(7deg); }
-.wood-slat--solar { top: 97px; right: -37px; width: 184px; transform: rotate(-5deg); opacity: .86; }
-.wood-slat--forecast { top: -9px; left: 17%; width: 132px; transform: rotate(-2.2deg); }
+.sun-charm::after {
+  content: "";
+  position: absolute;
+  inset: 10px 12px 13px 9px;
+  border: 1px dashed rgba(122,72,30,.35);
+  border-radius: 52% 48% 55% 45%;
+  transform: rotate(-12deg);
+}
+.sun-charm i { position: absolute; width: 5px; height: 5px; top: 19px; left: 17px; border-radius: 50%; background: rgba(123,70,27,.28); box-shadow: 19px 8px 0 -1px rgba(123,70,27,.2), 10px 20px 0 -1px rgba(255,243,196,.5); }
+.sun-charm--hero { top: 24px; right: 28px; transform: rotate(7deg); }
+.sun-charm--solar { top: 106px; right: -18px; width: 72px; height: 72px; transform: rotate(-5deg); opacity: .9; }
+.sun-charm--solar::before { inset: -22px; background: repeating-conic-gradient(from 4deg, #efbd61 0 5deg, transparent 5deg 25deg); }
+.sun-charm--solar i { top: 25px; left: 22px; box-shadow: 25px 9px 0 -1px rgba(123,70,27,.2), 13px 27px 0 -1px rgba(255,243,196,.45); }
+.sun-charm--forecast { top: -15px; left: 18%; width: 50px; height: 50px; transform: rotate(-3deg); }
 
 .plant-sprout {
   position: absolute;
@@ -625,8 +631,8 @@ main { max-width: 1500px; padding-top: 28px; }
   .brand > span:last-child { display: inline; max-width: 150px; font-size: 14px; line-height: 1.05; }
   .intro { min-height: 350px; }
   .intro__content { bottom: 42px; }
-  .wood-slat--hero { width: 112px; right: -29px; }
-  .wood-slat--forecast { left: 52%; }
+  .sun-charm--hero { width: 48px; height: 48px; right: 22px; }
+  .sun-charm--forecast { left: 72%; }
   .battery-status-panel { grid-template-columns: 1fr; gap: 18px; padding: 24px 20px 31px; }
   .battery-shape { width: min(210px, 82%); }
   .solar-stats { grid-template-columns: 1fr; }

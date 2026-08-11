@@ -137,7 +137,7 @@ function App() {
         <section className="intro">
           <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-home.png`} alt="A hegyoldali otthon madártávlatból" />
           <div className="intro__shade" aria-hidden="true" />
-          <span className="wood-slat wood-slat--hero" aria-hidden="true"><i /></span>
+          <span className="sun-charm sun-charm--hero" aria-hidden="true"><i /></span>
           <div className="intro__content">
             <p className="eyebrow">{formatHeadingDate()}</p>
             <h1>Jó napot!<br />Itthon minden rendben.</h1>
