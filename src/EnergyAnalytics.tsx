@@ -41,6 +41,7 @@ function formatValue(value: number, unit: string) {
 export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, onPeriodChange, onStep, onCustomChange }: Props) {
   const [temperatureVisible, setTemperatureVisible] = useState(false);
   const [humidityVisible, setHumidityVisible] = useState(false);
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(() => new Set());
   const [hovered, setHovered] = useState<number | null>(null);
 
   const rawPoints = useMemo(() => mergeEnergyAndClimate(data, period), [data, period]);
@@ -59,7 +60,25 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const bucketWidth = plotWidth / Math.max(points.length, 1);
-  const values = points.flatMap((point) => [point.pv, point.grid, batteryChargeValue(point), batteryDischargeValue(point), point.load].filter((value): value is number => Number.isFinite(value)));
+  const seriesDefinitions = [
+    { key: "pv", label: "PV", color: colors.pv, value: (point: EnergyChartPoint) => point.pv },
+    { key: "grid", label: "Hálózat", color: colors.grid, value: (point: EnergyChartPoint) => point.grid },
+    { key: "batteryCharge", label: "Akkuba töltés", color: colors.batteryCharge, value: batteryChargeValue },
+    { key: "batteryDischarge", label: "Akkuból leadás", color: colors.batteryDischarge, value: batteryDischargeValue },
+    { key: "load", label: "Fogyasztás", color: colors.load, value: (point: EnergyChartPoint) => point.load },
+  ];
+  const availableSeries = seriesDefinitions.filter((series) => points.some((point) => Number.isFinite(series.value(point))));
+  const isEnergySeriesVisible = (key: string) => !hiddenSeries.has(key);
+  const lineSeries = availableSeries.filter((series) => isEnergySeriesVisible(series.key));
+  const hasBatterySoc = isLine && points.some((point) => Number.isFinite(point.batterySoc));
+  const showBatterySoc = hasBatterySoc && isEnergySeriesVisible("batterySoc");
+  const toggleEnergySeries = (key: string) => setHiddenSeries((current) => {
+    const next = new Set(current);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
+  });
+  const values = points.flatMap((point) => lineSeries.map((series) => series.value(point)).filter((value): value is number => Number.isFinite(value)));
   const maxValue = Math.max(1, ...values.map((value) => Math.abs(value)));
   const minValue = Math.min(0, ...values);
   const upper = maxValue * 1.12;
@@ -86,15 +105,6 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const tickStep = Math.max(1, Math.ceil(points.length / 8));
   const active = hovered === null ? null : points[hovered];
   const nextDisabled = period !== "custom" && isCurrentPeriod(period, anchor);
-
-  const lineSeries = [
-    { key: "pv", label: "PV", color: colors.pv, value: (point: EnergyChartPoint) => point.pv },
-    { key: "grid", label: "Hálózat", color: colors.grid, value: (point: EnergyChartPoint) => point.grid },
-    { key: "batteryCharge", label: "Akkuba töltés", color: colors.batteryCharge, value: batteryChargeValue },
-    { key: "batteryDischarge", label: "Akkuból leadás", color: colors.batteryDischarge, value: batteryDischargeValue },
-    { key: "load", label: "Fogyasztás", color: colors.load, value: (point: EnergyChartPoint) => point.load },
-  ].filter((series) => points.some((point) => Number.isFinite(series.value(point))));
-  const showBatterySoc = isLine && points.some((point) => Number.isFinite(point.batterySoc));
 
   return (
     <article className="energy-analysis card">
@@ -132,10 +142,10 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
       )}
 
       <div className="chart-legend" aria-label="Jelmagyarázat">
-        {lineSeries.map((series) => <span key={series.key}><i style={{ background: series.color }} />{series.label}</span>)}
-        {showBatterySoc && <span><i style={{ background: colors.batterySoc }} />Akkumulátor töltöttség</span>}
-        {temperatureVisible && <span><i style={{ background: colors.temperature }} />Hőmérséklet{climateIsAverage ? " (átlag)" : ""}</span>}
-        {humidityVisible && <span><i style={{ background: colors.humidity }} />Páratartalom{climateIsAverage ? " (átlag)" : ""}</span>}
+        {availableSeries.map((series) => <button type="button" key={series.key} className={isEnergySeriesVisible(series.key) ? "" : "is-hidden"} aria-pressed={isEnergySeriesVisible(series.key)} onClick={() => toggleEnergySeries(series.key)}><i style={{ background: series.color }} />{series.label}</button>)}
+        {hasBatterySoc && <button type="button" className={showBatterySoc ? "" : "is-hidden"} aria-pressed={showBatterySoc} onClick={() => toggleEnergySeries("batterySoc")}><i style={{ background: colors.batterySoc }} />Akkumulátor töltöttség</button>}
+        <button type="button" className={temperatureVisible ? "" : "is-hidden"} aria-pressed={temperatureVisible} onClick={() => setTemperatureVisible((value) => !value)}><i style={{ background: colors.temperature }} />Hőmérséklet{climateIsAverage ? " (átlag)" : ""}</button>
+        <button type="button" className={humidityVisible ? "" : "is-hidden"} aria-pressed={humidityVisible} onClick={() => setHumidityVisible((value) => !value)}><i style={{ background: colors.humidity }} />Páratartalom{climateIsAverage ? " (átlag)" : ""}</button>
       </div>
 
       <div className="energy-chart" onMouseLeave={() => setHovered(null)}>
@@ -184,7 +194,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               ))}
               {hovered !== null && isLine && <line className="hover-line" x1={lineX(hovered)} x2={lineX(hovered)} y1={margin.top} y2={margin.top + plotHeight} />}
             </svg>
-            {active && <div className="chart-tooltip"><strong>{active.label}</strong>{Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{Number.isFinite(batteryChargeValue(active)) && <span>Akkuba töltés <b>{formatValue(Math.abs(batteryChargeValue(active)!), unit)}</b></span>}{Number.isFinite(batteryDischargeValue(active)) && <span>Akkuból leadás <b>{formatValue(batteryDischargeValue(active)!, unit)}</b></span>}{showBatterySoc && Number.isFinite(active.batterySoc) && <span>Akku töltöttség <b>{active.batterySoc!.toFixed(0)}%</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>{climateIsAverage ? "Átlaghőmérséklet" : "Hőmérséklet"} <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>{climateIsAverage ? "Átlagos páratartalom" : "Páratartalom"} <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
+            {active && <div className="chart-tooltip"><strong>{active.label}</strong>{isEnergySeriesVisible("pv") && Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{isEnergySeriesVisible("load") && Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{isEnergySeriesVisible("grid") && Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{isEnergySeriesVisible("batteryCharge") && Number.isFinite(batteryChargeValue(active)) && <span>Akkuba töltés <b>{formatValue(Math.abs(batteryChargeValue(active)!), unit)}</b></span>}{isEnergySeriesVisible("batteryDischarge") && Number.isFinite(batteryDischargeValue(active)) && <span>Akkuból leadás <b>{formatValue(batteryDischargeValue(active)!, unit)}</b></span>}{showBatterySoc && Number.isFinite(active.batterySoc) && <span>Akku töltöttség <b>{active.batterySoc!.toFixed(0)}%</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>{climateIsAverage ? "Átlaghőmérséklet" : "Hőmérséklet"} <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>{climateIsAverage ? "Átlagos páratartalom" : "Páratartalom"} <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
           </>
         ) : <div className="chart-empty"><strong>Nincs adat ebben az időszakban</strong><span>Válassz másik dátumot, vagy várd meg a következő adatfrissítést.</span></div>}
       </div>

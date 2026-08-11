@@ -356,27 +356,6 @@ function aggregateBattery(samples, unit) {
   }]));
 }
 
-function aggregateGridByDay(samples) {
-  const groups = new Map();
-  for (const sample of samples) {
-    const key = localDateKey(sample.timestamp);
-    const group = groups.get(key) ?? { feedInKwh: 0, purchasedKwh: 0 };
-    if (Number.isFinite(sample.feedInKwh)) group.feedInKwh = Math.max(group.feedInKwh, sample.feedInKwh);
-    if (Number.isFinite(sample.purchasedKwh)) group.purchasedKwh = Math.max(group.purchasedKwh, sample.purchasedKwh);
-    groups.set(key, group);
-  }
-  return new Map([...groups].map(([key, group]) => [key, { grid: group.purchasedKwh - group.feedInKwh }]));
-}
-
-function aggregateGridByMonth(dailyGrid) {
-  const groups = new Map();
-  for (const [day, point] of dailyGrid) {
-    const month = day.slice(0, 7);
-    groups.set(month, (groups.get(month) ?? 0) + point.grid);
-  }
-  return new Map([...groups].map(([key, grid]) => [key, { grid }]));
-}
-
 function unitToMwh(value) {
   const amount = numberValue(value);
   const unit = String(value?.unit ?? "kWh").toLowerCase();
@@ -481,22 +460,59 @@ async function getBatteryTelemetry(psId, devices) {
   };
 }
 
-async function getGridTelemetry(psId) {
-  const plantPsKey = `${psId}_11_0_0`;
-  const points = { p83072: "feedInKwh", p83102: "purchasedKwh" };
-  const start = new Date(now.getFullYear(), 0, 1);
-  const responses = await Promise.allSettled(Object.keys(points).map((point) => sungrowJson("AppService.queryMutiPointDataList", [
-    `PsId:${psId}`,
-    `StartTimeStamp:${sungrowTimestamp(start)}`,
-    `EndTimeStamp:${sungrowTimestamp(now)}`,
-    "MinuteInterval:60",
-    `Points:${plantPsKey}.${point}`,
-  ]).then((response) => extractPointSamples(response, points))));
+function ownValue(root, name) {
+  if (!root || typeof root !== "object") return undefined;
+  const wanted = normalizeKey(name);
+  const entry = Object.entries(root).find(([key]) => normalizeKey(key) === wanted);
+  return entry?.[1];
+}
 
-  const samples = mergeSamples(responses.flatMap((result) => result.status === "fulfilled" ? [result.value] : []));
-  if (!samples.length) console.error("Sungrow hálózati energiatörténet nem érhető el.");
-  else console.log(`Sungrow hálózati energiaminták: ${samples.length}.`);
-  return samples;
+function energyKwh(row, pointId) {
+  const value = numberValue(ownValue(row, pointId), Number.NaN);
+  if (!Number.isFinite(value)) return undefined;
+  const unit = textValue(ownValue(row, `${pointId}Unit`), "kWh").toLowerCase();
+  if (unit === "wh") return value / 1_000;
+  if (unit === "mwh") return value * 1_000;
+  return value;
+}
+
+function reportRowKey(row, period) {
+  const timestamp = parseSungrowTimestamp(ownValue(row, "timeStamp"));
+  if (timestamp) return period === "month" ? localMonthKey(timestamp) : localDateKey(timestamp);
+  const dateId = textValue(ownValue(row, "dateId")).replace(/\D/g, "");
+  if (period === "month" && dateId.length >= 6) return `${dateId.slice(0, 4)}-${dateId.slice(4, 6)}`;
+  if (period === "day" && dateId.length >= 8) return `${dateId.slice(0, 4)}-${dateId.slice(4, 6)}-${dateId.slice(6, 8)}`;
+  return undefined;
+}
+
+function gridMapFromReport(report, listName, period, feedInPoint, purchasedPoint) {
+  const rows = deepFind(report, [listName]);
+  if (!Array.isArray(rows)) return new Map();
+  const entries = rows.flatMap((row) => {
+    const key = reportRowKey(row, period);
+    const feedIn = energyKwh(row, feedInPoint);
+    const purchased = energyKwh(row, purchasedPoint);
+    if (!key || (!Number.isFinite(feedIn) && !Number.isFinite(purchased))) return [];
+    return [[key, { grid: (purchased ?? 0) - (feedIn ?? 0) }]];
+  });
+  return new Map(entries);
+}
+
+async function getGridHistory(psId) {
+  const [monthResult, yearResult] = await Promise.allSettled([
+    sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${monthId}`, "DateType:2", `PsId:${psId}`]),
+    sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]),
+  ]);
+  if (monthResult.status === "rejected") console.error(`Sungrow napi hálózati energia: ${monthResult.reason.message}`);
+  if (yearResult.status === "rejected") console.error(`Sungrow havi hálózati energia: ${yearResult.reason.message}`);
+  const daily = monthResult.status === "fulfilled"
+    ? gridMapFromReport(monthResult.value, "monthDataDayList", "day", "p83072", "p83102")
+    : new Map();
+  const monthly = yearResult.status === "fulfilled"
+    ? gridMapFromReport(yearResult.value, "yearDataMonthList", "month", "p83073", "p83103")
+    : new Map();
+  console.log(`Sungrow hálózati energia: ${daily.size} nap, ${monthly.size} hónap.`);
+  return { daily, monthly };
 }
 
 async function getSungrow() {
@@ -513,7 +529,7 @@ async function getSungrow() {
   ]);
   const [battery, gridHistory] = await Promise.all([
     getBatteryTelemetry(psId, devices),
-    getGridTelemetry(psId),
+    getGridHistory(psId),
   ]);
   const year = await sungrowJson("AppService.getPowerStationData", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]).catch((error) => {
     console.error(`Sungrow éves összesítés nem érhető el: ${error.message}`);
@@ -562,8 +578,8 @@ async function getSungrow() {
   });
   const dailyBattery = aggregateBattery(battery.history, "day");
   const monthlyBattery = aggregateBattery(battery.history, "month");
-  const dailyGrid = aggregateGridByDay(gridHistory);
-  const monthlyGrid = aggregateGridByMonth(dailyGrid);
+  const dailyGrid = gridHistory.daily;
+  const monthlyGrid = gridHistory.monthly;
   const batteryDays = [...dailyBattery.keys()];
   console.log(`Sungrow akkumulátor-időszak: ${batteryDays[0] ?? "nincs"} – ${batteryDays.at(-1) ?? "nincs"}; mai összesítés: ${dailyBattery.has(localDateKey(now)) ? "van" : "nincs"}.`);
   const currentMonthKeys = Array.from({ length: now.getDate() }, (_, index) => localDateKey(new Date(now.getFullYear(), now.getMonth(), index + 1, 12)));

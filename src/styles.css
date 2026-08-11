@@ -87,7 +87,10 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .custom-range input { min-height: 38px; border: 1px solid var(--line); border-radius: 10px; background: white; padding: 8px 11px; color: var(--ink); font-size: 11px; }
 .custom-range > span { padding-bottom: 10px; color: #8b938f; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: 10px 20px; min-height: 27px; padding: 10px 0 4px; border-top: 1px solid #e3e3da; color: #626b67; font-size: 9px; font-weight: 700; }
-.chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.chart-legend button { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; padding: 3px 0; color: inherit; font: inherit; cursor: pointer; transition: color .16s ease, opacity .16s ease; }
+.chart-legend button:hover { color: var(--ink); }
+.chart-legend button:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; border-radius: 2px; }
+.chart-legend button.is-hidden { opacity: .38; text-decoration: line-through; text-decoration-thickness: 1px; }
 .chart-legend i { width: 18px; height: 3px; border-radius: 4px; }
 .energy-chart { position: relative; min-height: 330px; }
 .energy-chart svg { display: block; width: 100%; height: auto; min-height: 290px; overflow: visible; }
