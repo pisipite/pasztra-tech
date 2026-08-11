@@ -2,6 +2,7 @@ import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { DashboardCards } from "./components/DashboardCards";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { ConsumptionPlanner } from "./ConsumptionPlanner";
 import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod, timestampInPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
@@ -159,6 +160,8 @@ function App() {
         />
 
         <SolarForecast data={data} />
+
+        <ConsumptionPlanner data={data} />
 
         <SunHorizon />
 
