@@ -23,7 +23,8 @@ const periods: { key: PeriodKey; label: string }[] = [
 const colors = {
   pv: "#d8902f",
   grid: "#54778a",
-  battery: "#76a99a",
+  batteryCharge: "#3c91a8",
+  batteryDischarge: "#76a99a",
   load: "#a96843",
   batterySoc: "#2f7057",
   temperature: "#b95734",
@@ -201,7 +202,13 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const margin = { top: 24, right: 66, bottom: 46, left: 64 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const values = points.flatMap((point) => [point.pv, point.grid, point.battery, point.load].filter((value): value is number => Number.isFinite(value)));
+  const batteryChargeValue = (point: EnergyChartPoint) => Number.isFinite(point.batteryCharge)
+    ? -Math.abs(point.batteryCharge!)
+    : Number.isFinite(point.battery) && point.battery! < 0 ? point.battery! : undefined;
+  const batteryDischargeValue = (point: EnergyChartPoint) => Number.isFinite(point.batteryDischarge)
+    ? Math.abs(point.batteryDischarge!)
+    : Number.isFinite(point.battery) && point.battery! > 0 ? point.battery! : undefined;
+  const values = points.flatMap((point) => [point.pv, point.grid, batteryChargeValue(point), batteryDischargeValue(point), point.load].filter((value): value is number => Number.isFinite(value)));
   const maxValue = Math.max(1, ...values.map((value) => Math.abs(value)));
   const minValue = Math.min(0, ...values);
   const upper = maxValue * 1.12;
@@ -231,11 +238,13 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   );
 
   const lineSeries = [
-    { key: "pv" as const, label: "PV", color: colors.pv },
-    { key: "grid" as const, label: "Hálózat", color: colors.grid },
-    { key: "battery" as const, label: "Akkumulátor", color: colors.battery },
-    { key: "load" as const, label: "Fogyasztás", color: colors.load },
-  ].filter((series) => points.some((point) => Number.isFinite(point[series.key])));
+    { key: "pv", label: "PV", color: colors.pv, value: (point: EnergyChartPoint) => point.pv },
+    { key: "grid", label: "Hálózat", color: colors.grid, value: (point: EnergyChartPoint) => point.grid },
+    { key: "batteryCharge", label: "Akkuba töltés", color: colors.batteryCharge, value: batteryChargeValue },
+    { key: "batteryDischarge", label: "Akkuból leadás", color: colors.batteryDischarge, value: batteryDischargeValue },
+    { key: "load", label: "Fogyasztás", color: colors.load, value: (point: EnergyChartPoint) => point.load },
+  ].filter((series) => points.some((point) => Number.isFinite(series.value(point))));
+  const hasBatterySoc = points.some((point) => Number.isFinite(point.batterySoc));
 
   return (
     <article className="energy-analysis card">
@@ -273,7 +282,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
 
       <div className="chart-legend" aria-label="Jelmagyarázat">
         {lineSeries.map((series) => <span key={series.key}><i style={{ background: series.color }} />{series.label}</span>)}
-        {points.some((point) => Number.isFinite(point.batterySoc)) && <span><i style={{ background: colors.batterySoc }} />Akkumulátor töltöttség</span>}
+        {hasBatterySoc && <span><i style={{ background: colors.batterySoc }} />Akkumulátor töltöttség</span>}
         {temperatureVisible && <span><i style={{ background: colors.temperature }} />Hőmérséklet{climateIsAverage ? " (átlag)" : ""}</span>}
         {humidityVisible && <span><i style={{ background: colors.humidity }} />Páratartalom{climateIsAverage ? " (átlag)" : ""}</span>}
       </div>
@@ -288,19 +297,20 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               {gridLines.map((value) => <g key={value}><line className="energy-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="energy-axis-label" x={margin.left - 12} y={y(value) + 4} textAnchor="end">{value.toFixed(value < 10 ? 1 : 0)}</text></g>)}
               <line className="energy-zero" x1={margin.left} x2={width - margin.right} y1={zeroY} y2={zeroY} />
               <text className="energy-axis-title" x={margin.left} y={14}>{isLine ? "Teljesítmény (kW)" : "Energia (kWh)"}</text>
-              {(temperatureVisible || humidityVisible) && <text className="energy-axis-title" x={width - margin.right} y={14} textAnchor="end">Klíma (°C / %)</text>}
+              {(temperatureVisible || humidityVisible || hasBatterySoc) && <text className="energy-axis-title" x={width - margin.right} y={14} textAnchor="end">{temperatureVisible || humidityVisible ? "Klíma / akku (°C / %)" : "Akku töltöttség (%)"}</text>}
+              {hasBatterySoc && [0, 25, 50, 75, 100].map((value) => <text key={`soc-${value}`} className="energy-axis-label" x={width - margin.right + 12} y={climateY(value, "humidity") + 4}>{value}</text>)}
 
               {isLine ? lineSeries.map((series) => {
-                const coords = points.flatMap((point, index) => Number.isFinite(point[series.key]) ? [{ x: x(index), y: y(Number(point[series.key])) }] : []);
+                const coords = points.flatMap((point, index) => Number.isFinite(series.value(point)) ? [{ x: x(index), y: y(Number(series.value(point))) }] : []);
                 const path = smoothPath(coords);
                 return <g key={series.key}>{series.key === "pv" && coords.length > 1 && <path d={`${path} L${coords.at(-1)?.x},${zeroY} L${coords[0]?.x},${zeroY} Z`} fill="url(#pv-area)" />}<path d={path} fill="none" stroke={series.color} strokeWidth="2.4" vectorEffect="non-scaling-stroke" /></g>;
               }) : points.map((point, index) => {
                 const groupWidth = Math.min(54, plotWidth / Math.max(points.length, 1) * .7);
-                const available = lineSeries.filter((series) => Number.isFinite(point[series.key]));
+                const available = lineSeries.filter((series) => Number.isFinite(series.value(point)));
                 const barWidth = Math.max(3, groupWidth / Math.max(available.length, 1) - 2);
                 const center = margin.left + ((index + .5) / points.length) * plotWidth;
                 return <g key={`${point.label}-${index}`}>{available.map((series, seriesIndex) => {
-                  const value = Number(point[series.key] ?? 0);
+                  const value = Number(series.value(point) ?? 0);
                   const barY = value >= 0 ? y(value) : zeroY;
                   const barHeight = Math.max(1, Math.abs(y(value) - zeroY));
                   return <rect key={series.key} x={center - groupWidth / 2 + seriesIndex * (barWidth + 2)} y={barY} width={barWidth} height={barHeight} rx="2" fill={series.color} opacity=".9" />;
@@ -311,7 +321,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               {temperatureVisible && temperatureCoords.map((point, index) => <circle key={`temperature-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.temperature} />)}
               {humidityVisible && humidityCoords.length > 1 && <path d={smoothPath(humidityCoords)} fill="none" stroke={colors.humidity} strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
               {humidityVisible && humidityCoords.map((point, index) => <circle key={`humidity-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.humidity} />)}
-              {points.some((point) => Number.isFinite(point.batterySoc)) && <path d={smoothPath(points.flatMap((point, index) => Number.isFinite(point.batterySoc) ? [{ x: x(index), y: climateY(point.batterySoc!, "humidity") }] : []))} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
+              {hasBatterySoc && <path d={smoothPath(points.flatMap((point, index) => Number.isFinite(point.batterySoc) ? [{ x: x(index), y: climateY(point.batterySoc!, "humidity") }] : []))} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
 
               {points.map((point, index) => (
                 <g key={`tick-${point.label}-${index}`}>
@@ -321,7 +331,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               ))}
               {hovered !== null && <line className="hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={margin.top + plotHeight} />}
             </svg>
-            {active && <div className="chart-tooltip"><strong>{active.label}</strong>{Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>{climateIsAverage ? "Átlaghőmérséklet" : "Hőmérséklet"} <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>{climateIsAverage ? "Átlagos páratartalom" : "Páratartalom"} <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
+            {active && <div className="chart-tooltip"><strong>{active.label}</strong>{Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{Number.isFinite(batteryChargeValue(active)) && <span>Akkuba töltés <b>{formatValue(Math.abs(batteryChargeValue(active)!), unit)}</b></span>}{Number.isFinite(batteryDischargeValue(active)) && <span>Akkuból leadás <b>{formatValue(batteryDischargeValue(active)!, unit)}</b></span>}{Number.isFinite(active.batterySoc) && <span>Akku töltöttség <b>{active.batterySoc!.toFixed(0)}%</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>{climateIsAverage ? "Átlaghőmérséklet" : "Hőmérséklet"} <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>{climateIsAverage ? "Átlagos páratartalom" : "Páratartalom"} <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
           </>
         ) : <div className="chart-empty"><strong>Nincs adat ebben az időszakban</strong><span>Válassz másik dátumot, vagy várd meg a következő adatfrissítést.</span></div>}
       </div>

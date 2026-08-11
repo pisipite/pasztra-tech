@@ -12,6 +12,8 @@ export interface EnergyChartPoint {
   pv?: number;
   grid?: number;
   battery?: number;
+  batteryCharge?: number;
+  batteryDischarge?: number;
   load?: number;
   batterySoc?: number;
   temperature?: number;

@@ -137,6 +137,15 @@ function demoDashboard(range) {
 
 const normalizeKey = (value) => String(value).toLowerCase().replace(/[^a-z0-9]/g, "");
 
+function textValue(value, fallback = "") {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  if (typeof value === "object") {
+    return textValue(value.string ?? value.value ?? value.point ?? value.ps_key ?? value.stringValue, fallback);
+  }
+  return fallback;
+}
+
 function deepFind(root, names) {
   const wanted = names.map(normalizeKey);
   const queue = [root];
@@ -156,7 +165,7 @@ function deepFind(root, names) {
 
 function numberValue(value, fallback = 0) {
   if (value && typeof value === "object") {
-    return numberValue(value.value ?? value.value_float ?? value.value_int ?? value.stringValue, fallback);
+    return numberValue(value.value ?? value.value_float ?? value.value_int ?? value.float ?? value.integer ?? value.string ?? value.stringValue, fallback);
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -177,6 +186,111 @@ function currentValue(values) {
   const minute = now.getHours() * 60 + now.getMinutes();
   const index = Math.min(values.length - 1, Math.floor((minute / 1440) * values.length));
   return values[index] ?? values.at(-1) ?? 0;
+}
+
+function sungrowTimestamp(value) {
+  return `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}${pad(value.getHours())}${pad(value.getMinutes())}${pad(value.getSeconds())}`;
+}
+
+function parseSungrowTimestamp(value) {
+  const raw = textValue(value);
+  if (/^\d{14}$/.test(raw)) {
+    return new Date(Number(raw.slice(0, 4)), Number(raw.slice(4, 6)) - 1, Number(raw.slice(6, 8)), Number(raw.slice(8, 10)), Number(raw.slice(10, 12)), Number(raw.slice(12, 14)));
+  }
+  const parsed = new Date(raw);
+  return Number.isFinite(parsed.getTime()) ? parsed : null;
+}
+
+function findBatteryDevice(root) {
+  const devices = deepFind(root, ["pageList"]);
+  if (!Array.isArray(devices)) return null;
+  const socCandidates = ["p13141", "p83129", "p83252"];
+
+  for (const device of devices) {
+    const pointData = deepFind(device, ["pointData"]);
+    if (!Array.isArray(pointData)) continue;
+    const ids = new Set(pointData.map((point) => textValue(deepFind(point, ["pointId"]))).filter(Boolean));
+    const soc = socCandidates.find((point) => ids.has(point));
+    if (!ids.has("p13126") || !ids.has("p13150") || !soc) continue;
+    const psKey = textValue(deepFind(device, ["psKey"]));
+    if (psKey) return { psKey, charge: "p13126", discharge: "p13150", soc };
+  }
+  return null;
+}
+
+function extractBatterySamples(root, batteryDevice) {
+  const pointIds = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc];
+  const rows = new Map();
+  const queue = [{ value: root, key: "" }];
+  const seen = new Set();
+  const add = (timestampValue, pointId, rawValue) => {
+    const timestamp = parseSungrowTimestamp(timestampValue);
+    const value = numberValue(rawValue, Number.NaN);
+    if (!timestamp || !Number.isFinite(value)) return;
+    const key = timestamp.toISOString();
+    const row = rows.get(key) ?? { timestamp: key };
+    if (pointId === batteryDevice.charge) row.chargeKw = Math.abs(value);
+    if (pointId === batteryDevice.discharge) row.dischargeKw = Math.abs(value);
+    if (pointId === batteryDevice.soc) row.soc = value;
+    rows.set(key, row);
+  };
+
+  while (queue.length) {
+    const { value, key: parentKey } = queue.shift();
+    if (!value || typeof value !== "object" || seen.has(value)) continue;
+    seen.add(value);
+
+    const points = value.points;
+    if (points && typeof points === "object" && !Array.isArray(points)) {
+      const timestamp = value.timestamp ?? parentKey;
+      for (const pointId of pointIds) {
+        if (Object.hasOwn(points, pointId)) add(timestamp, pointId, points[pointId]);
+      }
+    }
+
+    for (const [key, child] of Object.entries(value)) {
+      if (pointIds.includes(key) && child && typeof child === "object" && !Array.isArray(child)) {
+        for (const [timestamp, rawValue] of Object.entries(child)) add(timestamp, key, rawValue);
+      }
+      if (child && typeof child === "object") queue.push({ value: child, key });
+    }
+  }
+  return [...rows.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
+function nearestBatterySample(samples, timestamp) {
+  const target = new Date(timestamp).getTime();
+  let closest;
+  let distance = 31 * 60_000;
+  for (const sample of samples) {
+    const currentDistance = Math.abs(new Date(sample.timestamp).getTime() - target);
+    if (currentDistance < distance) {
+      closest = sample;
+      distance = currentDistance;
+    }
+  }
+  return closest;
+}
+
+function aggregateBattery(samples, unit) {
+  const groups = new Map();
+  for (const sample of samples) {
+    const timestamp = new Date(sample.timestamp);
+    const key = unit === "month" ? localMonthKey(timestamp) : localDateKey(timestamp);
+    const group = groups.get(key) ?? { batteryCharge: 0, batteryDischarge: 0, socTotal: 0, socCount: 0 };
+    group.batteryCharge += Number.isFinite(sample.chargeKw) ? sample.chargeKw : 0;
+    group.batteryDischarge += Number.isFinite(sample.dischargeKw) ? sample.dischargeKw : 0;
+    if (Number.isFinite(sample.soc)) {
+      group.socTotal += sample.soc;
+      group.socCount += 1;
+    }
+    groups.set(key, group);
+  }
+  return new Map([...groups].map(([key, group]) => [key, {
+    batteryCharge: group.batteryCharge,
+    batteryDischarge: group.batteryDischarge,
+    batterySoc: group.socCount ? group.socTotal / group.socCount : undefined,
+  }]));
 }
 
 function unitToMwh(value) {
@@ -235,14 +349,52 @@ async function resolveSungrowPsId() {
   throw new Error("Nem található Sungrow erőmű az iSolarCloud-fiókban.");
 }
 
+async function getBatteryTelemetry(psId, devices) {
+  const batteryDevice = findBatteryDevice(devices);
+  if (!batteryDevice) {
+    console.error("Sungrow akkumulátor-adatpontok nem találhatók ennél az erőműnél.");
+    return { today: [], history: [] };
+  }
+
+  const query = (start, end, interval) => {
+    const points = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc];
+    return sungrowJson("AppService.queryMutiPointDataList", [
+      `PsId:${psId}`,
+      `StartTimeStamp:${sungrowTimestamp(start)}`,
+      `EndTimeStamp:${sungrowTimestamp(end)}`,
+      `MinuteInterval:${interval}`,
+      `PsKeys:${points.map(() => batteryDevice.psKey).join(",")}`,
+      `Points:${points.join(",")}`,
+    ]).then((response) => extractBatterySamples(response, batteryDevice));
+  };
+
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const [todayResult, historyResult] = await Promise.allSettled([
+    query(dayStart, now, 5),
+    query(yearStart, now, 60),
+  ]);
+  if (todayResult.status === "rejected") console.error(`Sungrow napi akkumulátor-adatok: ${todayResult.reason.message}`);
+  if (historyResult.status === "rejected") console.error(`Sungrow összesített akkumulátor-adatok: ${historyResult.reason.message}`);
+  return {
+    today: todayResult.status === "fulfilled" ? todayResult.value : [],
+    history: historyResult.status === "fulfilled" ? historyResult.value : [],
+  };
+}
+
 async function getSungrow() {
   if (!process.env.SUNGROW_USER || !process.env.SUNGROW_PASSWORD) return null;
   const psId = await resolveSungrowPsId();
-  const [day, month, overview] = await Promise.all([
+  const [day, month, overview, devices] = await Promise.all([
     sungrowJson("AppService.getPowerStationData", [`DateId:${dayId}`, "DateType:1", `PsId:${psId}`]),
     sungrowJson("AppService.getPowerStationData", [`DateId:${monthId}`, "DateType:2", `PsId:${psId}`]),
     sungrowJson("WebAppService.showPSView", [`PsId:${psId}`]),
+    sungrowJson("AppService.queryDeviceList", [`PsId:${psId}`]).catch((error) => {
+      console.error(`Sungrow akkumulátor-eszközlista: ${error.message}`);
+      return null;
+    }),
   ]);
+  const battery = await getBatteryTelemetry(psId, devices);
   const year = await sungrowJson("AppService.getPowerStationData", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]).catch((error) => {
     console.error(`Sungrow éves összesítés nem érhető el: ${error.message}`);
     return null;
@@ -271,10 +423,32 @@ async function getSungrow() {
     const minute = Math.floor((index / Math.max(todayChart.length - 1, 1)) * 1439);
     timestamp.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
     const loadValue = load[index] ?? 0;
-    return { label: point.label, timestamp: timestamp.toISOString(), pv: point.value, load: loadValue, grid: loadValue - point.value };
+    const batterySample = nearestBatterySample(battery.today, timestamp);
+    const batteryCharge = batterySample?.chargeKw ?? 0;
+    const batteryDischarge = batterySample?.dischargeKw ?? 0;
+    return {
+      label: point.label,
+      timestamp: timestamp.toISOString(),
+      pv: point.value,
+      load: loadValue,
+      grid: loadValue + batteryCharge - point.value - batteryDischarge,
+      ...(batterySample ? {
+        batteryCharge: batterySample.chargeKw,
+        batteryDischarge: batterySample.dischargeKw,
+        batterySoc: batterySample.soc,
+      } : {}),
+    };
   });
-  const monthEnergy = monthChart.map((point, index) => ({ label: point.label, timestamp: new Date(now.getFullYear(), now.getMonth(), index + 1, 12).toISOString(), pv: point.value }));
-  const yearEnergy = yearChart.map((point, index) => ({ label: point.label, timestamp: new Date(now.getFullYear(), index, 1, 12).toISOString(), pv: point.value }));
+  const dailyBattery = aggregateBattery(battery.history, "day");
+  const monthlyBattery = aggregateBattery(battery.history, "month");
+  const monthEnergy = monthChart.map((point, index) => {
+    const timestamp = new Date(now.getFullYear(), now.getMonth(), index + 1, 12);
+    return { label: point.label, timestamp: timestamp.toISOString(), pv: point.value, ...dailyBattery.get(localDateKey(timestamp)) };
+  });
+  const yearEnergy = yearChart.map((point, index) => {
+    const timestamp = new Date(now.getFullYear(), index, 1, 12);
+    return { label: point.label, timestamp: timestamp.toISOString(), pv: point.value, ...monthlyBattery.get(localMonthKey(timestamp)) };
+  });
 
   return {
     metrics: {
