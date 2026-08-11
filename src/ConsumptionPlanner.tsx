@@ -44,6 +44,7 @@ type Plan = {
 type DragState = {
   pointerId: number;
   offsetMinutes: number;
+  mode: "move" | "resize";
 };
 
 const STORAGE_KEY = "pasztra-consumption-trial-v2";
@@ -262,6 +263,24 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
     if (next !== undefined) setManualStart(slots[next].timestamp);
   };
 
+  const resizeToPointer = (clientX: number) => {
+    if (!start) return;
+    const bounds = timelineRef.current?.getBoundingClientRect();
+    if (!bounds?.width) return;
+    const startDate = new Date(start.timestamp);
+    const startMinute = startDate.getHours() * 60 + startDate.getMinutes();
+    const pointerMinute = Math.max(startMinute + 15, Math.min(1440, (clientX - bounds.left) / bounds.width * 1440));
+    const durationMinutes = Math.max(15, Math.round((pointerMinute - startMinute) / 15) * 15);
+    setTrial((current) => current.durationMinutes === durationMinutes ? current : { ...current, durationMinutes });
+  };
+
+  const resizeBy = (minutes: number) => {
+    if (!start) return;
+    const startDate = new Date(start.timestamp);
+    const startMinute = startDate.getHours() * 60 + startDate.getMinutes();
+    setTrial((current) => ({ ...current, durationMinutes: Math.max(15, Math.min(1440 - startMinute, current.durationMinutes + minutes)) }));
+  };
+
   const sourceRows = plan ? [
     { key: "pv", label: "Közvetlenül a napelemből", value: plan.simulation.testPvKwh },
     { key: "battery", label: "Az akkumulátorból", value: plan.simulation.testBatteryKwh },
@@ -274,15 +293,14 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
         <div>
           <p className="eyebrow">Interaktív próba · 72 óra</p>
           <h2>Honnan jön majd az energia?</h2>
-          <p>Add meg az energiaigényt és az időtartamot, majd húzd a fogyasztást a kívánt kezdési időpontra.</p>
+          <p>Egyetlen próba-fogyasztás energiaigényét és időtartamát vizsgálhatod. A blokk mozgatható, a jobb széle pedig kihúzható.</p>
         </div>
         <button className="planner-auto" onClick={() => setManualStart(undefined)}>Legjobb időpont keresése</button>
       </header>
 
       <div className="planner-simple-inputs">
-        <label>Felhasznált energia<span><input type="number" min="0.1" max="100" step="0.1" value={trial.energyKwh} onChange={(event) => updateTrial({ energyKwh: Math.max(.1, Number(event.target.value)) })} /> kWh</span></label>
-        <label>Használat időtartama<span><input type="number" min="0.25" max="24" step="0.25" value={trial.durationMinutes / 60} onChange={(event) => updateTrial({ durationMinutes: Math.max(15, Math.round(Number(event.target.value) * 4) * 15) })} /> óra</span></label>
-        <label>Háttérfogyasztás<span><input type="number" min="0" max="5" step="0.05" value={baseLoadKw} onChange={(event) => { setBaseLoadKw(Math.max(0, Number(event.target.value))); setManualStart(undefined); }} /> kW</span></label>
+        <label className="planner-energy-input"><small>Ennyi energiát szeretnék felhasználni</small><span><input aria-label="Felhasznált energia kilowattórában" type="number" min="0.1" max="100" step="0.1" value={trial.energyKwh} onChange={(event) => updateTrial({ energyKwh: Math.max(.1, Number(event.target.value)) })} /><b>kWh</b></span></label>
+        <label className="planner-duration-input">Időtartam<span><input type="number" min="0.25" max="24" step="0.25" value={trial.durationMinutes / 60} onChange={(event) => updateTrial({ durationMinutes: Math.max(15, Math.round(Number(event.target.value) * 4) * 15) })} /> óra</span><small>A blokk jobb szélével is állítható.</small></label>
         <div className="planner-day-tabs" role="tablist" aria-label="Tervezési nap">
           {forecast.days.slice(0, 3).map((day, index) => <button key={day.date} role="tab" aria-selected={trial.dayOffset === index} className={trial.dayOffset === index ? "active" : ""} onClick={() => updateTrial({ dayOffset: index as DayOffset })}>{formatDay(day.date, day.label)}</button>)}
         </div>
@@ -298,7 +316,13 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
               <span className="planner-battery-reserve" style={{ bottom: `${batterySettings.reservePct}%` }} />
               {daySlots.map((slot, index) => <i key={slot.timestamp} style={{ left: `${index / daySlots.length * 100}%`, bottom: `${plan.simulation.socSeries[dayStartIndex + index] ?? startSocPct}%` }} />)}
             </div>
-            <button
+            <div
+              role="slider"
+              tabIndex={0}
+              aria-valuetext={`${formatClock(start.timestamp)} és ${formatClock(endTimestamp ?? start.timestamp)} között`}
+              aria-valuemin={0}
+              aria-valuemax={1440}
+              aria-valuenow={new Date(start.timestamp).getHours() * 60 + new Date(start.timestamp).getMinutes()}
               className={`planner-block planner-block--trial ${dominantSource(plan)} ${dragState ? "is-dragging" : ""}`}
               style={{ left: `${(start.timestamp === undefined ? 0 : (new Date(start.timestamp).getHours() * 60 + new Date(start.timestamp).getMinutes())) / 1440 * 100}%`, width: `${plan.slotCount * 15 / 1440 * 100}%` }}
               aria-label={`Fogyasztás kezdete ${formatClock(start.timestamp)}. Húzd az idővonalon, vagy használd a bal és jobb nyilat.`}
@@ -307,13 +331,13 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
                 event.preventDefault();
                 const bounds = event.currentTarget.getBoundingClientRect();
                 event.currentTarget.setPointerCapture(event.pointerId);
-                setDragState({ pointerId: event.pointerId, offsetMinutes: Math.max(0, Math.min(trial.durationMinutes, (event.clientX - bounds.left) / Math.max(1, bounds.width) * trial.durationMinutes)) });
+                setDragState({ pointerId: event.pointerId, mode: "move", offsetMinutes: Math.max(0, Math.min(trial.durationMinutes, (event.clientX - bounds.left) / Math.max(1, bounds.width) * trial.durationMinutes)) });
               }}
               onPointerMove={(event) => {
-                if (dragState?.pointerId === event.pointerId) moveToPointer(event.clientX, dragState.offsetMinutes);
+                if (dragState?.pointerId === event.pointerId && dragState.mode === "move") moveToPointer(event.clientX, dragState.offsetMinutes);
               }}
               onPointerUp={(event) => {
-                if (dragState?.pointerId !== event.pointerId) return;
+                if (dragState?.pointerId !== event.pointerId || dragState.mode !== "move") return;
                 event.currentTarget.releasePointerCapture(event.pointerId);
                 setDragState(null);
               }}
@@ -324,11 +348,44 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
                   shiftStart(event.key === "ArrowLeft" ? -1 : 1);
                 }
               }}
-            ><span className="planner-grip" aria-hidden="true">⋮⋮</span><strong>{trial.energyKwh.toFixed(1)} kWh</strong><b>{formatClock(start.timestamp)}</b></button>
+            ><span className="planner-grip" aria-hidden="true">⋮⋮</span><strong>{trial.energyKwh.toFixed(1)} kWh</strong><b>{formatClock(start.timestamp)}</b><span
+              className="planner-resize-handle"
+              role="slider"
+              tabIndex={0}
+              aria-label="A fogyasztás időtartamának módosítása"
+              aria-valuemin={15}
+              aria-valuemax={1440}
+              aria-valuenow={trial.durationMinutes}
+              aria-valuetext={`${(trial.durationMinutes / 60).toFixed(2)} óra`}
+              onPointerDown={(event) => {
+                if (event.button !== 0) return;
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.setPointerCapture(event.pointerId);
+                setDragState({ pointerId: event.pointerId, mode: "resize", offsetMinutes: 0 });
+              }}
+              onPointerMove={(event) => {
+                if (dragState?.pointerId === event.pointerId && dragState.mode === "resize") resizeToPointer(event.clientX);
+              }}
+              onPointerUp={(event) => {
+                event.stopPropagation();
+                if (dragState?.pointerId !== event.pointerId || dragState.mode !== "resize") return;
+                event.currentTarget.releasePointerCapture(event.pointerId);
+                setDragState(null);
+              }}
+              onPointerCancel={() => setDragState(null)}
+              onKeyDown={(event) => {
+                if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  resizeBy(event.key === "ArrowLeft" ? -15 : 15);
+                }
+              }}
+            ><i aria-hidden="true" /></span></div>
           </>}
           <div className="planner-hours" aria-hidden="true">{[0, 4, 8, 12, 16, 20, 24].map((hour) => <span key={hour} style={{ left: `${hour / 24 * 100}%` }}>{String(hour).padStart(2, "0")}</span>)}</div>
         </div>
-        <div className="planner-key"><span><i className="solar" />PV: élő most, előrejelzés később</span><span><i className="battery" />akku töltöttség</span><span>Fogd meg a színes blokkot, és húzd 15 perces lépésekben.</span></div>
+        <div className="planner-key"><span><i className="solar" />PV: élő most, előrejelzés később</span><span><i className="battery" />akku töltöttség</span><span>A blokk közepe mozgat, a csíkos jobb széle az időtartamot állítja.</span></div>
       </section>
 
       {plan && start && endTimestamp && <div className="planner-simple-result">
@@ -363,6 +420,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
       <details className="planner-battery-settings">
         <summary><span>Számítási beállítások</span><b>{batterySettings.capacityKwh.toFixed(1)} kWh akku · {batterySettings.reservePct}% tartalék · {batterySettings.idleLossPctPerDay}%/nap veszteség</b></summary>
         <div className="planner-battery-fields">
+          <label>Háttérfogyasztás<span><input type="number" min="0" max="5" step="0.05" value={baseLoadKw} onChange={(event) => { setBaseLoadKw(Math.max(0, Number(event.target.value))); setManualStart(undefined); }} /> kW</span></label>
           <label>Akku kapacitása<span><input type="number" min="0.1" max="100" step="0.1" value={batterySettings.capacityKwh} onChange={(event) => setBatterySettings((current) => ({ ...current, capacityKwh: Math.max(.1, Number(event.target.value)) }))} /> kWh</span></label>
           <label>Védett tartalék<span><input type="number" min="0" max="95" step="1" value={batterySettings.reservePct} onChange={(event) => setBatterySettings((current) => ({ ...current, reservePct: Math.max(0, Math.min(95, Number(event.target.value))) }))} /> %</span></label>
           <label>Max. töltés / leadás<span><input type="number" min="0" max="30" step="0.1" value={batterySettings.maxPowerKw} onChange={(event) => setBatterySettings((current) => ({ ...current, maxPowerKw: Math.max(0, Number(event.target.value)) }))} /> kW</span></label>
