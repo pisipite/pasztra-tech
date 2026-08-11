@@ -475,10 +475,13 @@ async function getSungrow() {
   const monthlyBattery = aggregateBattery(battery.history, "month");
   const batteryDays = [...dailyBattery.keys()];
   console.log(`Sungrow akkumulátor-időszak: ${batteryDays[0] ?? "nincs"} – ${batteryDays.at(-1) ?? "nincs"}; mai összesítés: ${dailyBattery.has(localDateKey(now)) ? "van" : "nincs"}.`);
-  const monthEnergy = Array.from({ length: Math.max(monthChart.length, now.getDate()) }, (_, index) => {
-    const point = monthChart[index];
-    const timestamp = new Date(now.getFullYear(), now.getMonth(), index + 1, 12);
-    return { label: point?.label ?? `${index + 1}.`, timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...dailyBattery.get(localDateKey(timestamp)) };
+  const currentMonthKeys = Array.from({ length: now.getDate() }, (_, index) => localDateKey(new Date(now.getFullYear(), now.getMonth(), index + 1, 12)));
+  const dailyEnergyKeys = [...new Set([...batteryDays, ...currentMonthKeys])].filter((key) => key <= localDateKey(now)).sort();
+  const monthEnergy = dailyEnergyKeys.map((key) => {
+    const [year, month, day] = key.split("-").map(Number);
+    const timestamp = new Date(year, month - 1, day, 12);
+    const point = year === now.getFullYear() && month === now.getMonth() + 1 ? monthChart[day - 1] : undefined;
+    return { label: `${day}.${month}.`, timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...dailyBattery.get(key) };
   });
   const yearEnergy = Array.from({ length: Math.max(yearChart.length, now.getMonth() + 1) }, (_, index) => {
     const point = yearChart[index];
@@ -500,14 +503,14 @@ async function getSungrow() {
     },
     charts: {
       today: todayChart.length ? todayChart : [{ label: pad(now.getHours()), value: currentPowerKw }],
-      "7d": monthChart.slice(-7),
-      "30d": monthChart.slice(-30),
+      "7d": monthChart.slice(0, now.getDate()).slice(-7),
+      "30d": monthChart.slice(0, now.getDate()).slice(-30),
       year: yearChart,
     },
     energyCharts: {
       today: todayEnergy,
-      "7d": monthEnergy.slice(-7),
-      "30d": monthEnergy.slice(-30),
+      "7d": monthEnergy,
+      "30d": monthEnergy,
       year: yearEnergy,
     },
   };
