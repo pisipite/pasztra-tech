@@ -28,6 +28,8 @@ A napi grafikon az időbélyeges méréseket, a heti és havi grafikon a napi á
   "solar": {
     "status": "online",
     "currentPowerKw": 4.82,
+    "batteryTemperatureC": 26.4,
+    "batteryVoltageV": 391.8,
     "todayKwh": 24.7,
     "monthKwh": 428,
     "lifetimeMwh": 18.6,
@@ -68,4 +70,4 @@ A napi grafikon az időbélyeges méréseket, a heti és havi grafikon a napi á
 }
 ```
 
-Negatív `gridPowerKw` esetén a rendszer a hálózatba táplál, pozitív értéknél a hálózatból vételez. A `battery`, `batterySoc`, `temperature` és `humidity` mezők opcionálisak; a frontend csak akkor rajzolja ki az adott idősoron belül, ha érkezett hozzá adat.
+Negatív `gridPowerKw` esetén a rendszer a hálózatba táplál, pozitív értéknél a hálózatból vételez. A `batteryTemperatureC`, `batteryVoltageV`, `battery`, `batterySoc`, `temperature` és `humidity` mezők opcionálisak; a frontend csak akkor jeleníti meg őket, ha érkezett hozzájuk adat.

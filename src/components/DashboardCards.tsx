@@ -20,6 +20,8 @@ function solarStatusText(status: SolarData["status"]) {
 function SolarCard({ data, batterySoc, loading, onRefresh }: Omit<Props, "climateSeries">) {
   const batteryLabel = Number.isFinite(batterySoc) ? batterySoc!.toFixed(0) : "—";
   const batteryLevel = Math.max(0, Math.min(100, batterySoc ?? 0));
+  const batteryTemperature = Number.isFinite(data.solar.batteryTemperatureC) ? `${data.solar.batteryTemperatureC!.toFixed(1)} °C` : "—";
+  const batteryVoltage = Number.isFinite(data.solar.batteryVoltageV) ? `${data.solar.batteryVoltageV!.toFixed(1)} V` : "—";
 
   return (
     <article className="card solar-card">
@@ -48,6 +50,10 @@ function SolarCard({ data, batterySoc, loading, onRefresh }: Omit<Props, "climat
           <span>Akkumulátor</span>
           <strong>{batteryLabel}<small>%</small></strong>
           <p>aktuális töltöttségi szint</p>
+          <div className="battery-details">
+            <span><small>Hőmérséklet</small><b>{batteryTemperature}</b></span>
+            <span><small>Feszültség</small><b>{batteryVoltage}</b></span>
+          </div>
         </div>
         <span className="battery-shape" aria-hidden="true"><i style={{ width: `${batteryLevel}%` }} /></span>
       </div>

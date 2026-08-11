@@ -97,6 +97,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .energy-axis-title { font-family: "Manrope", sans-serif; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 .chart-hit { fill: transparent; cursor: crosshair; }
 .hover-line { stroke: #66706b; stroke-width: 1; stroke-dasharray: 3 4; pointer-events: none; }
+.hover-band { fill: rgba(216,144,47,.09); stroke: rgba(169,104,67,.35); stroke-width: 1; pointer-events: none; }
 .chart-tooltip { position: absolute; z-index: 3; right: 14px; top: 14px; width: 190px; display: grid; gap: 6px; padding: 13px 14px; border: 1px solid rgba(20,32,29,.12); border-radius: 12px; background: rgba(251,250,245,.94); box-shadow: 0 14px 35px rgba(20,32,29,.13); backdrop-filter: blur(8px); pointer-events: none; }
 .chart-tooltip strong { margin-bottom: 3px; font-size: 11px; }
 .chart-tooltip span { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 9px; }
@@ -606,6 +607,10 @@ main { max-width: 1500px; padding-top: 28px; }
 .battery-status-panel strong { color: #efbd61; font-family: "DM Mono", monospace; font-size: clamp(48px, 6vw, 82px); line-height: 1; font-weight: 500; letter-spacing: -.07em; }
 .battery-status-panel strong small { margin-left: 7px; color: #d8c8a8; font-size: 18px; letter-spacing: 0; }
 .battery-status-panel p { margin: 2px 0 0; color: #8f9e96; font-size: 10px; }
+.battery-status-panel .battery-details { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 14px; }
+.battery-status-panel .battery-details span { display: grid; gap: 3px; min-width: 92px; color: inherit; font-size: inherit; text-transform: none; letter-spacing: normal; }
+.battery-status-panel .battery-details small { color: #8f9e96; font-size: 9px; text-transform: uppercase; letter-spacing: .1em; }
+.battery-status-panel .battery-details b { color: #fff8e9; font-family: "DM Mono", monospace; font-size: 13px; font-weight: 500; }
 .battery-shape {
   position: relative;
   display: block;

@@ -93,6 +93,8 @@ export function makeDemoData(range: RangeKey): DashboardData {
     solar: {
       status: "online",
       currentPowerKw: 4.82,
+      batteryTemperatureC: 26.4,
+      batteryVoltageV: 391.8,
       todayKwh: 24.7,
       monthKwh: 428,
       lifetimeMwh: 18.6,

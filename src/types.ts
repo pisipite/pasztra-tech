@@ -56,6 +56,8 @@ export interface SolarForecast {
 export interface SolarData {
   status: "online" | "offline" | "warning";
   currentPowerKw: number;
+  batteryTemperatureC?: number;
+  batteryVoltageV?: number;
   todayKwh: number;
   monthKwh: number;
   lifetimeMwh: number;

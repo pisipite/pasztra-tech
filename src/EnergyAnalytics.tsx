@@ -55,16 +55,20 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const unit = isLine ? "kW" : "kWh";
   const width = 1000;
   const height = 330;
-  const margin = { top: 24, right: 66, bottom: 46, left: 64 };
+  const margin = { top: 24, right: 118, bottom: 46, left: 64 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
+  const bucketWidth = plotWidth / Math.max(points.length, 1);
   const values = points.flatMap((point) => [point.pv, point.grid, batteryChargeValue(point), batteryDischargeValue(point), point.load].filter((value): value is number => Number.isFinite(value)));
   const maxValue = Math.max(1, ...values.map((value) => Math.abs(value)));
   const minValue = Math.min(0, ...values);
   const upper = maxValue * 1.12;
   const lower = minValue < 0 ? minValue * 1.15 : 0;
   const range = Math.max(upper - lower, 1);
-  const x = (index: number) => margin.left + (points.length <= 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
+  const lineX = (index: number) => margin.left + (points.length <= 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
+  const bucketLeft = (index: number) => margin.left + index * bucketWidth;
+  const bucketCenter = (index: number) => bucketLeft(index) + bucketWidth / 2;
+  const pointX = (index: number) => isLine ? lineX(index) : bucketCenter(index);
   const y = (value: number) => margin.top + ((upper - value) / range) * plotHeight;
   const zeroY = y(0);
   const tempValues = points.map((point) => point.temperature).filter((value): value is number => Number.isFinite(value));
@@ -74,9 +78,11 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
     const normalized = kind === "humidity" ? value / 100 : (value - tempMin) / Math.max(tempMax - tempMin, 1);
     return margin.top + (1 - normalized) * plotHeight;
   };
-  const temperatureCoords = points.flatMap((point, index) => Number.isFinite(point.temperature) ? [{ x: x(index), y: climateY(point.temperature!, "temperature") }] : []);
-  const humidityCoords = points.flatMap((point, index) => Number.isFinite(point.humidity) ? [{ x: x(index), y: climateY(point.humidity!, "humidity") }] : []);
+  const temperatureCoords = points.flatMap((point, index) => Number.isFinite(point.temperature) ? [{ x: pointX(index), y: climateY(point.temperature!, "temperature") }] : []);
+  const humidityCoords = points.flatMap((point, index) => Number.isFinite(point.humidity) ? [{ x: pointX(index), y: climateY(point.humidity!, "humidity") }] : []);
   const gridLines = Array.from({ length: 5 }, (_, index) => upper - (index / 4) * range);
+  const percentageTicks = [0, 25, 50, 75, 100];
+  const temperatureTicks = Array.from({ length: 5 }, (_, index) => tempMax - (index / 4) * (tempMax - tempMin));
   const tickStep = Math.max(1, Math.ceil(points.length / 8));
   const active = hovered === null ? null : points[hovered];
   const nextDisabled = period !== "custom" && isCurrentPeriod(period, anchor);
@@ -142,18 +148,22 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               {gridLines.map((value) => <g key={value}><line className="energy-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="energy-axis-label" x={margin.left - 12} y={y(value) + 4} textAnchor="end">{value.toFixed(value < 10 ? 1 : 0)}</text></g>)}
               <line className="energy-zero" x1={margin.left} x2={width - margin.right} y1={zeroY} y2={zeroY} />
               <text className="energy-axis-title" x={margin.left} y={14}>{isLine ? "Teljesítmény (kW)" : "Energia (kWh)"}</text>
-              {(temperatureVisible || humidityVisible || hasBatterySoc) && <text className="energy-axis-title" x={width - margin.right} y={14} textAnchor="end">{temperatureVisible || humidityVisible ? "Klíma / akku (°C / %)" : "Akku töltöttség (%)"}</text>}
-              {hasBatterySoc && [0, 25, 50, 75, 100].map((value) => <text key={`soc-${value}`} className="energy-axis-label" x={width - margin.right + 12} y={climateY(value, "humidity") + 4}>{value}</text>)}
+              {temperatureVisible && <text className="energy-axis-title" x={width - margin.right + 10} y={14} fill={colors.temperature}>Hőm. °C</text>}
+              {(humidityVisible || hasBatterySoc) && <text className="energy-axis-title" x={width - margin.right + 58} y={14} fill={humidityVisible ? colors.humidity : colors.batterySoc}>Pára / akku %</text>}
+              {temperatureVisible && temperatureTicks.map((value) => <text key={`temperature-axis-${value}`} className="energy-axis-label" x={width - margin.right + 10} y={climateY(value, "temperature") + 4} fill={colors.temperature}>{value.toFixed(0)}°</text>)}
+              {(humidityVisible || hasBatterySoc) && percentageTicks.map((value) => <text key={`percentage-axis-${value}`} className="energy-axis-label" x={width - margin.right + 60} y={climateY(value, "humidity") + 4} fill={humidityVisible ? colors.humidity : colors.batterySoc}>{value}</text>)}
+
+              {hovered !== null && !isLine && <rect className="hover-band" x={bucketLeft(hovered)} y={margin.top} width={bucketWidth} height={plotHeight} />}
 
               {isLine ? lineSeries.map((series) => {
-                const coords = points.flatMap((point, index) => Number.isFinite(series.value(point)) ? [{ x: x(index), y: y(Number(series.value(point))) }] : []);
+                const coords = points.flatMap((point, index) => Number.isFinite(series.value(point)) ? [{ x: lineX(index), y: y(Number(series.value(point))) }] : []);
                 const path = smoothPath(coords);
                 return <g key={series.key}>{series.key === "pv" && coords.length > 1 && <path d={`${path} L${coords.at(-1)?.x},${zeroY} L${coords[0]?.x},${zeroY} Z`} fill="url(#pv-area)" />}<path d={path} fill="none" stroke={series.color} strokeWidth="2.4" vectorEffect="non-scaling-stroke" /></g>;
               }) : points.map((point, index) => {
                 const groupWidth = Math.min(54, plotWidth / Math.max(points.length, 1) * .7);
                 const available = lineSeries.filter((series) => Number.isFinite(series.value(point)));
                 const barWidth = Math.max(3, groupWidth / Math.max(available.length, 1) - 2);
-                const center = margin.left + ((index + .5) / points.length) * plotWidth;
+                const center = bucketCenter(index);
                 return <g key={`${point.label}-${index}`}>{available.map((series, seriesIndex) => {
                   const value = Number(series.value(point) ?? 0);
                   const barY = value >= 0 ? y(value) : zeroY;
@@ -166,15 +176,15 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               {temperatureVisible && temperatureCoords.map((point, index) => <circle key={`temperature-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.temperature} />)}
               {humidityVisible && humidityCoords.length > 1 && <path d={smoothPath(humidityCoords)} fill="none" stroke={colors.humidity} strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
               {humidityVisible && humidityCoords.map((point, index) => <circle key={`humidity-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.humidity} />)}
-              {hasBatterySoc && <path d={smoothPath(points.flatMap((point, index) => Number.isFinite(point.batterySoc) ? [{ x: x(index), y: climateY(point.batterySoc!, "humidity") }] : []))} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
+              {hasBatterySoc && <path d={smoothPath(points.flatMap((point, index) => Number.isFinite(point.batterySoc) ? [{ x: pointX(index), y: climateY(point.batterySoc!, "humidity") }] : []))} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
 
               {points.map((point, index) => (
                 <g key={`tick-${point.label}-${index}`}>
-                  {(index % tickStep === 0 || index === points.length - 1) && <text className="energy-x-label" x={isLine ? x(index) : margin.left + ((index + .5) / points.length) * plotWidth} y={height - 16} textAnchor="middle">{point.label}</text>}
-                  <rect className="chart-hit" x={(isLine ? x(index) : margin.left + ((index + .5) / points.length) * plotWidth) - Math.max(10, plotWidth / points.length / 2)} y={margin.top} width={Math.max(20, plotWidth / points.length)} height={plotHeight} onMouseEnter={() => setHovered(index)} />
+                  {(index % tickStep === 0 || index === points.length - 1) && <text className="energy-x-label" x={pointX(index)} y={height - 16} textAnchor="middle">{point.label}</text>}
+                  <rect className="chart-hit" x={isLine ? lineX(index) - Math.max(10, bucketWidth / 2) : bucketLeft(index)} y={margin.top} width={isLine ? Math.max(20, bucketWidth) : bucketWidth} height={plotHeight} onMouseEnter={() => setHovered(index)} />
                 </g>
               ))}
-              {hovered !== null && <line className="hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={margin.top + plotHeight} />}
+              {hovered !== null && isLine && <line className="hover-line" x1={lineX(hovered)} x2={lineX(hovered)} y1={margin.top} y2={margin.top + plotHeight} />}
             </svg>
             {active && <div className="chart-tooltip"><strong>{active.label}</strong>{Number.isFinite(active.pv) && <span>PV <b>{formatValue(active.pv!, unit)}</b></span>}{Number.isFinite(active.load) && <span>Fogyasztás <b>{formatValue(active.load!, unit)}</b></span>}{Number.isFinite(active.grid) && <span>Hálózat <b>{formatValue(active.grid!, unit)}</b></span>}{Number.isFinite(batteryChargeValue(active)) && <span>Akkuba töltés <b>{formatValue(Math.abs(batteryChargeValue(active)!), unit)}</b></span>}{Number.isFinite(batteryDischargeValue(active)) && <span>Akkuból leadás <b>{formatValue(batteryDischargeValue(active)!, unit)}</b></span>}{Number.isFinite(active.batterySoc) && <span>Akku töltöttség <b>{active.batterySoc!.toFixed(0)}%</b></span>}{temperatureVisible && Number.isFinite(active.temperature) && <span>{climateIsAverage ? "Átlaghőmérséklet" : "Hőmérséklet"} <b>{active.temperature!.toFixed(1)} °C</b></span>}{humidityVisible && Number.isFinite(active.humidity) && <span>{climateIsAverage ? "Átlagos páratartalom" : "Páratartalom"} <b>{active.humidity!.toFixed(0)}%</b></span>}</div>}
           </>

@@ -119,6 +119,8 @@ function demoDashboard(range) {
     solar: {
       status: "online",
       currentPowerKw: 4.82,
+      batteryTemperatureC: 26.4,
+      batteryVoltageV: 391.8,
       todayKwh: 24.7,
       monthKwh: 428,
       lifetimeMwh: 18.6,
@@ -213,13 +215,20 @@ function findBatteryDevice(root) {
     const soc = socCandidates.find((point) => ids.has(point));
     if (!ids.has("p13126") || !ids.has("p13150") || !soc) continue;
     const psKey = textValue(deepFind(device, ["psKey"]));
-    if (psKey) return { psKey, charge: "p13126", discharge: "p13150", soc };
+    if (psKey) return {
+      psKey,
+      charge: "p13126",
+      discharge: "p13150",
+      soc,
+      temperature: ids.has("p13143") ? "p13143" : undefined,
+      voltage: ids.has("p13138") ? "p13138" : undefined,
+    };
   }
   return null;
 }
 
 function extractBatterySamples(root, batteryDevice) {
-  const pointIds = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc];
+  const pointIds = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc, batteryDevice.temperature, batteryDevice.voltage].filter(Boolean);
   const rows = new Map();
   const queue = [{ value: root, key: "", pointId: undefined }];
   const seen = new Set();
@@ -232,6 +241,8 @@ function extractBatterySamples(root, batteryDevice) {
     if (pointId === batteryDevice.charge) row.chargeKw = Math.abs(value);
     if (pointId === batteryDevice.discharge) row.dischargeKw = Math.abs(value);
     if (pointId === batteryDevice.soc) row.soc = value;
+    if (pointId === batteryDevice.temperature) row.temperatureC = value;
+    if (pointId === batteryDevice.voltage) row.voltageV = value;
     rows.set(key, row);
   };
 
@@ -398,8 +409,13 @@ async function getBatteryTelemetry(psId, devices) {
     return { today: [], history: [] };
   }
 
-  const query = (start, end, interval) => {
-    const points = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc];
+  const query = (start, end, interval, includeDetails = false) => {
+    const points = [
+      batteryDevice.charge,
+      batteryDevice.discharge,
+      batteryDevice.soc,
+      ...(includeDetails ? [batteryDevice.temperature, batteryDevice.voltage] : []),
+    ].filter(Boolean);
     return Promise.all(points.map((point) => sungrowJson("AppService.queryMutiPointDataList", [
         `PsId:${psId}`,
         `StartTimeStamp:${sungrowTimestamp(start)}`,
@@ -415,7 +431,7 @@ async function getBatteryTelemetry(psId, devices) {
   const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yearStart = new Date(now.getFullYear(), 0, 1);
   const [todayResult, historyResult] = await Promise.allSettled([
-    query(dayStart, now, 5),
+    query(dayStart, now, 5, true),
     query(yearStart, now, 60),
   ]);
   if (todayResult.status === "rejected") console.error(`Sungrow napi akkumulátor-adatok: ${todayResult.reason.message}`);
@@ -453,6 +469,7 @@ async function getSungrow() {
   const monthlyEnergy = year ? numberList(deepFind(year, ["p83022List"])) : [];
   const currentPowerKw = currentValue(production);
   const houseLoadKw = currentValue(load);
+  const latestBatteryValue = (key) => [...battery.today].reverse().find((sample) => Number.isFinite(sample[key]))?.[key];
   const todayKwh = numberValue(deepFind(day, ["dayPowerQuantityTotal", "p83022"]), dailyEnergy.at(-1) ?? 0);
   const monthKwh = dailyEnergy.reduce((sum, value) => sum + value, 0);
   const usedDirectly = Math.min(Math.max(houseLoadKw, 0), Math.max(currentPowerKw, 0));
@@ -508,6 +525,8 @@ async function getSungrow() {
     metrics: {
       status: "online",
       currentPowerKw,
+      batteryTemperatureC: latestBatteryValue("temperatureC"),
+      batteryVoltageV: latestBatteryValue("voltageV"),
       todayKwh,
       monthKwh,
       lifetimeMwh: unitToMwh(deepFind(overview, ["totalAllPower"])),
