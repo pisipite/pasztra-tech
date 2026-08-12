@@ -8,12 +8,19 @@ const execFileAsync = promisify(execFile);
 const outputDir = resolve("public/data");
 const historyDir = resolve(".data-history");
 const historyFile = resolve(historyDir, "govee-history.json");
+const sungrowDayHistoryDir = resolve(historyDir, "sungrow-days");
 const now = new Date();
 const pad = (value) => String(value).padStart(2, "0");
 const dayId = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
 const monthId = dayId.slice(0, 6);
 const yearId = dayId.slice(0, 4);
 const climateRetentionMs = 370 * 86_400_000;
+const sungrowDayRetention = Math.max(7, Math.min(62, numberFromEnvironment("SUNGROW_DAY_HISTORY_DAYS", 31)));
+
+function numberFromEnvironment(name, fallback) {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) ? value : fallback;
+}
 
 function localDateKey(value) {
   const date = new Date(value);
@@ -90,14 +97,18 @@ async function updateClimateHistory(govee) {
   ]);
 
   const todayKey = localDateKey(now);
-  return {
-    today: history.filter((item) => localDateKey(item.timestamp) === todayKey).map((item) => ({
+  const days = Object.fromEntries([...new Set(history.map((item) => localDateKey(item.timestamp)))].map((key) => [key, history
+    .filter((item) => localDateKey(item.timestamp) === key)
+    .map((item) => ({
       label: new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" }).format(new Date(item.timestamp)),
       ...item,
-    })),
+    }))]));
+  return {
+    today: days[todayKey] ?? [],
     "7d": averageClimate(history, "day"),
     "30d": averageClimate(history, "day"),
     year: averageClimate(history, "month"),
+    days,
   };
 }
 
@@ -335,6 +346,92 @@ function nearestBatterySample(samples, timestamp) {
   return closest;
 }
 
+function dayIdFor(value) {
+  const date = new Date(value);
+  return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
+}
+
+function buildDayCharts(date, production, load, batterySamples = []) {
+  const chart = production.map((value, index) => {
+    const minute = Math.floor((index / Math.max(production.length - 1, 1)) * 1439);
+    return { label: `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`, value };
+  });
+  const energyChart = chart.map((point, index) => {
+    const timestamp = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const minute = Math.floor((index / Math.max(chart.length - 1, 1)) * 1439);
+    timestamp.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
+    const loadValue = load[index] ?? 0;
+    const batterySample = nearestBatterySample(batterySamples, timestamp);
+    const batteryCharge = batterySample?.chargeKw ?? 0;
+    const batteryDischarge = batterySample?.dischargeKw ?? 0;
+    return {
+      label: point.label,
+      timestamp: timestamp.toISOString(),
+      pv: point.value,
+      load: loadValue,
+      grid: loadValue + batteryCharge - point.value - batteryDischarge,
+      ...(batterySample ? {
+        batteryCharge: batterySample.chargeKw,
+        batteryDischarge: batterySample.dischargeKw,
+        batterySoc: batterySample.soc,
+      } : {}),
+    };
+  });
+  return { chart, energyChart };
+}
+
+async function readCachedSungrowDay(key) {
+  try {
+    const value = JSON.parse(await readFile(resolve(sungrowDayHistoryDir, `${key}.json`), "utf8"));
+    return Array.isArray(value?.energyChart) && value.energyChart.length ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeCachedSungrowDay(key, value) {
+  await mkdir(sungrowDayHistoryDir, { recursive: true });
+  await writeFile(resolve(sungrowDayHistoryDir, `${key}.json`), `${JSON.stringify(value)}\n`, "utf8");
+}
+
+async function getArchivedSungrowDays(psId, currentDayCharts, batteryHistory) {
+  const requested = Array.from({ length: sungrowDayRetention }, (_, offset) => {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
+    return { date, key: localDateKey(date) };
+  });
+  const results = new Map([[localDateKey(now), currentDayCharts]]);
+  await writeCachedSungrowDay(localDateKey(now), currentDayCharts);
+
+  const missing = [];
+  for (const item of requested.slice(1)) {
+    const cached = await readCachedSungrowDay(item.key);
+    if (cached) results.set(item.key, cached);
+    else missing.push(item);
+  }
+
+  for (let index = 0; index < missing.length; index += 4) {
+    const batch = missing.slice(index, index + 4);
+    const fetched = await Promise.all(batch.map(async ({ date, key }) => {
+      try {
+        const response = await sungrowJson("AppService.getPowerStationData", [`DateId:${dayIdFor(date)}`, "DateType:1", `PsId:${psId}`]);
+        const production = powerKwList(deepFind(response, ["p83033List"]));
+        const load = powerKwList(deepFind(response, ["p83106List"]));
+        if (!production.length) return null;
+        const value = buildDayCharts(date, production, load, batteryHistory);
+        await writeCachedSungrowDay(key, value);
+        return [key, value];
+      } catch (error) {
+        console.error(`Sungrow napi archívum (${key}): ${error.message}`);
+        return null;
+      }
+    }));
+    fetched.filter(Boolean).forEach(([key, value]) => results.set(key, value));
+  }
+
+  console.log(`Sungrow részletes napi archívum: ${results.size}/${requested.length} nap.`);
+  return results;
+}
+
 function unitToMwh(value) {
   const amount = numberValue(value);
   const unit = String(value?.unit ?? "kWh").toLowerCase();
@@ -548,33 +645,12 @@ async function getSungrow() {
   const selfConsumptionPct = currentPowerKw > 0 ? Math.round((usedDirectly / currentPowerKw) * 100) : 0;
   const co2Factor = numberValue(process.env.CO2_KG_PER_KWH, 0.233);
 
-  const todayChart = production.map((value, index) => {
-    const minute = Math.floor((index / Math.max(production.length - 1, 1)) * 1439);
-    return { label: `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`, value };
-  });
+  const today = buildDayCharts(now, production, load, battery.today);
+  const todayChart = today.chart;
+  const todayEnergy = today.energyChart;
+  const dayHistory = await getArchivedSungrowDays(psId, today, battery.history);
   const monthChart = dailyEnergy.map((value, index) => ({ label: `${index + 1}.`, value }));
   const yearChart = monthlyEnergy.map((value, index) => ({ label: ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][index] ?? String(index + 1), value }));
-  const todayEnergy = todayChart.map((point, index) => {
-    const timestamp = new Date(now);
-    const minute = Math.floor((index / Math.max(todayChart.length - 1, 1)) * 1439);
-    timestamp.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
-    const loadValue = load[index] ?? 0;
-    const batterySample = nearestBatterySample(battery.today, timestamp);
-    const batteryCharge = batterySample?.chargeKw ?? 0;
-    const batteryDischarge = batterySample?.dischargeKw ?? 0;
-    return {
-      label: point.label,
-      timestamp: timestamp.toISOString(),
-      pv: point.value,
-      load: loadValue,
-      grid: loadValue + batteryCharge - point.value - batteryDischarge,
-      ...(batterySample ? {
-        batteryCharge: batterySample.chargeKw,
-        batteryDischarge: batterySample.dischargeKw,
-        batterySoc: batterySample.soc,
-      } : {}),
-    };
-  });
   const dailyEnergyReport = energyHistory.daily;
   const monthlyEnergyReport = energyHistory.monthly;
   const reportDays = [...dailyEnergyReport.keys()];
@@ -618,6 +694,7 @@ async function getSungrow() {
       "30d": monthEnergy,
       year: yearEnergy,
     },
+    dayHistory,
   };
 }
 
@@ -779,6 +856,22 @@ for (const range of ["today", "7d", "30d", "year"]) {
   if (govee) dashboard.govee = { ...govee, chart: climateCharts[range] };
   if (forecast) dashboard.forecast = forecast;
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
+}
+
+if (sungrow) {
+  for (const [date, dayData] of sungrow.dayHistory) {
+    const dashboard = demoDashboard("today");
+    dashboard.source = govee ? "live" : "partial";
+    dashboard.updatedAt = now.toISOString();
+    dashboard.connections = {
+      solar: { connected: true, updatedAt: now.toISOString() },
+      climate: { connected: Boolean(govee), ...(govee ? { updatedAt: govee.devices[0].updatedAt } : {}) },
+    };
+    dashboard.solar = { ...sungrow.metrics, chart: dayData.chart, energyChart: dayData.energyChart };
+    if (govee) dashboard.govee = { ...govee, chart: climateCharts.days[date] ?? [] };
+    if (forecast) dashboard.forecast = forecast;
+    await writeFile(resolve(outputDir, `dashboard-day-${date}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
+  }
 }
 
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");

@@ -43,7 +43,11 @@ function App() {
     }
     setLoading(true);
     try {
-      const endpoint = currentSettings.endpoint.replace("{range}", currentRange);
+      const selectedDate = dateInputValue(currentAnchor);
+      const requestedRange = currentPeriod === "day" && selectedDate !== dateInputValue(new Date())
+        ? `day-${selectedDate}`
+        : currentRange;
+      const endpoint = currentSettings.endpoint.replace("{range}", requestedRange);
       const url = new URL(endpoint, window.location.href);
       url.searchParams.set("range", currentRange);
       url.searchParams.set("period", currentPeriod);

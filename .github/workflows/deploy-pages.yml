@@ -33,12 +33,13 @@ jobs:
         with:
           path: ~/gosungrow
           key: gosungrow-encryption-v3.0.7-linux-amd64
-      - name: Govee mérési előzmények
+      - name: Mérési előzmények
         uses: actions/cache@v4
         with:
           path: .data-history
-          key: govee-history-${{ github.run_id }}
+          key: measurement-history-${{ github.run_id }}
           restore-keys: |
+            measurement-history-
             govee-history-
       - name: Friss Sungrow és Govee adatok
         env:
@@ -60,6 +61,7 @@ jobs:
           SOLAR_TILT_DEG: ${{ vars.SOLAR_TILT_DEG }}
           SOLAR_AZIMUTH_DEG: ${{ vars.SOLAR_AZIMUTH_DEG }}
           SOLAR_PERFORMANCE_RATIO: ${{ vars.SOLAR_PERFORMANCE_RATIO }}
+          SUNGROW_DAY_HISTORY_DAYS: 31
         run: bash scripts/fetch-live-data.sh
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
