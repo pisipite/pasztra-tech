@@ -736,7 +736,8 @@ main { max-width: 1500px; padding-top: 28px; }
 .planner-base-line { position: absolute; z-index: 2; right: 0; left: 0; border-top: 1px dashed rgba(118,96,66,.5); }
 .planner-base-line span { position: absolute; right: 5px; bottom: 2px; color: #8a795f; font-size: 7px; text-transform: uppercase; }
 .planner-battery-profile { position: absolute; z-index: 2; inset: 11px 0 25px; pointer-events: none; }
-.planner-battery-profile i { position: absolute; width: calc(100% / 96 + 1px); height: 2px; border-radius: 2px; background: rgba(35,94,73,.78); transform: translateY(50%); }
+.planner-battery-profile svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.planner-battery-profile polyline { fill: none; stroke: rgba(35,94,73,.86); stroke-width: 1.8px; stroke-linecap: round; stroke-linejoin: round; }
 .planner-battery-day { position: absolute; z-index: 1; top: 0; right: 7px; padding: 4px 6px; border-radius: 6px 2px 7px 3px; color: #315d4d; background: rgba(255,250,240,.78); font: 700 7px "DM Mono", monospace; }
 .planner-battery-reserve { position: absolute; right: 0; left: 0; border-top: 1px dashed rgba(157,98,82,.5); }
 .planner-schedule-lanes { position: absolute; z-index: 3; inset: 0 0 25px; }

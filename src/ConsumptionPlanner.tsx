@@ -227,6 +227,11 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
 
   const daySlots = slots.filter((slot) => slot.dayOffset === trial.dayOffset);
   const dayStartIndex = slots.findIndex((slot) => slot.dayOffset === trial.dayOffset);
+  const batteryLinePoints = plan ? daySlots.map((_, index) => {
+    const x = daySlots.length > 1 ? index / (daySlots.length - 1) * 100 : 0;
+    const soc = plan.simulation.socSeries[dayStartIndex + index] ?? startSocPct;
+    return `${x.toFixed(3)},${(100 - soc).toFixed(3)}`;
+  }).join(" ") : "";
   const maximum = Math.max(5, plan?.powerKw ?? 0, ...daySlots.map((slot) => slot.expectedPowerKw));
   const start = plan ? slots[plan.startIndex] : undefined;
   const endTimestamp = plan ? slots[plan.startIndex + plan.slotCount - 1].timestamp + 15 * 60_000 : undefined;
@@ -314,7 +319,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
           {plan && start && <>
             <div className="planner-battery-profile" aria-hidden="true">
               <span className="planner-battery-reserve" style={{ bottom: `${batterySettings.reservePct}%` }} />
-              {daySlots.map((slot, index) => <i key={slot.timestamp} style={{ left: `${index / daySlots.length * 100}%`, bottom: `${plan.simulation.socSeries[dayStartIndex + index] ?? startSocPct}%` }} />)}
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false"><polyline points={batteryLinePoints} vectorEffect="non-scaling-stroke" /></svg>
             </div>
             <div
               role="slider"
