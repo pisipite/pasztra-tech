@@ -103,6 +103,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .chart-legend button { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; padding: 3px 0; color: inherit; font: inherit; cursor: pointer; transition: color .16s ease, opacity .16s ease; }
 .chart-legend button:hover { color: var(--ink); }
 .chart-legend button:focus-visible { outline: 2px solid var(--forest); outline-offset: 3px; border-radius: 2px; }
+.chart-legend button.series-group-start { margin-left: 2px; padding-left: 14px; border-left: 1px solid #d5c9b6; }
 .chart-legend button.is-hidden { opacity: .38; text-decoration: line-through; text-decoration-thickness: 1px; }
 .chart-legend i { width: 18px; height: 3px; border-radius: 4px; }
 .chart-legend.is-bar-legend i { height: 10px; border-radius: 3px 2px 3px 2px; }
