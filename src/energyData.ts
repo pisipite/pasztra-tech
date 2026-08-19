@@ -111,3 +111,21 @@ export function gridFeedInValue(point: EnergyChartPoint) {
   if (Number.isFinite(point.gridFeedIn)) return -Math.abs(point.gridFeedIn!);
   return Number.isFinite(point.grid) && point.grid! < 0 ? point.grid : undefined;
 }
+
+export function gridNetValue(point: EnergyChartPoint) {
+  if (Number.isFinite(point.grid)) return point.grid;
+  const hasPurchase = Number.isFinite(point.gridPurchase);
+  const hasFeedIn = Number.isFinite(point.gridFeedIn);
+  const purchase = hasPurchase ? Math.abs(point.gridPurchase!) : 0;
+  const feedIn = hasFeedIn ? Math.abs(point.gridFeedIn!) : 0;
+  return hasPurchase || hasFeedIn ? purchase - feedIn : undefined;
+}
+
+export function batteryNetValue(point: EnergyChartPoint) {
+  if (Number.isFinite(point.battery)) return point.battery;
+  const hasCharge = Number.isFinite(point.batteryCharge);
+  const hasDischarge = Number.isFinite(point.batteryDischarge);
+  const charge = hasCharge ? Math.abs(point.batteryCharge!) : 0;
+  const discharge = hasDischarge ? Math.abs(point.batteryDischarge!) : 0;
+  return hasCharge || hasDischarge ? discharge - charge : undefined;
+}
