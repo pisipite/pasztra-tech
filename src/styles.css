@@ -124,7 +124,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .chart-tooltip b { color: var(--ink); font-family: "DM Mono", monospace; font-weight: 500; }
 .chart-empty { min-height: 290px; display: grid; place-content: center; gap: 6px; text-align: center; }
 .chart-empty strong { font-size: 14px; }.chart-empty span { color: var(--muted); font-size: 11px; }
-.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, .8fr); gap: 18px; align-items: start; transition: opacity .2s ease; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; align-items: start; transition: opacity .2s ease; }
 .dashboard-grid.is-loading { opacity: .72; }
 .card { background: var(--paper); border: 1px solid rgba(20,32,29,.1); border-radius: 24px; overflow: hidden; box-shadow: 0 18px 50px rgba(38,49,45,.055); }
 .card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
@@ -162,7 +162,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .solar-stats > div { background: #16231f; padding: 23px clamp(20px, 2.5vw, 34px); display: grid; gap: 8px; }
 .solar-stats span { color: #89948e; font-size: 10px; }.solar-stats strong { font-family: "DM Mono", monospace; font-size: 20px; font-weight: 500; }.solar-stats small { color: #8d9892; font-size: 9px; }
 
-.climate-card { padding: 28px; }
+.climate-card { width: 100%; padding: clamp(24px, 3vw, 38px); }
 .comfort-badge { border-radius: 999px; padding: 8px 11px; background: #e5efd9; color: #55753c; font-size: 10px; font-weight: 700; }
 .comfort-badge--alert { background: #fff0d8; color: #93611c; }
 .climate-reading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 30px 0 25px; }
@@ -171,7 +171,38 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .humidity-gauge { --humidity: 180deg; width: 94px; height: 94px; padding: 8px; border-radius: 50%; background: conic-gradient(var(--climate) var(--humidity), #e7e5dc 0); position: relative; }
 .humidity-gauge::before { content: ""; position: absolute; inset: 8px; background: var(--paper); border-radius: 50%; }
 .humidity-gauge > div { position: relative; height: 100%; display: grid; place-content: center; text-align: center; }.humidity-gauge strong { font-family: "DM Mono", monospace; font-size: 18px; }.humidity-gauge span { color: var(--muted); font-size: 9px; }
-.climate-chart-wrap { border-color: #e1e1d8; }.chart--climate { height: 135px; color: var(--climate); }.climate-chart-wrap .section-title { color: #737b77; }
+.climate-chart-wrap { border-color: #e1e1d8; }
+.climate-chart-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+.climate-chart-heading > div:first-child { display: grid; gap: 5px; }
+.climate-chart-heading > div:first-child span { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
+.climate-chart-heading > div:first-child strong { font-family: "Fraunces", serif; font-size: clamp(22px, 2.5vw, 32px); font-weight: 600; letter-spacing: -.035em; }
+.climate-period-tabs { flex: 0 0 auto; }
+.climate-chart-controls { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+.climate-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 16px; color: #626b67; font-size: 10px; font-weight: 700; }
+.climate-legend span, .climate-tooltip span { display: flex; align-items: center; gap: 7px; }
+.climate-legend i, .climate-tooltip i { width: 18px; height: 3px; border-radius: 4px; }
+.climate-legend .is-temperature, .climate-tooltip .is-temperature { background: var(--terracotta); }
+.climate-legend .is-humidity, .climate-tooltip .is-humidity { background: #557b9c; }
+.climate-custom-range { padding-bottom: 8px; }
+.climate-history-chart { position: relative; min-height: 300px; transition: opacity .2s ease; }
+.climate-history-chart svg { display: block; width: 100%; height: auto; min-height: 270px; overflow: visible; }
+.climate-gridline { stroke: #dde0d8; stroke-width: 1; stroke-dasharray: 2 5; }
+.climate-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.climate-line--temperature { stroke: var(--terracotta); }
+.climate-line--humidity { stroke: #557b9c; }
+.climate-axis, .climate-x-label { fill: #777f7a; font-family: "DM Mono", monospace; font-size: 9px; }
+.climate-axis--temperature { fill: var(--terracotta); }
+.climate-axis--humidity { fill: #557b9c; }
+.climate-hover-line { stroke: #68726d; stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.climate-point { stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.climate-point--temperature { fill: var(--terracotta); }
+.climate-point--humidity { fill: #557b9c; }
+.climate-tooltip { position: absolute; z-index: 2; top: 16px; right: 20px; display: grid; min-width: 210px; gap: 8px; padding: 13px 15px; border: 1px solid rgba(20,32,29,.12); border-radius: 12px 7px 13px 8px; background: rgba(251,250,245,.94); box-shadow: 0 14px 34px rgba(20,32,29,.12); backdrop-filter: blur(8px); pointer-events: none; }
+.climate-tooltip strong { font-size: 11px; }
+.climate-tooltip span { display: grid; grid-template-columns: 18px 1fr auto; color: var(--muted); font-size: 9px; }
+.climate-tooltip b { color: var(--ink); font-family: "DM Mono", monospace; font-weight: 500; }
+.climate-chart-empty { min-height: 260px; display: grid; place-content: center; color: var(--muted); font-size: 12px; }
+.is-climate-loading { opacity: .55; }
 .device-list { margin: 18px -28px -28px; border-top: 1px solid #e1e1d8; }
 .device-row { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 12px; padding: 15px 28px; border-bottom: 1px solid #e8e7df; }
 .device-row:last-child { border-bottom: 0; }.device-row > div { display: grid; gap: 3px; }.device-row strong { font-size: 12px; }.device-row span { color: #7a827d; font-size: 9px; }
@@ -218,6 +249,13 @@ footer button { border: 0; background: none; cursor: pointer; font-weight: 700; 
   .solar-card { border-radius: 19px; }.solar-main { grid-template-columns: 1fr; padding-top: 55px; }.power-reading__value { font-size: 74px; }.energy-flow { grid-template-columns: 1fr 1fr; border-left: 0; border-top: 1px solid rgba(255,255,255,.12); padding: 18px 0 0; }
   .solar-stats { grid-template-columns: 1fr 1fr; }.solar-stats > div:last-child { grid-column: 1 / -1; }
   .climate-card { padding: 22px; }.device-list { margin-left: -22px; margin-right: -22px; margin-bottom: -22px; }.device-row { padding-left: 22px; padding-right: 22px; }
+  .climate-chart-heading, .climate-chart-controls { display: grid; }
+  .climate-period-tabs { width: 100%; }
+  .climate-chart-controls .period-stepper { width: 100%; }
+  .climate-legend { justify-content: flex-start; }
+  .climate-history-chart { overflow-x: auto; }
+  .climate-history-chart svg { width: 720px; max-width: none; }
+  .climate-tooltip { position: sticky; left: 10px; right: auto; width: 210px; }
   footer { display: grid; gap: 8px; text-align: center; }
 }
 
@@ -512,7 +550,7 @@ main { max-width: 1500px; padding-top: 28px; }
   background: linear-gradient(90deg, var(--solar-deep) 0 25%, transparent 25% 31%, var(--solar-deep) 31% 67%, transparent 67% 72%, var(--solar-deep) 72%);
   transform: rotate(.45deg);
 }
-.dashboard-grid { grid-template-columns: minmax(0, 1.55fr) minmax(340px, .8fr); column-gap: 27px; row-gap: 18px; }
+.dashboard-grid { grid-template-columns: minmax(0, 1fr); row-gap: 18px; }
 .solar-card { border-radius: 4px 21px 7px 14px; transform: rotate(-.08deg); }
 .climate-card { position: relative; border-radius: 17px 5px 19px 8px; transform: translateY(22px) rotate(.12deg); }
 

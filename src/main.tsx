@@ -2,8 +2,9 @@ import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { DashboardCards } from "./components/DashboardCards";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { climatePointsForPeriod } from "./climateData";
 import { ConsumptionPlanner } from "./ConsumptionPlanner";
-import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod, timestampInPeriod } from "./dateUtils";
+import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
@@ -27,6 +28,12 @@ function App() {
   const [anchor, setAnchor] = useState(() => new Date());
   const [customStart, setCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
   const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()));
+  const [climatePeriod, setClimatePeriod] = useState<PeriodKey>("day");
+  const [climateAnchor, setClimateAnchor] = useState(() => new Date());
+  const [climateCustomStart, setClimateCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
+  const [climateCustomEnd, setClimateCustomEnd] = useState(() => dateInputValue(new Date()));
+  const [climateHistory, setClimateHistory] = useState(() => makeDemoData("today").govee.chart);
+  const [climateLoading, setClimateLoading] = useState(false);
   const [settings, setSettings] = useState<DashboardSettings>(getInitialSettings);
   const [data, setData] = useState(() => makeDemoData("today"));
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -68,6 +75,35 @@ function App() {
     }
   }, []);
 
+  const loadClimateHistory = useCallback(async (currentSettings: DashboardSettings, currentPeriod: PeriodKey, currentAnchor: Date, from?: string, to?: string) => {
+    const currentRange = rangeForPeriod(currentPeriod, from, to);
+    if (!currentSettings.live || !currentSettings.endpoint) {
+      setClimateHistory(makeDemoData(currentRange).govee.chart);
+      return;
+    }
+    setClimateLoading(true);
+    try {
+      const dashboardUrl = new URL(currentSettings.endpoint.replace("{range}", "today"), window.location.href);
+      const historyUrl = new URL("govee-history.json", dashboardUrl);
+      historyUrl.searchParams.set("updated", String(Date.now()));
+      const response = await fetch(historyUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const history = await response.json() as DashboardData["govee"]["chart"];
+      if (!Array.isArray(history)) throw new Error("Érvénytelen klímaelőzmény.");
+      setClimateHistory(history);
+    } catch {
+      try {
+        const selectedDate = dateInputValue(currentAnchor);
+        const requestedRange = currentPeriod === "day" && selectedDate !== dateInputValue(new Date()) ? `day-${selectedDate}` : currentRange;
+        const endpoint = currentSettings.endpoint.replace("{range}", requestedRange);
+        const response = await fetch(new URL(endpoint, window.location.href), { cache: "no-store" });
+        if (response.ok) setClimateHistory((await response.json() as DashboardData).govee.chart);
+      } catch { /* keep the last known climate history */ }
+    } finally {
+      setClimateLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const initial = window.setTimeout(() => void loadData(period, settings, anchor, customStart, customEnd), 0);
     const timer = window.setInterval(() => void loadData(period, settings, anchor, customStart, customEnd), Math.min(settings.refreshSeconds, 300) * 1000);
@@ -78,15 +114,22 @@ function App() {
   }, [period, anchor, customStart, customEnd, settings, loadData]);
 
   useEffect(() => {
+    const initial = window.setTimeout(() => void loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd), 0);
+    const timer = window.setInterval(() => void loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd), Math.min(settings.refreshSeconds, 300) * 1000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, settings, loadClimateHistory]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 60_000);
     return () => window.clearInterval(timer);
   }, []);
 
   const climateSeries = useMemo(
-    () => data.govee.chart
-      .filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd))
-      .map((point) => ({ label: point.label, value: point.temperature })),
-    [data, period, anchor, customStart, customEnd],
+    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
+    [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd],
   );
   const batterySoc = useMemo(() => {
     const point = [...(data.solar.energyChart ?? [])].reverse().find((item) => Number.isFinite(item.batterySoc));
@@ -121,6 +164,25 @@ function App() {
     if (period === "month") next.setMonth(next.getMonth() + direction);
     if (period === "year") next.setFullYear(next.getFullYear() + direction);
     setAnchor(next);
+  };
+
+  const stepClimatePeriod = (direction: -1 | 1) => {
+    if (climatePeriod === "custom") {
+      const start = dateFromInput(climateCustomStart);
+      const end = dateFromInput(climateCustomEnd);
+      const span = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
+      start.setDate(start.getDate() + direction * span);
+      end.setDate(end.getDate() + direction * span);
+      setClimateCustomStart(dateInputValue(start));
+      setClimateCustomEnd(dateInputValue(end));
+      return;
+    }
+    const next = new Date(climateAnchor);
+    if (climatePeriod === "day") next.setDate(next.getDate() + direction);
+    if (climatePeriod === "week") next.setDate(next.getDate() + direction * 7);
+    if (climatePeriod === "month") next.setMonth(next.getMonth() + direction);
+    if (climatePeriod === "year") next.setFullYear(next.getFullYear() + direction);
+    setClimateAnchor(next);
   };
 
   return (
@@ -184,6 +246,14 @@ function App() {
         <DashboardCards
           data={data}
           climateSeries={climateSeries}
+          climatePeriod={climatePeriod}
+          climateAnchor={climateAnchor}
+          climateCustomStart={climateCustomStart}
+          climateCustomEnd={climateCustomEnd}
+          climateLoading={climateLoading}
+          onClimatePeriodChange={(next) => { setClimatePeriod(next); setClimateAnchor(new Date()); }}
+          onClimateStep={stepClimatePeriod}
+          onClimateCustomChange={(start, end) => { setClimateCustomStart(start); setClimateCustomEnd(end); }}
           batterySoc={batterySoc}
           loading={loading}
           onRefresh={() => void loadData(period, settings, anchor, customStart, customEnd)}

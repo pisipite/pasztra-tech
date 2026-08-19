@@ -1,11 +1,20 @@
 import type { CSSProperties } from "react";
+import { isCurrentPeriod, periodLabel } from "../dateUtils";
 import { formatTime } from "../formatUtils";
-import type { ChartPoint, DashboardData, SolarData } from "../types";
-import { LineChart } from "./LineChart";
+import type { ClimatePoint, DashboardData, PeriodKey, SolarData } from "../types";
+import { ClimateChart } from "./ClimateChart";
 
 type Props = {
   data: DashboardData;
-  climateSeries: ChartPoint[];
+  climateSeries: ClimatePoint[];
+  climatePeriod: PeriodKey;
+  climateAnchor: Date;
+  climateCustomStart: string;
+  climateCustomEnd: string;
+  climateLoading: boolean;
+  onClimatePeriodChange: (period: PeriodKey) => void;
+  onClimateStep: (direction: -1 | 1) => void;
+  onClimateCustomChange: (start: string, end: string) => void;
   batterySoc?: number;
   loading: boolean;
   onRefresh: () => void;
@@ -17,7 +26,7 @@ function solarStatusText(status: SolarData["status"]) {
   return "Nem elérhető";
 }
 
-function SolarCard({ data, batterySoc, loading, onRefresh }: Omit<Props, "climateSeries">) {
+function SolarCard({ data, batterySoc, loading, onRefresh }: Pick<Props, "data" | "batterySoc" | "loading" | "onRefresh">) {
   const batteryLabel = Number.isFinite(batterySoc) ? batterySoc!.toFixed(0) : "—";
   const batteryLevel = Math.max(0, Math.min(100, batterySoc ?? 0));
   const batteryTemperature = Number.isFinite(data.solar.batteryTemperatureC) ? `${data.solar.batteryTemperatureC!.toFixed(1)} °C` : "—";
@@ -66,7 +75,15 @@ function SolarCard({ data, batterySoc, loading, onRefresh }: Omit<Props, "climat
   );
 }
 
-function ClimateCard({ data, climateSeries }: Pick<Props, "data" | "climateSeries">) {
+const climatePeriods: { key: PeriodKey; label: string }[] = [
+  { key: "day", label: "Nap" },
+  { key: "week", label: "Hét" },
+  { key: "month", label: "Hónap" },
+  { key: "year", label: "Év" },
+  { key: "custom", label: "Egyéb" },
+];
+
+function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateLoading, onClimatePeriodChange, onClimateStep, onClimateCustomChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateLoading" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange">) {
   const activeDevice = data.govee.devices[0];
   if (!activeDevice) {
     return (
@@ -95,8 +112,22 @@ function ClimateCard({ data, climateSeries }: Pick<Props, "data" | "climateSerie
         </div>
       </div>
       <div className="climate-chart-wrap">
-        <div className="section-title"><span>Hőmérséklet alakulása</span><strong>{climateSeries.at(-1)?.value.toFixed(1)} °C</strong></div>
-        <LineChart data={climateSeries} suffix="°C" tone="climate" />
+        <div className="climate-chart-heading">
+          <div><span>Hőmérséklet alakulása</span><strong>Hőmérséklet és páratartalom</strong></div>
+          <div className="period-tabs climate-period-tabs" role="tablist" aria-label="Klímaadatok időszaka">
+            {climatePeriods.map((item) => <button key={item.key} role="tab" aria-selected={climatePeriod === item.key} className={climatePeriod === item.key ? "active" : ""} onClick={() => onClimatePeriodChange(item.key)}>{item.label}</button>)}
+          </div>
+        </div>
+        <div className="climate-chart-controls">
+          <div className="period-stepper">
+            <button onClick={() => onClimateStep(-1)} aria-label="Előző klíma-időszak">←</button>
+            <strong>{periodLabel(climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd)}</strong>
+            <button onClick={() => onClimateStep(1)} disabled={climatePeriod !== "custom" && isCurrentPeriod(climatePeriod, climateAnchor)} aria-label="Következő klíma-időszak">→</button>
+          </div>
+          <div className="climate-legend" aria-label="Jelmagyarázat"><span><i className="is-temperature" />Hőmérséklet</span><span><i className="is-humidity" />Páratartalom</span></div>
+        </div>
+        {climatePeriod === "custom" && <div className="custom-range climate-custom-range"><label><span>Kezdőnap</span><input type="date" value={climateCustomStart} max={climateCustomEnd} onChange={(event) => onClimateCustomChange(event.target.value, climateCustomEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={climateCustomEnd} min={climateCustomStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onClimateCustomChange(climateCustomStart, event.target.value)} /></label></div>}
+        <div className={climateLoading ? "is-climate-loading" : ""}><ClimateChart data={climateSeries} /></div>
       </div>
       <div className="device-list">
         {data.govee.devices.map((device) => (
@@ -112,11 +143,11 @@ function ClimateCard({ data, climateSeries }: Pick<Props, "data" | "climateSerie
 }
 
 export function DashboardCards(props: Props) {
-  const { data, climateSeries, loading } = props;
+  const { loading } = props;
   return (
     <section className={`dashboard-grid ${loading ? "is-loading" : ""}`} aria-busy={loading}>
       <SolarCard {...props} />
-      <ClimateCard data={data} climateSeries={climateSeries} />
+      <ClimateCard {...props} />
     </section>
   );
 }
