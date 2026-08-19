@@ -158,7 +158,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const nextDisabled = period !== "custom" && isCurrentPeriod(period, anchor);
 
   return (
-    <article className="energy-analysis card">
+    <article className="energy-analysis card" id="energia">
       <span className="plant-sprout plant-sprout--energy" aria-hidden="true"><i /><i /><i /></span>
       <div className="analysis-toolbar">
         <div>

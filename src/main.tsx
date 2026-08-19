@@ -139,8 +139,20 @@ function App() {
         </div>
       </header>
 
+      <nav className="section-nav" aria-label="Ugrás az oldal szakaszaihoz">
+        <div className="section-nav__track">
+          <a href="#kezdolap">Kezdőlap</a>
+          <a href="#energia">Energia</a>
+          <a href="#elojelzes">Előrejelzés</a>
+          <a href="#fogyasztasi-proba">Fogyasztási próba</a>
+          <a href="#napallas">Napállás</a>
+          <a href="#napelem">Napelem</a>
+          <a href="#klima">Klíma</a>
+        </div>
+      </nav>
+
       <main id="main">
-        <section className="intro">
+        <section className="intro" id="kezdolap">
           <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-home.png`} alt="A hegyoldali otthon madártávlatból" />
           <div className="intro__shade" aria-hidden="true" />
           <span className="sun-charm sun-charm--hero" aria-hidden="true"><i /></span>
@@ -177,7 +189,7 @@ function App() {
           onRefresh={() => void loadData(period, settings, anchor, customStart, customEnd)}
         />
 
-        <footer><span>Utolsó adatfrissítés: {formatTime(data.updatedAt)}</span><button onClick={() => setSettingsOpen(true)}>Adatkapcsolat beállítása →</button></footer>
+        <footer id="adatkapcsolat"><span>Utolsó adatfrissítés: {formatTime(data.updatedAt)}</span><button onClick={() => setSettingsOpen(true)}>Adatkapcsolat beállítása →</button></footer>
       </main>
       {settingsOpen && <SettingsPanel key={`${settings.live}-${settings.endpoint}-${settings.refreshSeconds}`} settings={settings} onClose={() => setSettingsOpen(false)} onSave={saveSettings} />}
     </div>

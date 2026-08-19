@@ -24,7 +24,7 @@ function SolarCard({ data, batterySoc, loading, onRefresh }: Omit<Props, "climat
   const batteryVoltage = Number.isFinite(data.solar.batteryVoltageV) ? `${data.solar.batteryVoltageV!.toFixed(1)} V` : "—";
 
   return (
-    <article className="card solar-card">
+    <article className="card solar-card" id="napelem">
       <div className="solar-orbit" aria-hidden="true"><i /><i /><i /></div>
       <span className="sun-charm sun-charm--solar" aria-hidden="true"><i /></span>
       <div className="card__head">
@@ -70,7 +70,7 @@ function ClimateCard({ data, climateSeries }: Pick<Props, "data" | "climateSerie
   const activeDevice = data.govee.devices[0];
   if (!activeDevice) {
     return (
-      <article className="card climate-card">
+      <article className="card climate-card" id="klima">
         <div className="card__head"><div><p className="eyebrow">Govee otthonklíma</p><h2>Nincs elérhető mérő</h2></div></div>
       </article>
     );
@@ -82,7 +82,7 @@ function ClimateCard({ data, climateSeries }: Pick<Props, "data" | "climateSerie
     && activeDevice.humidityPct <= 60;
 
   return (
-    <article className="card climate-card">
+    <article className="card climate-card" id="klima">
       <span className="plant-sprout plant-sprout--climate" aria-hidden="true"><i /><i /><i /></span>
       <div className="card__head">
         <div><p className="eyebrow">Govee otthonklíma</p><h2>{activeDevice.room}</h2></div>

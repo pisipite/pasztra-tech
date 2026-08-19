@@ -23,7 +23,7 @@ export function SolarForecast({ data }: Props) {
   }, [data.solar.energyChart, selectedDay, selectedIndex]);
 
   if (!forecast || !selectedDay) {
-    return <article className="forecast-card card"><div><p className="eyebrow">Termelési előrejelzés</p><h2>Az időjárási becslés a következő frissítéssel érkezik.</h2></div></article>;
+    return <article className="forecast-card card" id="elojelzes"><div><p className="eyebrow">Termelési előrejelzés</p><h2>Az időjárási becslés a következő frissítéssel érkezik.</h2></div></article>;
   }
 
   const width = 1000;
@@ -44,7 +44,7 @@ export function SolarForecast({ data }: Props) {
   const gridValues = [0, maximum / 2, maximum];
 
   return (
-    <article className="forecast-card card">
+    <article className="forecast-card card" id="elojelzes">
       <span className="sun-charm sun-charm--forecast" aria-hidden="true"><i /></span>
       <div className="forecast-head">
         <div>

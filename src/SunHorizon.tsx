@@ -174,7 +174,7 @@ export function SunHorizon() {
     : model.visible ? "a hegy fölött" : "a hegy mögött";
 
   return (
-    <section className="sun-horizon-card" aria-labelledby="sun-horizon-title" data-testid="sun-horizon">
+    <section className="sun-horizon-card" id="napallas" aria-labelledby="sun-horizon-title" data-testid="sun-horizon">
       <header className="sun-horizon-head">
         <div>
           <p className="eyebrow">ÉGI IRÁNYTŰ</p>
