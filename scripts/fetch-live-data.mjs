@@ -238,6 +238,21 @@ function findBatteryDevice(root) {
   return null;
 }
 
+function findGridMeterDevice(root) {
+  const devices = deepFind(root, ["pageList"]);
+  if (!Array.isArray(devices)) return null;
+
+  const candidates = devices.flatMap((device) => {
+    const pointData = deepFind(device, ["pointData"]);
+    if (!Array.isArray(pointData)) return [];
+    const ids = new Set(pointData.map((point) => textValue(deepFind(point, ["pointId"]))).filter(Boolean));
+    const psKey = textValue(deepFind(device, ["psKey"]));
+    return psKey && ids.has("p8018") ? [{ psKey, power: "p8018" }] : [];
+  });
+
+  return candidates.find((device) => /_7(?:_|$)/.test(device.psKey)) ?? candidates[0] ?? null;
+}
+
 function extractPointSamples(root, pointFields) {
   const pointIds = Object.keys(pointFields);
   const rows = new Map();
@@ -318,6 +333,15 @@ function normalizeBatteryPower(samples) {
   }));
 }
 
+function normalizeGridPower(samples) {
+  const maximum = Math.max(0, ...samples.map((sample) => sample.gridKw).filter(Number.isFinite).map(Math.abs));
+  if (maximum <= 100) return samples;
+  return samples.map((sample) => ({
+    ...sample,
+    gridKw: Number.isFinite(sample.gridKw) ? sample.gridKw / 1000 : sample.gridKw,
+  }));
+}
+
 function normalizeBatterySoc(samples, socPoint) {
   return samples.map((sample) => {
     if (!Number.isFinite(sample.soc)) return sample;
@@ -332,7 +356,7 @@ function normalizeBatterySoc(samples, socPoint) {
   });
 }
 
-function nearestBatterySample(samples, timestamp) {
+function nearestSample(samples, timestamp) {
   const target = new Date(timestamp).getTime();
   let closest;
   let distance = 31 * 60_000;
@@ -351,7 +375,7 @@ function dayIdFor(value) {
   return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}`;
 }
 
-function buildDayCharts(date, production, load, batterySamples = []) {
+function buildDayCharts(date, production, load, batterySamples = [], gridSamples = []) {
   const chart = production.map((value, index) => {
     const minute = Math.floor((index / Math.max(production.length - 1, 1)) * 1439);
     return { label: `${pad(Math.floor(minute / 60))}:${pad(minute % 60)}`, value };
@@ -361,15 +385,22 @@ function buildDayCharts(date, production, load, batterySamples = []) {
     const minute = Math.floor((index / Math.max(chart.length - 1, 1)) * 1439);
     timestamp.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
     const loadValue = load[index] ?? 0;
-    const batterySample = nearestBatterySample(batterySamples, timestamp);
-    const batteryCharge = batterySample?.chargeKw ?? 0;
-    const batteryDischarge = batterySample?.dischargeKw ?? 0;
+    const batterySample = nearestSample(batterySamples, timestamp);
+    const gridSample = nearestSample(gridSamples, timestamp);
+    const grid = gridSample?.gridKw;
+    const measuredBattery = Number.isFinite(batterySample?.chargeKw) || Number.isFinite(batterySample?.dischargeKw)
+      ? (batterySample?.dischargeKw ?? 0) - (batterySample?.chargeKw ?? 0)
+      : undefined;
+    // Positive grid means import, positive battery means discharge. With a real
+    // grid-meter value the battery flow follows directly from the power balance.
+    const battery = Number.isFinite(grid) ? loadValue - point.value - grid : measuredBattery;
     return {
       label: point.label,
       timestamp: timestamp.toISOString(),
       pv: point.value,
       load: loadValue,
-      grid: loadValue + batteryCharge - point.value - batteryDischarge,
+      ...(Number.isFinite(grid) ? { grid } : {}),
+      ...(Number.isFinite(battery) ? { battery } : {}),
       ...(batterySample ? {
         batteryCharge: batterySample.chargeKw,
         batteryDischarge: batterySample.dischargeKw,
@@ -377,13 +408,13 @@ function buildDayCharts(date, production, load, batterySamples = []) {
       } : {}),
     };
   });
-  return { chart, energyChart };
+  return { flowSchema: 2, chart, energyChart };
 }
 
 async function readCachedSungrowDay(key) {
   try {
     const value = JSON.parse(await readFile(resolve(sungrowDayHistoryDir, `${key}.json`), "utf8"));
-    return Array.isArray(value?.energyChart) && value.energyChart.length ? value : null;
+    return value?.flowSchema === 2 && Array.isArray(value?.energyChart) && value.energyChart.length ? value : null;
   } catch {
     return null;
   }
@@ -394,7 +425,7 @@ async function writeCachedSungrowDay(key, value) {
   await writeFile(resolve(sungrowDayHistoryDir, `${key}.json`), `${JSON.stringify(value)}\n`, "utf8");
 }
 
-async function getArchivedSungrowDays(psId, currentDayCharts, batteryHistory) {
+async function getArchivedSungrowDays(psId, currentDayCharts, batteryHistory, gridHistory) {
   const requested = Array.from({ length: sungrowDayRetention }, (_, offset) => {
     const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - offset);
     return { date, key: localDateKey(date) };
@@ -417,7 +448,7 @@ async function getArchivedSungrowDays(psId, currentDayCharts, batteryHistory) {
         const production = powerKwList(deepFind(response, ["p83033List"]));
         const load = powerKwList(deepFind(response, ["p83106List"]));
         if (!production.length) return null;
-        const value = buildDayCharts(date, production, load, batteryHistory);
+        const value = buildDayCharts(date, production, load, batteryHistory, gridHistory);
         await writeCachedSungrowDay(key, value);
         return [key, value];
       } catch (error) {
@@ -536,6 +567,37 @@ async function getBatteryTelemetry(psId, devices) {
   };
 }
 
+async function getGridTelemetry(psId, devices) {
+  const meterDevice = findGridMeterDevice(devices);
+  if (!meterDevice) {
+    console.error("Sungrow hálózati mérő (p8018) nem található ennél az erőműnél.");
+    return { today: [], history: [] };
+  }
+
+  console.log(`Sungrow hálózati mérő: ${meterDevice.psKey}.${meterDevice.power}.`);
+  const query = (start, end, interval) => sungrowJson("AppService.queryMutiPointDataList", [
+    `PsId:${psId}`,
+    `StartTimeStamp:${sungrowTimestamp(start)}`,
+    `EndTimeStamp:${sungrowTimestamp(end)}`,
+    `MinuteInterval:${interval}`,
+    `Points:${meterDevice.psKey}.${meterDevice.power}`,
+  ]).then((response) => normalizeGridPower(extractPointSamples(response, { [meterDevice.power]: "gridKw" })));
+
+  const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const [todayResult, historyResult] = await Promise.allSettled([
+    query(dayStart, now, 5),
+    query(yearStart, now, 60),
+  ]);
+  if (todayResult.status === "rejected") console.error(`Sungrow napi hálózati teljesítmény: ${todayResult.reason.message}`);
+  if (historyResult.status === "rejected") console.error(`Sungrow korábbi hálózati teljesítmény: ${historyResult.reason.message}`);
+  console.log(`Sungrow hálózati minták: napi ${todayResult.status === "fulfilled" ? todayResult.value.length : 0}, korábbi ${historyResult.status === "fulfilled" ? historyResult.value.length : 0}.`);
+  return {
+    today: todayResult.status === "fulfilled" ? todayResult.value : [],
+    history: historyResult.status === "fulfilled" ? historyResult.value : [],
+  };
+}
+
 function ownValue(root, name) {
   if (!root || typeof root !== "object") return undefined;
   const wanted = normalizeKey(name);
@@ -623,8 +685,9 @@ async function getSungrow() {
       return null;
     }),
   ]);
-  const [battery, energyHistory] = await Promise.all([
+  const [battery, grid, energyHistory] = await Promise.all([
     getBatteryTelemetry(psId, devices),
+    getGridTelemetry(psId, devices),
     getEnergyHistory(psId),
   ]);
   const year = await sungrowJson("AppService.getPowerStationData", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]).catch((error) => {
@@ -639,16 +702,17 @@ async function getSungrow() {
   const currentPowerKw = currentValue(production);
   const houseLoadKw = currentValue(load);
   const latestBatteryValue = (key) => [...battery.today].reverse().find((sample) => Number.isFinite(sample[key]))?.[key];
+  const latestGridPowerKw = [...grid.today].reverse().find((sample) => Number.isFinite(sample.gridKw))?.gridKw;
   const todayKwh = numberValue(deepFind(day, ["dayPowerQuantityTotal", "p83022"]), dailyEnergy.at(-1) ?? 0);
   const monthKwh = dailyEnergy.reduce((sum, value) => sum + value, 0);
   const usedDirectly = Math.min(Math.max(houseLoadKw, 0), Math.max(currentPowerKw, 0));
   const selfConsumptionPct = currentPowerKw > 0 ? Math.round((usedDirectly / currentPowerKw) * 100) : 0;
   const co2Factor = numberValue(process.env.CO2_KG_PER_KWH, 0.233);
 
-  const today = buildDayCharts(now, production, load, battery.today);
+  const today = buildDayCharts(now, production, load, battery.today, grid.today);
   const todayChart = today.chart;
   const todayEnergy = today.energyChart;
-  const dayHistory = await getArchivedSungrowDays(psId, today, battery.history);
+  const dayHistory = await getArchivedSungrowDays(psId, today, battery.history, grid.history);
   const monthChart = dailyEnergy.map((value, index) => ({ label: `${index + 1}.`, value }));
   const yearChart = monthlyEnergy.map((value, index) => ({ label: ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][index] ?? String(index + 1), value }));
   const dailyEnergyReport = energyHistory.daily;
@@ -680,7 +744,7 @@ async function getSungrow() {
       selfConsumptionPct,
       co2SavedKg: todayKwh * co2Factor,
       houseLoadKw,
-      gridPowerKw: houseLoadKw - currentPowerKw,
+      gridPowerKw: latestGridPowerKw,
     },
     charts: {
       today: todayChart.length ? todayChart : [{ label: pad(now.getHours()), value: currentPowerKw }],
