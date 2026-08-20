@@ -2,7 +2,7 @@ import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { DashboardCards } from "./components/DashboardCards";
 import { SettingsPanel } from "./components/SettingsPanel";
-import { climatePointsForPeriod } from "./climateData";
+import { climatePointsForPeriod, type ClimateAggregation } from "./climateData";
 import { ConsumptionPlanner } from "./ConsumptionPlanner";
 import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
@@ -32,6 +32,7 @@ function App() {
   const [climateAnchor, setClimateAnchor] = useState(() => new Date());
   const [climateCustomStart, setClimateCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
   const [climateCustomEnd, setClimateCustomEnd] = useState(() => dateInputValue(new Date()));
+  const [climateAggregation, setClimateAggregation] = useState<ClimateAggregation>("average");
   const [climateHistory, setClimateHistory] = useState(() => makeDemoData("today").govee.chart);
   const [climateLoading, setClimateLoading] = useState(false);
   const [settings, setSettings] = useState<DashboardSettings>(getInitialSettings);
@@ -128,8 +129,8 @@ function App() {
   }, []);
 
   const climateSeries = useMemo(
-    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
-    [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd],
+    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climatePeriod === "week" || climatePeriod === "month" || climatePeriod === "year" ? climateAggregation : "average"),
+    [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation],
   );
   const batterySoc = useMemo(() => {
     const point = [...(data.solar.energyChart ?? [])].reverse().find((item) => Number.isFinite(item.batterySoc));
@@ -215,7 +216,7 @@ function App() {
 
       <main id="main">
         <section className="intro" id="kezdolap">
-          <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-home.png`} alt="A hegyoldali otthon madártávlatból" />
+          <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-poster-hero.png`} alt="A hegyoldali otthon turisztikai plakát stílusú látképe" />
           <div className="intro__shade" aria-hidden="true" />
           <span className="sun-charm sun-charm--hero" aria-hidden="true"><i /></span>
           <div className="intro__content">
@@ -250,10 +251,12 @@ function App() {
           climateAnchor={climateAnchor}
           climateCustomStart={climateCustomStart}
           climateCustomEnd={climateCustomEnd}
+          climateAggregation={climateAggregation}
           climateLoading={climateLoading}
           onClimatePeriodChange={(next) => { setClimatePeriod(next); setClimateAnchor(new Date()); }}
           onClimateStep={stepClimatePeriod}
           onClimateCustomChange={(start, end) => { setClimateCustomStart(start); setClimateCustomEnd(end); }}
+          onClimateAggregationChange={setClimateAggregation}
           batterySoc={batterySoc}
           loading={loading}
           onRefresh={() => void loadData(period, settings, anchor, customStart, customEnd)}

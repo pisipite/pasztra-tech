@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&family=Oswald:wght@500;600;700&display=swap");
 
 :root {
   font-family: "Manrope", system-ui, sans-serif;
@@ -15,6 +15,326 @@
   --climate: #f47b52;
   --night: #111b18;
 }
+
+/* 1970–80-as évekbeli turisztikai plakát — végleges felületi téma */
+:root {
+  --poster-ink: #073f39;
+  --poster-deep: #063832;
+  --poster-teal: #118a87;
+  --poster-blue: #2d7893;
+  --poster-paper: #f1dfb4;
+  --poster-paper-light: #f8eac6;
+  --poster-yellow: #e9aa20;
+  --poster-orange: #d16b35;
+  --poster-olive: #8b9851;
+  --poster-coral: #cf5743;
+  --ink: var(--poster-ink);
+  --muted: #6d654f;
+  --paper: var(--poster-paper-light);
+  --line: rgba(7,63,57,.28);
+  --solar: var(--poster-yellow);
+  --solar-deep: #b8731f;
+  --climate: var(--poster-orange);
+  --night: var(--poster-deep);
+  --forest: var(--poster-ink);
+  --terracotta: var(--poster-orange);
+}
+
+html { background: var(--poster-deep); }
+
+body {
+  color: var(--poster-ink);
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255,255,255,.09) 0 1px, transparent 1.5px) 0 0 / 7px 7px,
+    radial-gradient(circle at 72% 58%, rgba(0,38,33,.08) 0 .8px, transparent 1.2px) 0 0 / 11px 9px,
+    var(--poster-deep);
+}
+
+.app-shell { position: relative; overflow: hidden; }
+.app-shell::before {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  opacity: .2;
+  pointer-events: none;
+  background: repeating-linear-gradient(4deg, transparent 0 5px, rgba(255,236,190,.09) 5px 6px);
+  mix-blend-mode: screen;
+}
+
+.topbar {
+  height: 82px;
+  color: var(--poster-paper-light);
+  border-bottom: 3px solid var(--poster-yellow);
+  background: var(--poster-deep);
+  box-shadow: none;
+}
+
+.brand {
+  color: var(--poster-paper-light);
+  font-family: "Oswald", Impact, sans-serif;
+  font-size: clamp(22px, 2.2vw, 34px);
+  font-weight: 700;
+  letter-spacing: -.035em;
+  text-transform: uppercase;
+}
+.brand em { color: var(--poster-yellow); }
+.brand__mark { display: none; }
+.topbar__actions { gap: 14px; }
+.stream-indicator {
+  color: var(--poster-paper-light);
+  border: 0;
+  border-left: 1px solid rgba(241,223,180,.42);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.stream-indicator small { color: rgba(248,234,198,.7); }
+.stream-indicator.is-online > i { background: var(--poster-yellow); box-shadow: 0 0 0 4px rgba(233,170,32,.15); }
+.stream-indicator.is-offline > i { background: var(--poster-coral); box-shadow: 0 0 0 4px rgba(207,87,67,.14); }
+.icon-button { color: var(--poster-paper-light); border: 1px solid rgba(241,223,180,.45); background: transparent; }
+.icon-button:hover { color: var(--poster-deep); background: var(--poster-paper-light); }
+
+.section-nav {
+  top: 0;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  border-bottom: 3px solid var(--poster-deep);
+  background: var(--poster-yellow);
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.section-nav__track { padding: 0; border: 0; border-radius: 0; background: transparent; }
+.section-nav a {
+  color: var(--poster-deep);
+  border-right: 1px solid rgba(6,56,50,.3);
+  font-family: "Oswald", Impact, sans-serif;
+  font-size: 11px;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.section-nav a:hover { color: var(--poster-paper-light); background: var(--poster-deep); }
+
+main { max-width: 1560px; padding-top: 18px; padding-bottom: 40px; }
+
+.intro {
+  min-height: clamp(360px, 38vw, 570px);
+  margin-bottom: 14px;
+  color: var(--poster-deep);
+  border: 5px solid var(--poster-deep);
+  border-radius: 3px;
+  background: var(--poster-paper);
+  box-shadow: 0 0 0 2px var(--poster-paper-light);
+}
+.intro::after { height: 0; }
+.intro__photo { object-position: center center; filter: saturate(.94) contrast(1.03); }
+.intro__shade { background: linear-gradient(90deg, rgba(241,223,180,.95) 0%, rgba(241,223,180,.72) 25%, rgba(241,223,180,.05) 51%, transparent 70%); }
+.intro__content { left: clamp(25px, 4vw, 62px); bottom: clamp(26px, 4vw, 54px); max-width: min(560px, 44%); }
+.intro .eyebrow {
+  color: var(--poster-deep);
+  text-shadow: none;
+  font-family: "Oswald", Impact, sans-serif;
+  font-size: 12px;
+  letter-spacing: .13em;
+}
+.intro h1 {
+  color: var(--poster-deep);
+  font-family: "Oswald", Impact, sans-serif;
+  font-size: clamp(52px, 7.1vw, 112px);
+  line-height: .86;
+  letter-spacing: -.055em;
+  text-shadow: none;
+  text-transform: uppercase;
+}
+.sun-charm, .plant-sprout, .solar-orbit { display: none; }
+
+.card,
+.energy-analysis,
+.forecast-card,
+.sun-horizon-card,
+.planner-card,
+.solar-card,
+.climate-card {
+  color: var(--poster-deep);
+  border: 4px solid var(--poster-deep);
+  border-radius: 5px;
+  background-color: var(--poster-paper-light);
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(7,63,57,.055) 0 .7px, transparent 1px),
+    radial-gradient(circle at 72% 68%, rgba(150,91,36,.06) 0 .7px, transparent 1px);
+  background-size: 8px 9px, 11px 10px;
+  box-shadow: none;
+  transform: none;
+}
+.energy-analysis::after, .forecast-card::before, .sun-horizon-card::before, .planner-card::after { display: none; }
+
+.eyebrow {
+  color: var(--poster-orange);
+  font-family: "Oswald", Impact, sans-serif;
+  font-size: 11px;
+  letter-spacing: .16em;
+}
+.analysis-toolbar h2,
+.forecast-head h2,
+.sun-horizon-head h2,
+.planner-head h2,
+.card__head h2,
+.climate-chart-heading > div:first-child strong,
+.settings h2 {
+  color: var(--poster-deep);
+  font-family: "Oswald", Impact, sans-serif;
+  font-weight: 700;
+  letter-spacing: -.025em;
+  text-transform: uppercase;
+}
+.analysis-toolbar h2, .forecast-head h2, .sun-horizon-head h2, .planner-head h2 { font-size: clamp(28px, 3.5vw, 48px); }
+
+.period-tabs,
+.forecast-tabs,
+.planner-day-tabs,
+.climate-aggregation {
+  border: 2px solid var(--poster-deep);
+  border-radius: 3px;
+  background: transparent;
+  transform: none;
+}
+.period-tabs button,
+.forecast-tabs button,
+.planner-day-tabs button,
+.climate-aggregation button {
+  border-radius: 0;
+  color: var(--poster-deep);
+  font-family: "Oswald", Impact, sans-serif;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+.period-tabs button.active,
+.forecast-tabs button.active,
+.planner-day-tabs button.active,
+.climate-aggregation button.active {
+  color: var(--poster-paper-light);
+  background: var(--poster-deep);
+  box-shadow: none;
+}
+.period-stepper,
+.custom-range input,
+.overlay-toggles button,
+.climate-legend button {
+  border: 2px solid var(--poster-deep);
+  border-radius: 3px;
+  background: rgba(248,234,198,.74);
+}
+.period-stepper button:hover:not(:disabled), .overlay-toggles button:hover, .climate-legend button:hover { background: rgba(233,170,32,.22); }
+.climate-legend button.is-hidden, .chart-legend button.is-hidden { opacity: .35; }
+
+.chart-legend { border-color: rgba(7,63,57,.28); color: var(--poster-deep); }
+.energy-gridline, .climate-gridline, .forecast-grid { stroke: rgba(7,63,57,.2); }
+.energy-zero { stroke: var(--poster-deep); }
+.energy-axis-label, .energy-x-label, .energy-axis-title, .climate-axis, .climate-x-label { fill: #655e49; }
+.chart-tooltip, .climate-tooltip, .forecast-tooltip {
+  border: 2px solid var(--poster-deep);
+  border-radius: 3px;
+  background: rgba(248,234,198,.96);
+  box-shadow: 7px 7px 0 rgba(7,63,57,.14);
+  backdrop-filter: none;
+}
+
+.forecast-summary,
+.sun-horizon-readings,
+.planner-summary,
+.planner-panel,
+.planner-explanation,
+.device-list,
+.device-row {
+  border-color: rgba(7,63,57,.3);
+  border-radius: 3px;
+  background: rgba(222,205,159,.42);
+  transform: none;
+}
+.forecast-summary strong, .sun-horizon-readings strong, .planner-summary strong { color: var(--poster-deep); }
+
+.sun-horizon-scene {
+  border: 3px solid var(--poster-deep);
+  border-radius: 3px;
+  box-shadow: none;
+}
+.horizon-mountain--back { fill: rgba(45,120,147,.58); }
+.horizon-tree-line { stroke: var(--poster-deep); }
+.horizon-sun-path { stroke: var(--poster-yellow); }
+
+.planner-auto,
+.planner-add,
+.planner-reset,
+.primary-button,
+.refresh-button {
+  border: 2px solid var(--poster-deep);
+  border-radius: 3px;
+  color: var(--poster-paper-light);
+  background: var(--poster-deep);
+  box-shadow: none;
+  font-family: "Oswald", Impact, sans-serif;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+.planner-auto:hover, .planner-add:hover, .planner-reset:hover, .primary-button:hover, .refresh-button:hover { color: var(--poster-deep); background: var(--poster-yellow); }
+
+.solar-card { isolation: isolate; }
+.solar-card .eyebrow { color: var(--poster-orange); }
+.solar-card .system-status,
+.solar-card .card__head,
+.solar-card .energy-flow strong,
+.solar-card .battery-status-panel,
+.solar-card .battery-status-panel b { color: var(--poster-deep); }
+.solar-card .dot--online { background: var(--poster-yellow); box-shadow: 0 0 0 4px rgba(233,170,32,.18); }
+.power-reading__value, .power-reading__unit { color: var(--poster-teal); }
+.power-reading p, .energy-flow span { color: #6d654f; }
+.energy-flow { border-color: rgba(7,63,57,.25); }
+.battery-status-panel {
+  border: 3px solid var(--poster-deep);
+  border-radius: 3px;
+  background: rgba(139,152,81,.18);
+}
+.battery-status-panel span, .battery-status-panel p, .battery-status-panel .battery-details small { color: #6d654f; }
+.battery-status-panel strong { color: var(--poster-orange); }
+.battery-status-panel strong small { color: var(--poster-deep); }
+.battery-status-panel .battery-details b { color: var(--poster-deep); }
+.battery-shape { border-color: var(--poster-deep); background: rgba(248,234,198,.72); }
+.battery-shape::after { background: var(--poster-deep); }
+.battery-shape i { background: var(--poster-teal); }
+.solar-stats { background: var(--poster-deep); }
+.solar-stats > div { color: var(--poster-deep); background: var(--poster-paper); }
+.solar-stats span, .solar-stats small { color: #6d654f; }
+
+.comfort-badge { border: 2px solid var(--poster-deep); border-radius: 3px; color: var(--poster-deep); background: rgba(139,152,81,.3); }
+.comfort-badge--alert { background: rgba(209,107,53,.22); }
+.humidity-gauge { background: conic-gradient(var(--poster-blue) var(--humidity), rgba(7,63,57,.13) 0); }
+.humidity-gauge::before { background: var(--poster-paper-light); }
+.climate-line--temperature { stroke: var(--poster-orange); }
+.climate-line--humidity { stroke: var(--poster-blue); }
+.climate-axis--temperature { fill: var(--poster-orange); }
+.climate-axis--humidity { fill: var(--poster-blue); }
+.climate-point--temperature { fill: var(--poster-orange); }
+.climate-point--humidity { fill: var(--poster-blue); }
+.climate-legend .is-temperature, .climate-tooltip .is-temperature { background: var(--poster-orange); }
+.climate-legend .is-humidity, .climate-tooltip .is-humidity { background: var(--poster-blue); }
+.device-icon { border: 2px solid var(--poster-deep); border-radius: 3px; background: var(--poster-paper); }
+
+footer { color: var(--poster-paper-light); }
+footer button { color: var(--poster-yellow); }
+.notice { border: 3px solid var(--poster-deep); border-radius: 3px; background: var(--poster-yellow); color: var(--poster-deep); }
+
+@media (max-width: 760px) {
+  .topbar { height: 70px; }
+  .brand { font-size: 24px; }
+  .intro { min-height: 390px; }
+  .intro__photo { object-position: 62% center; }
+  .intro__shade { background: linear-gradient(0deg, rgba(241,223,180,.94) 0%, rgba(241,223,180,.4) 53%, transparent 78%); }
+  .intro__content { left: 22px; right: 22px; bottom: 24px; max-width: none; }
+  .intro h1 { font-size: clamp(46px, 15vw, 72px); }
+  .card, .energy-analysis, .forecast-card, .sun-horizon-card, .planner-card, .solar-card, .climate-card { border-width: 3px; }
+}
+
+@layer legacy {
 
 * { box-sizing: border-box; }
 
@@ -178,8 +498,16 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .climate-chart-heading > div:first-child strong { font-family: "Fraunces", serif; font-size: clamp(22px, 2.5vw, 32px); font-weight: 600; letter-spacing: -.035em; }
 .climate-period-tabs { flex: 0 0 auto; }
 .climate-chart-controls { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
-.climate-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 16px; color: #626b67; font-size: 10px; font-weight: 700; }
-.climate-legend span, .climate-tooltip span { display: flex; align-items: center; gap: 7px; }
+.climate-chart-options { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 18px; }
+.climate-aggregation { display: flex; padding: 3px; border: 1px solid #d3c7b4; border-radius: 9px 4px 10px 6px; background: #eee7db; }
+.climate-aggregation button { border: 0; border-radius: 6px; padding: 7px 10px; color: #756e62; background: transparent; cursor: pointer; font-size: 9px; font-weight: 700; }
+.climate-aggregation button.active { color: #fffaf0; background: var(--forest); box-shadow: 0 4px 10px rgba(31,74,58,.17); }
+.climate-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; color: #626b67; font-size: 10px; font-weight: 700; }
+.climate-legend button { display: flex; align-items: center; gap: 7px; border: 1px solid #d3c7b4; border-radius: 12px 5px 11px 7px; padding: 8px 11px; color: inherit; background: #fffaf0; cursor: pointer; font: inherit; transition: opacity .16s ease, color .16s ease; }
+.climate-legend button:nth-child(2) { border-radius: 5px 13px 6px 10px; }
+.climate-legend button.is-hidden { opacity: .38; text-decoration: line-through; }
+.climate-legend button:hover { color: var(--ink); }
+.climate-legend button, .climate-tooltip span { align-items: center; }
 .climate-legend i, .climate-tooltip i { width: 18px; height: 3px; border-radius: 4px; }
 .climate-legend .is-temperature, .climate-tooltip .is-temperature { background: var(--terracotta); }
 .climate-legend .is-humidity, .climate-tooltip .is-humidity { background: #557b9c; }
@@ -202,6 +530,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .climate-tooltip span { display: grid; grid-template-columns: 18px 1fr auto; color: var(--muted); font-size: 9px; }
 .climate-tooltip b { color: var(--ink); font-family: "DM Mono", monospace; font-weight: 500; }
 .climate-chart-empty { min-height: 260px; display: grid; place-content: center; color: var(--muted); font-size: 12px; }
+.climate-lines-hidden { position: absolute; inset: 0; display: grid; place-content: center; color: var(--muted); font-size: 11px; pointer-events: none; }
 .is-climate-loading { opacity: .55; }
 .device-list { margin: 18px -28px -28px; border-top: 1px solid #e1e1d8; }
 .device-row { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 12px; padding: 15px 28px; border-bottom: 1px solid #e8e7df; }
@@ -252,7 +581,7 @@ footer button { border: 0; background: none; cursor: pointer; font-weight: 700; 
   .climate-chart-heading, .climate-chart-controls { display: grid; }
   .climate-period-tabs { width: 100%; }
   .climate-chart-controls .period-stepper { width: 100%; }
-  .climate-legend { justify-content: flex-start; }
+  .climate-chart-options, .climate-legend { justify-content: flex-start; }
   .climate-history-chart { overflow-x: auto; }
   .climate-history-chart svg { width: 720px; max-width: none; }
   .climate-tooltip { position: sticky; left: 10px; right: auto; width: 210px; }
@@ -1013,4 +1342,6 @@ main { max-width: 1500px; padding-top: 28px; }
   .planner-key { gap: 9px; }
   .planner-source-list { grid-template-columns: 1fr; }
   .planner-result-head { align-items: flex-start; flex-direction: column; gap: 8px; }
+}
+
 }

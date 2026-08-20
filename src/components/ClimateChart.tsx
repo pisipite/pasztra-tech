@@ -4,13 +4,15 @@ import type { ClimatePoint } from "../types";
 
 type Props = {
   data: ClimatePoint[];
+  temperatureVisible: boolean;
+  humidityVisible: boolean;
 };
 
 const width = 1000;
 const height = 300;
 const margin = { top: 24, right: 68, bottom: 48, left: 60 };
 
-export function ClimateChart({ data }: Props) {
+export function ClimateChart({ data, temperatureVisible, humidityVisible }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
   if (!data.length) return <div className="climate-chart-empty">Ehhez az időszakhoz még nincs klímaadat.</div>;
 
@@ -54,16 +56,17 @@ export function ClimateChart({ data }: Props) {
           const y = margin.top + ratio * plotHeight;
           const temperature = tempMax - ratio * (tempMax - tempMin);
           const humidity = humidityMax - ratio * (humidityMax - humidityMin);
-          return <g key={ratio}><line className="climate-gridline" x1={margin.left} x2={width - margin.right} y1={y} y2={y} /><text className="climate-axis climate-axis--temperature" x={margin.left - 11} y={y + 4} textAnchor="end">{temperature.toFixed(0)} °C</text><text className="climate-axis climate-axis--humidity" x={width - margin.right + 11} y={y + 4}>{humidity.toFixed(0)}%</text></g>;
+          return <g key={ratio}><line className="climate-gridline" x1={margin.left} x2={width - margin.right} y1={y} y2={y} />{temperatureVisible && <text className="climate-axis climate-axis--temperature" x={margin.left - 11} y={y + 4} textAnchor="end">{temperature.toFixed(0)} °C</text>}{humidityVisible && <text className="climate-axis climate-axis--humidity" x={width - margin.right + 11} y={y + 4}>{humidity.toFixed(0)}%</text>}</g>;
         })}
-        <path className="climate-line climate-line--temperature" d={temperaturePath} />
-        <path className="climate-line climate-line--humidity" d={humidityPath} />
-        {data.length === 1 && <><circle className="climate-point climate-point--temperature" cx={x(0)} cy={temperatureY(data[0].temperature)} r="4" /><circle className="climate-point climate-point--humidity" cx={x(0)} cy={humidityY(data[0].humidity)} r="4" /></>}
+        {temperatureVisible && <path className="climate-line climate-line--temperature" d={temperaturePath} />}
+        {humidityVisible && <path className="climate-line climate-line--humidity" d={humidityPath} />}
+        {data.length === 1 && <>{temperatureVisible && <circle className="climate-point climate-point--temperature" cx={x(0)} cy={temperatureY(data[0].temperature)} r="4" />}{humidityVisible && <circle className="climate-point climate-point--humidity" cx={x(0)} cy={humidityY(data[0].humidity)} r="4" />}</>}
         {hovered !== null && <line className="climate-hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={height - margin.bottom} />}
-        {hovered !== null && <><circle className="climate-point climate-point--temperature" cx={x(hovered)} cy={temperatureY(data[hovered].temperature)} r="4" /><circle className="climate-point climate-point--humidity" cx={x(hovered)} cy={humidityY(data[hovered].humidity)} r="4" /></>}
+        {hovered !== null && <>{temperatureVisible && <circle className="climate-point climate-point--temperature" cx={x(hovered)} cy={temperatureY(data[hovered].temperature)} r="4" />}{humidityVisible && <circle className="climate-point climate-point--humidity" cx={x(hovered)} cy={humidityY(data[hovered].humidity)} r="4" />}</>}
         {data.map((point, index) => (index % labelStep === 0 || index === data.length - 1) && <text key={`${point.label}-${index}`} className="climate-x-label" x={x(index)} y={height - 18} textAnchor={index === 0 ? "start" : index === data.length - 1 ? "end" : "middle"}>{point.label}</text>)}
       </svg>
-      {active && <div className="climate-tooltip"><strong>{active.label}</strong><span><i className="is-temperature" />Hőmérséklet <b>{active.temperature.toFixed(1)} °C</b></span><span><i className="is-humidity" />Páratartalom <b>{active.humidity.toFixed(0)}%</b></span></div>}
+      {!temperatureVisible && !humidityVisible && <div className="climate-lines-hidden">Kapcsolj vissza egy adatsort a jelmagyarázatban.</div>}
+      {active && (temperatureVisible || humidityVisible) && <div className="climate-tooltip"><strong>{active.label}</strong>{temperatureVisible && <span><i className="is-temperature" />Hőmérséklet <b>{active.temperature.toFixed(1)} °C</b></span>}{humidityVisible && <span><i className="is-humidity" />Páratartalom <b>{active.humidity.toFixed(0)}%</b></span>}</div>}
     </div>
   );
 }
