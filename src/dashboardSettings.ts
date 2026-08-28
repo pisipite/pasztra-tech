@@ -2,6 +2,7 @@ export type DashboardSettings = {
   live: boolean;
   endpoint: string;
   refreshSeconds: number;
+  githubToken: string;
 };
 
 const storageKey = "solar-home-settings";
@@ -22,13 +23,15 @@ export function getInitialSettings(): DashboardSettings {
       live: true,
       endpoint: configured.endpoint,
       refreshSeconds: savedSettings?.refreshSeconds ?? configured.refreshSeconds ?? 300,
+      githubToken: savedSettings?.githubToken ?? "",
     };
   }
-  if (savedSettings) return savedSettings;
+  if (savedSettings) return { ...savedSettings, githubToken: savedSettings.githubToken ?? "" };
   return {
     live: configured.mode === "live",
     endpoint: configured.endpoint ?? "",
     refreshSeconds: configured.refreshSeconds ?? 300,
+    githubToken: "",
   };
 }
 

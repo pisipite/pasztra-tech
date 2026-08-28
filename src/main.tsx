@@ -9,12 +9,14 @@ import { getInitialSettings, storeSettings, type DashboardSettings } from "./das
 import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
 import { formatHeadingDate, formatTime } from "./formatUtils";
+import { dispatchDashboardRefresh, waitForFreshDashboard } from "./githubRefresh";
 import { SolarForecast } from "./SolarForecast";
 import { SunHorizon } from "./SunHorizon";
 import type { DashboardData, DataConnection, PeriodKey } from "./types";
 import "./styles.css";
 
 const connectionStaleMs = 45 * 60 * 1000;
+type ManualRefreshState = "idle" | "starting" | "waiting" | "success" | "error";
 
 function connectionIsFresh(connection: DataConnection | undefined, fallbackConnected: boolean, fallbackUpdatedAt: string, clock: number) {
   const connected = connection?.connected ?? fallbackConnected;
@@ -41,6 +43,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [clock, setClock] = useState(() => Date.now());
+  const [manualRefreshState, setManualRefreshState] = useState<ManualRefreshState>("idle");
+  const [manualRefreshMessage, setManualRefreshMessage] = useState("");
 
   const loadData = useCallback(async (currentPeriod: PeriodKey, currentSettings: DashboardSettings, currentAnchor: Date, from?: string, to?: string) => {
     const currentRange = rangeForPeriod(currentPeriod, from, to);
@@ -148,6 +152,55 @@ function App() {
     setSettingsOpen(false);
   };
 
+  const triggerManualRefresh = useCallback(async () => {
+    if (manualRefreshState === "starting" || manualRefreshState === "waiting") return;
+    if (!settings.githubToken) {
+      setManualRefreshState("error");
+      setManualRefreshMessage("Az első használathoz add meg a finomhangolt GitHub frissítési tokent az Adatkapcsolat panelen.");
+      setSettingsOpen(true);
+      return;
+    }
+    if (!settings.live || !settings.endpoint) {
+      setManualRefreshState("error");
+      setManualRefreshMessage("A frissítéshez előbb kapcsold be az élő adatokat és állítsd be az adatvégpontot.");
+      setSettingsOpen(true);
+      return;
+    }
+
+    setManualRefreshState("starting");
+    setManualRefreshMessage("A frissítési kérés elküldése a GitHubnak…");
+    try {
+      await dispatchDashboardRefresh(settings.githubToken);
+      setManualRefreshState("waiting");
+      setManualRefreshMessage("Az adatok gyűjtése és az oldal frissítése folyamatban van. Ez általában 1–2 perc.");
+      const freshData = await waitForFreshDashboard(settings.endpoint, data.updatedAt, (progress) => setManualRefreshState(progress));
+      setData(freshData);
+      await Promise.all([
+        loadData(period, settings, anchor, customStart, customEnd),
+        loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
+      ]);
+      setClock(Date.now());
+      setManualRefreshState("success");
+      setManualRefreshMessage(`Kész: az új adatok megérkeztek (${formatTime(freshData.updatedAt)}).`);
+      window.setTimeout(() => {
+        setManualRefreshState("idle");
+        setManualRefreshMessage("");
+      }, 8_000);
+    } catch (refreshError) {
+      setManualRefreshState("error");
+      setManualRefreshMessage(refreshError instanceof Error ? refreshError.message : "A frissítés nem sikerült.");
+    }
+  }, [manualRefreshState, settings, data.updatedAt, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory]);
+
+  const manualRefreshBusy = manualRefreshState === "starting" || manualRefreshState === "waiting";
+  const manualRefreshLabel = manualRefreshState === "starting"
+    ? "Indítás…"
+    : manualRefreshState === "waiting"
+      ? "Adatok gyűjtése…"
+      : manualRefreshState === "success"
+        ? "Frissítve"
+        : "Adatok frissítése";
+
   const stepPeriod = (direction: -1 | 1) => {
     if (period === "custom") {
       const start = dateFromInput(customStart);
@@ -198,6 +251,9 @@ function App() {
             <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
             <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
           </div>
+          <button className={`data-refresh-button is-${manualRefreshState}`} onClick={() => void triggerManualRefresh()} disabled={manualRefreshBusy} aria-describedby={manualRefreshMessage ? "manual-refresh-status" : undefined}>
+            <i aria-hidden="true">↻</i><span>{manualRefreshLabel}</span>
+          </button>
           <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Adatkapcsolat beállításai">•••</button>
         </div>
       </header>
@@ -226,6 +282,7 @@ function App() {
         </section>
 
         {error && <div className="notice" role="status">{error}</div>}
+        {manualRefreshMessage && <div id="manual-refresh-status" className={`notice manual-refresh-notice is-${manualRefreshState}`} role="status">{manualRefreshBusy && <i aria-hidden="true" />}{manualRefreshMessage}</div>}
 
         <EnergyAnalytics
           data={data}

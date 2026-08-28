@@ -16,6 +16,68 @@
   --night: #111b18;
 }
 
+/* Kézi felhőfrissítés — a publikus oldalról indítható GitHub Actions futás */
+.data-refresh-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 13px;
+  border: 1px solid rgba(241,223,180,.55);
+  border-radius: 3px;
+  color: var(--poster-paper-light);
+  background: transparent;
+  font: 600 10px "Oswald", Impact, sans-serif;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background .16s ease, color .16s ease, opacity .16s ease;
+}
+.data-refresh-button:hover:not(:disabled), .data-refresh-button.is-success {
+  color: var(--poster-deep);
+  background: var(--poster-yellow);
+}
+.data-refresh-button:disabled { cursor: wait; opacity: .78; }
+.data-refresh-button.is-starting i, .data-refresh-button.is-waiting i { animation: data-refresh-spin 1s linear infinite; }
+@keyframes data-refresh-spin { to { transform: rotate(360deg); } }
+
+.manual-refresh-notice { display: flex; align-items: center; gap: 10px; }
+.manual-refresh-notice > i {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: data-refresh-spin .8s linear infinite;
+}
+.manual-refresh-notice.is-success { background: #dfe9d5; color: #315f3e; border-color: #a9c59f; }
+.manual-refresh-notice.is-error { background: #f4ddd2; color: #7b342b; border-color: #d9a696; }
+
+.settings { overflow-y: auto; }
+.field small { color: var(--muted); font-size: 9px; line-height: 1.5; }
+.settings__token-link {
+  display: inline-flex;
+  margin: -8px 0 16px;
+  color: var(--poster-deep);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 820px) {
+  .data-refresh-button span { display: none; }
+  .data-refresh-button { width: 40px; padding: 7px; font-size: 17px; }
+}
+
+@media (max-width: 640px) {
+  .topbar__actions { gap: 5px; }
+  .stream-indicators { gap: 4px; }
+  .data-refresh-button { min-height: 38px; width: 36px; }
+}
+
 /* 1970–80-as évekbeli turisztikai plakát — végleges felületi téma */
 :root {
   --poster-ink: #073f39;

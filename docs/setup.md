@@ -44,7 +44,20 @@ A `SUNGROW_PS_ID` helyben a következő GoSungrow paranccsal kereshető meg:
 GoSungrow show ps list
 ```
 
-## 4. Első futtatás
+## 4. Egykattintásos kézi frissítés
+
+Az oldal fejlécében lévő **Adatok frissítése** gomb a GitHub Actions munkafolyamatot indítja el, megvárja az új adatfájl megjelenését, majd automatikusan újratölti a dashboardot.
+
+Az első használat előtt:
+
+1. A GitHub **Settings → Developer settings → Personal access tokens → Fine-grained tokens** oldalán hozz létre tokent.
+2. Repositoryként csak a `pisipite/pasztra-tech` repót engedélyezd.
+3. A **Repository permissions → Actions** jogosultság legyen **Read and write**; más írási jogosultság nem szükséges.
+4. Az oldalon nyisd meg az **Adatkapcsolat** panelt, illeszd be a tokent, és mentsd el.
+
+A token kizárólag az adott böngésző helyi tárhelyén marad. Nem kerül GitHub commitba, Actions-artifactba vagy a publikus weboldal fájljaiba. Közös vagy idegen eszközön ne mentsd el.
+
+## 5. Első futtatás
 
 Nyisd meg az **Actions → Deploy to GitHub Pages** munkafolyamatot, majd válaszd a **Run workflow** lehetőséget. Sikeres futás után az oldal címét a repository **Settings → Pages** felületén találod. A dokumentáció nem tartalmaz közvetlen hivatkozást, hogy csökkentse a nyilvános oldal felfedezhetőségét.
 

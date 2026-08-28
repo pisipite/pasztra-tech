@@ -32,6 +32,18 @@ export function SettingsPanel({ settings, onClose, onSave }: Props) {
             <option value={900}>15 percenként</option>
           </select>
         </label>
+        <label className="field">
+          <span>GitHub frissítési token</span>
+          <input
+            type="password"
+            autoComplete="off"
+            placeholder="github_pat_…"
+            value={draft.githubToken}
+            onChange={(event) => setDraft({ ...draft, githubToken: event.target.value.trim() })}
+          />
+          <small>Csak ebben a böngészőben tárolódik. Kizárólag a <strong>pisipite/pasztra-tech</strong> repository Actions-indítására jogosult, finomhangolt tokent használj.</small>
+        </label>
+        <a className="settings__token-link" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noreferrer">Finomhangolt GitHub-token létrehozása ↗</a>
         <button className="primary-button" onClick={() => onSave(draft)}>Beállítások mentése</button>
       </section>
     </div>
