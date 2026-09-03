@@ -111,7 +111,8 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const unit = isLine ? "kW" : "kWh";
   const width = 1000;
   const height = 330;
-  const margin = { top: 24, right: 118, bottom: 46, left: 64 };
+  const rightMargin = temperatureVisible && humidityVisible ? 118 : temperatureVisible || humidityVisible ? 66 : 28;
+  const margin = { top: 24, right: rightMargin, bottom: 46, left: 64 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const bucketWidth = plotWidth / Math.max(points.length, 1);
@@ -140,11 +141,18 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
     return next;
   });
   const values = points.flatMap((point) => lineSeries.map((series) => series.value(point)).filter((value): value is number => Number.isFinite(value)));
+  const tempValues = points.map((point) => point.temperature).filter((value): value is number => Number.isFinite(value));
+  const tempObservedMin = Math.min(0, ...tempValues);
+  const tempObservedMax = Math.max(25, ...tempValues);
   const maxValue = Math.max(0, ...values);
   const minValue = Math.min(0, ...values);
   const energyStep = niceStep(Math.max(maxValue - minValue, 1) / 6);
   const upper = Math.max(energyStep, Math.ceil(maxValue / energyStep) * energyStep);
-  const lower = minValue < 0 ? Math.floor(minValue / energyStep) * energyStep : 0;
+  const lower = minValue < 0
+    ? Math.floor(minValue / energyStep) * energyStep
+    : temperatureVisible && tempObservedMin < 0
+      ? -energyStep
+      : 0;
   const range = Math.max(upper - lower, 1);
   const lineX = (index: number) => margin.left + (points.length <= 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
   const bucketLeft = (index: number) => margin.left + index * bucketWidth;
@@ -152,19 +160,25 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const pointX = (index: number) => isLine ? lineX(index) : bucketCenter(index);
   const y = (value: number) => margin.top + ((upper - value) / range) * plotHeight;
   const zeroY = y(0);
-  const tempValues = points.map((point) => point.temperature).filter((value): value is number => Number.isFinite(value));
-  const tempMin = Math.min(...tempValues, 15) - 1;
-  const tempMax = Math.max(...tempValues, 25) + 1;
+  const tempStep = niceStep(Math.max(tempObservedMax - tempObservedMin, 25) / 4);
+  const tempMin = Math.floor(tempObservedMin / tempStep) * tempStep;
+  const tempMax = Math.max(tempStep, Math.ceil(tempObservedMax / tempStep) * tempStep);
+  const positiveClimateHeight = Math.max(zeroY - margin.top, 1);
+  const negativeClimateHeight = Math.max(margin.top + plotHeight - zeroY, 0);
   const climateY = (value: number, kind: "temperature" | "humidity") => {
-    const normalized = kind === "humidity" ? value / 100 : (value - tempMin) / Math.max(tempMax - tempMin, 1);
-    return margin.top + (1 - normalized) * plotHeight;
+    if (kind === "humidity") return zeroY - (value / 100) * positiveClimateHeight;
+    if (value >= 0) return zeroY - (value / tempMax) * positiveClimateHeight;
+    return zeroY + (value / tempMin) * negativeClimateHeight;
   };
   const temperatureCoords = points.flatMap((point, index) => Number.isFinite(point.temperature) ? [{ x: pointX(index), y: climateY(point.temperature!, "temperature") }] : []);
   const humidityCoords = points.flatMap((point, index) => Number.isFinite(point.humidity) ? [{ x: pointX(index), y: climateY(point.humidity!, "humidity") }] : []);
   const gridLineCount = Math.round((upper - lower) / energyStep) + 1;
   const gridLines = Array.from({ length: gridLineCount }, (_, index) => upper - index * energyStep);
   const percentageTicks = [0, 25, 50, 75, 100];
-  const temperatureTicks = Array.from({ length: 5 }, (_, index) => tempMax - (index / 4) * (tempMax - tempMin));
+  const temperatureTickCount = Math.round((tempMax - tempMin) / tempStep) + 1;
+  const temperatureTicks = Array.from({ length: temperatureTickCount }, (_, index) => tempMax - index * tempStep);
+  const temperatureAxisX = width - margin.right + 10;
+  const humidityAxisX = width - margin.right + (temperatureVisible ? 68 : 10);
   const tickStep = points.length <= 12 ? 1 : Math.max(1, Math.ceil(points.length / 10));
   const active = hovered === null ? null : points[hovered];
   const activeGrid = active ? gridNetValue(active) : undefined;
@@ -223,8 +237,8 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
               {gridLines.map((value) => <g key={value}><line className="energy-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="energy-axis-label" x={margin.left - 12} y={y(value) + 4} textAnchor="end">{formatAxisValue(value, energyStep)}</text></g>)}
               <line className="energy-zero" x1={margin.left} x2={width - margin.right} y1={zeroY} y2={zeroY} />
               <text className="energy-axis-title" x={margin.left} y={14}>{isLine ? "Teljesítmény (kW)" : "Energia (kWh)"}</text>
-              {temperatureTicks.map((value) => <text key={`temperature-axis-${value}`} className="energy-axis-label" x={width - margin.right + 10} y={climateY(value, "temperature") + 4} fill={colors.temperature}>{value.toFixed(0)} °C</text>)}
-              {percentageTicks.map((value) => <text key={`percentage-axis-${value}`} className="energy-axis-label" x={width - margin.right + 68} y={climateY(value, "humidity") + 4} fill={colors.humidity}>{value}%</text>)}
+              {temperatureVisible && temperatureTicks.map((value) => <text key={`temperature-axis-${value}`} className="energy-axis-label" x={temperatureAxisX} y={climateY(value, "temperature") + 4} fill={colors.temperature}>{value.toFixed(0)} °C</text>)}
+              {humidityVisible && percentageTicks.map((value) => <text key={`percentage-axis-${value}`} className="energy-axis-label" x={humidityAxisX} y={climateY(value, "humidity") + 4} fill={colors.humidity}>{value}%</text>)}
 
               {hovered !== null && !isLine && <rect className="hover-band" x={bucketLeft(hovered)} y={margin.top} width={bucketWidth} height={plotHeight} />}
 
