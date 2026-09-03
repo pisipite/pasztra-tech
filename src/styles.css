@@ -584,6 +584,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .climate-axis--temperature { fill: var(--terracotta); }
 .climate-axis--humidity { fill: #557b9c; }
 .climate-hover-line { stroke: #68726d; stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.climate-time-gridline { stroke: rgba(104,114,109,.16); stroke-width: 1; stroke-dasharray: 2 7; vector-effect: non-scaling-stroke; }
 .climate-point { stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .climate-point--temperature { fill: var(--terracotta); }
 .climate-point--humidity { fill: #557b9c; }

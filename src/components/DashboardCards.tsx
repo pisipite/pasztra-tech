@@ -136,7 +136,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
           </div>
         </div>
         {climatePeriod === "custom" && <div className="custom-range climate-custom-range"><label><span>Kezdőnap</span><input type="date" value={climateCustomStart} max={climateCustomEnd} onChange={(event) => onClimateCustomChange(event.target.value, climateCustomEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={climateCustomEnd} min={climateCustomStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onClimateCustomChange(climateCustomStart, event.target.value)} /></label></div>}
-        <div className={climateLoading ? "is-climate-loading" : ""}><ClimateChart data={climateSeries} temperatureVisible={temperatureVisible} humidityVisible={humidityVisible} /></div>
+        <div className={climateLoading ? "is-climate-loading" : ""}><ClimateChart data={climateSeries} period={climatePeriod} temperatureVisible={temperatureVisible} humidityVisible={humidityVisible} /></div>
       </div>
       <div className="device-list">
         {data.govee.devices.map((device) => (
