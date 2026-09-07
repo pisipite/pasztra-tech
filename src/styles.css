@@ -369,8 +369,7 @@ main { max-width: 1560px; padding-top: 18px; padding-bottom: 40px; }
 
 .comfort-badge { border: 2px solid var(--poster-deep); border-radius: 3px; color: var(--poster-deep); background: rgba(139,152,81,.3); }
 .comfort-badge--alert { background: rgba(209,107,53,.22); }
-.humidity-gauge { background: conic-gradient(var(--poster-blue) var(--humidity), rgba(7,63,57,.13) 0); }
-.humidity-gauge::before { background: var(--poster-paper-light); }
+.humidity-reading { color: var(--poster-blue); }
 .climate-line--temperature { stroke: var(--poster-orange); }
 .climate-line--humidity { stroke: var(--poster-blue); }
 .climate-axis--temperature { fill: var(--poster-orange); }
@@ -547,12 +546,14 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .climate-card { width: 100%; padding: clamp(24px, 3vw, 38px); }
 .comfort-badge { border-radius: 999px; padding: 8px 11px; background: #e5efd9; color: #55753c; font-size: 10px; font-weight: 700; }
 .comfort-badge--alert { background: #fff0d8; color: #93611c; }
-.climate-reading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 30px 0 25px; }
+.climate-reading { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: clamp(26px, 5vw, 72px); padding: 30px 0 25px; }
 .temperature { display: flex; align-items: flex-start; }
 .temperature strong { font-family: "DM Mono", monospace; font-size: clamp(52px, 5vw, 72px); letter-spacing: -.08em; font-weight: 500; }.temperature span { font-size: 13px; margin: 8px 0 0 8px; color: var(--muted); }
-.humidity-gauge { --humidity: 180deg; width: 94px; height: 94px; padding: 8px; border-radius: 50%; background: conic-gradient(var(--climate) var(--humidity), #e7e5dc 0); position: relative; }
-.humidity-gauge::before { content: ""; position: absolute; inset: 8px; background: var(--paper); border-radius: 50%; }
-.humidity-gauge > div { position: relative; height: 100%; display: grid; place-content: center; text-align: center; }.humidity-gauge strong { font-family: "DM Mono", monospace; font-size: 18px; }.humidity-gauge span { color: var(--muted); font-size: 9px; }
+.humidity-reading { display: flex; align-items: center; gap: 12px; padding-left: clamp(20px, 3vw, 38px); border-left: 2px solid #d8cbb7; }
+.humidity-reading > div { display: flex; align-items: flex-start; }
+.humidity-reading strong { color: var(--ink); font-family: "DM Mono", monospace; font-size: clamp(38px, 4vw, 58px); line-height: 1; letter-spacing: -.07em; font-weight: 500; }
+.humidity-reading span:not(.humidity-drop) { margin: 7px 0 0 8px; color: var(--muted); font-size: 11px; }
+.humidity-drop { display: inline-grid; place-items: center; width: 42px; height: 52px; font-size: 34px; line-height: 1; }
 .climate-chart-wrap { border-color: #e1e1d8; }
 .climate-chart-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .climate-chart-heading > div:first-child { display: grid; gap: 5px; }
@@ -813,7 +814,7 @@ main { max-width: 1500px; padding-top: 28px; }
 .climate-card { border-top: 5px solid var(--terracotta); }
 .comfort-badge { border-radius: 8px; background: #dfe9d5; color: #456d46; }
 .comfort-badge--alert { background: #f2dfc3; color: #855529; }
-.humidity-gauge { background: conic-gradient(var(--terracotta) var(--humidity), #dfd6c7 0); }
+.humidity-reading { color: #557b9c; }
 .climate-chart-wrap, .device-list { border-color: #ddd2c0; }
 .device-row { border-color: #e4dac9; }
 .device-icon { border-color: #d9cbb7; border-radius: 8px; background: #efe7da; }

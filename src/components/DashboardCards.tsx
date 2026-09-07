@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import { isValidClimateValues, type ClimateAggregation } from "../climateData";
 import { isCurrentPeriod, periodLabel } from "../dateUtils";
 import { formatTime } from "../formatUtils";
@@ -114,7 +114,8 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
       </div>
       <div className="climate-reading">
         <div className="temperature"><strong>{activeDevice.temperatureC.toFixed(1)}°</strong><span>C</span></div>
-        <div className="humidity-gauge" style={{ "--humidity": `${activeDevice.humidityPct * 3.6}deg` } as CSSProperties}>
+        <div className="humidity-reading">
+          <span className="humidity-drop" aria-hidden="true">💧</span>
           <div><strong>{activeDevice.humidityPct}%</strong><span>pára</span></div>
         </div>
       </div>
