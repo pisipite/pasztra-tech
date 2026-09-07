@@ -671,22 +671,24 @@ const monthlyEnergyPoints = {
 async function readCachedEnergyHistory() {
   try {
     const stored = JSON.parse(await readFile(energyHistoryFile, "utf8"));
-    return new Map(Object.entries(stored?.daily ?? stored).filter(([key, value]) => /^\d{4}-\d{2}-\d{2}$/.test(key) && value && typeof value === "object"));
+    return {
+      daily: new Map(Object.entries(stored?.daily ?? stored).filter(([key, value]) => /^\d{4}-\d{2}-\d{2}$/.test(key) && value && typeof value === "object")),
+      monthly: new Map(Object.entries(stored?.monthly ?? {}).filter(([key, value]) => /^\d{4}-\d{2}$/.test(key) && value && typeof value === "object")),
+    };
   } catch {
-    return new Map();
+    return { daily: new Map(), monthly: new Map() };
   }
 }
 
-async function writeCachedEnergyHistory(daily) {
+async function writeCachedEnergyHistory(daily, monthly) {
   await mkdir(historyDir, { recursive: true });
-  const ordered = Object.fromEntries([...daily.entries()].sort(([a], [b]) => a.localeCompare(b)));
-  await writeFile(energyHistoryFile, `${JSON.stringify({ daily: ordered })}\n`, "utf8");
+  const orderedDaily = Object.fromEntries([...daily.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  const orderedMonthly = Object.fromEntries([...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  await writeFile(energyHistoryFile, `${JSON.stringify({ daily: orderedDaily, monthly: orderedMonthly })}\n`, "utf8");
 }
 
 function dailyHistoryMonthIds() {
-  const first = now.getMonth() === 0
-    ? new Date(now.getFullYear() - 1, 11, 1, 12)
-    : new Date(now.getFullYear(), 0, 1, 12);
+  const first = new Date(Math.min(2025, now.getFullYear()), 0, 1, 12);
   const last = new Date(now.getFullYear(), now.getMonth(), 1, 12);
   const ids = [];
   for (const cursor = new Date(first); cursor <= last; cursor.setMonth(cursor.getMonth() + 1)) {
@@ -700,11 +702,21 @@ function energyHistoryHasMonth(daily, requestedMonthId) {
   return [...daily.keys()].some((key) => key.startsWith(prefix));
 }
 
+function energyHistoryYearIds() {
+  const firstYear = Math.min(2025, now.getFullYear());
+  return Array.from({ length: now.getFullYear() - firstYear + 1 }, (_, index) => String(firstYear + index));
+}
+
+function energyHistoryHasYear(monthly, requestedYearId) {
+  return [...monthly.keys()].some((key) => key.startsWith(`${requestedYearId}-`));
+}
+
 async function getEnergyHistory(psId) {
-  const daily = await readCachedEnergyHistory();
+  const { daily, monthly } = await readCachedEnergyHistory();
   const requestedMonths = dailyHistoryMonthIds();
   const missingMonths = requestedMonths.filter((id) => id === monthId || !energyHistoryHasMonth(daily, id));
-  const yearPromise = sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]);
+  const requestedYears = energyHistoryYearIds();
+  const missingYears = requestedYears.filter((id) => id === yearId || !energyHistoryHasYear(monthly, id));
 
   for (const requestedMonthId of missingMonths) {
     try {
@@ -716,13 +728,18 @@ async function getEnergyHistory(psId) {
     }
   }
 
-  if (daily.size) await writeCachedEnergyHistory(daily);
-  const [yearResult] = await Promise.allSettled([yearPromise]);
-  if (yearResult.status === "rejected") console.error(`Sungrow havi hálózati energia: ${yearResult.reason.message}`);
-  const monthly = yearResult.status === "fulfilled"
-    ? energyMapFromReport(yearResult.value, "yearDataMonthList", "month", monthlyEnergyPoints)
-    : new Map();
-  console.log(`Sungrow energiaelőzmény: ${daily.size} nap, ${monthly.size} hónap; most lekérve: ${missingMonths.length} hónap.`);
+  for (const requestedYearId of missingYears) {
+    try {
+      const report = await sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${requestedYearId}`, "DateType:3", `PsId:${psId}`]);
+      const yearMonths = energyMapFromReport(report, "yearDataMonthList", "month", monthlyEnergyPoints);
+      yearMonths.forEach((value, key) => monthly.set(key, value));
+    } catch (error) {
+      console.error(`Sungrow havi energia (${requestedYearId}): ${error.message}`);
+    }
+  }
+
+  if (daily.size || monthly.size) await writeCachedEnergyHistory(daily, monthly);
+  console.log(`Sungrow energiaelőzmény: ${daily.size} nap, ${monthly.size} hónap; most lekérve: ${missingMonths.length} hónap és ${missingYears.length} év.`);
   return { daily, monthly };
 }
 
@@ -779,10 +796,14 @@ async function getSungrow() {
     const point = year === now.getFullYear() && month === now.getMonth() + 1 ? monthChart[day - 1] : undefined;
     return { label: `${day}.${month}.`, timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...dailyEnergyReport.get(key) };
   });
-  const yearEnergy = Array.from({ length: Math.max(yearChart.length, now.getMonth() + 1) }, (_, index) => {
-    const point = yearChart[index];
-    const timestamp = new Date(now.getFullYear(), index, 1, 12);
-    return { label: point?.label ?? ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][index], timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...monthlyEnergyReport.get(localMonthKey(timestamp)) };
+  const currentYearKeys = Array.from({ length: Math.max(yearChart.length, now.getMonth() + 1) }, (_, index) => localMonthKey(new Date(now.getFullYear(), index, 1, 12)));
+  const monthlyEnergyKeys = [...new Set([...monthlyEnergyReport.keys(), ...currentYearKeys])].filter((key) => key <= localMonthKey(now)).sort();
+  const yearEnergy = monthlyEnergyKeys.map((key) => {
+    const [year, month] = key.split("-").map(Number);
+    const timestamp = new Date(year, month - 1, 1, 12);
+    const point = year === now.getFullYear() ? yearChart[month - 1] : undefined;
+    const label = ["Jan", "Feb", "Már", "Ápr", "Máj", "Jún", "Júl", "Aug", "Szept", "Okt", "Nov", "Dec"][month - 1];
+    return { label, timestamp: timestamp.toISOString(), ...(point ? { pv: point.value } : {}), ...monthlyEnergyReport.get(key) };
   });
 
   return {
