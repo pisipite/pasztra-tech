@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from "react";
-import type { ClimateAggregation } from "../climateData";
+import { isValidClimateValues, type ClimateAggregation } from "../climateData";
 import { isCurrentPeriod, periodLabel } from "../dateUtils";
 import { formatTime } from "../formatUtils";
 import type { ClimatePoint, DashboardData, PeriodKey, SolarData } from "../types";
@@ -89,7 +89,8 @@ const climatePeriods: { key: PeriodKey; label: string }[] = [
 function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation, climateLoading, onClimatePeriodChange, onClimateStep, onClimateCustomChange, onClimateAggregationChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateAggregation" | "climateLoading" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange" | "onClimateAggregationChange">) {
   const [temperatureVisible, setTemperatureVisible] = useState(true);
   const [humidityVisible, setHumidityVisible] = useState(true);
-  const activeDevice = data.govee.devices[0];
+  const validDevices = data.govee.devices.filter((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
+  const activeDevice = validDevices[0];
   if (!activeDevice) {
     return (
       <article className="card climate-card" id="klima">
@@ -139,7 +140,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
         <div className={climateLoading ? "is-climate-loading" : ""}><ClimateChart data={climateSeries} period={climatePeriod} temperatureVisible={temperatureVisible} humidityVisible={humidityVisible} /></div>
       </div>
       <div className="device-list">
-        {data.govee.devices.map((device) => (
+        {validDevices.map((device) => (
           <div className="device-row" key={device.id}>
             <span className="device-icon"><i /><i /></span>
             <div><strong>{device.room}</strong><span>{device.name} · {formatTime(device.updatedAt)}</span></div>

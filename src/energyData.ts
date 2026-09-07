@@ -1,3 +1,4 @@
+import { isValidClimateValues } from "./climateData";
 import type { ClimatePoint, DashboardData, EnergyChartPoint, PeriodKey } from "./types";
 
 function climateBucketKey(timestamp: string, period: PeriodKey) {
@@ -10,7 +11,8 @@ function climateBucketKey(timestamp: string, period: PeriodKey) {
 }
 
 function averageClimateByPeriod(climate: ClimatePoint[], period: PeriodKey) {
-  if (period === "day" || !climate.every((point) => point.timestamp)) return climate;
+  const validClimate = climate.filter((point) => isValidClimateValues(point.temperature, point.humidity));
+  if (period === "day" || !validClimate.every((point) => point.timestamp)) return validClimate;
 
   const groups = new Map<string, {
     first: ClimatePoint;
@@ -20,7 +22,7 @@ function averageClimateByPeriod(climate: ClimatePoint[], period: PeriodKey) {
     humidityCount: number;
   }>();
 
-  for (const point of climate) {
+  for (const point of validClimate) {
     const key = climateBucketKey(point.timestamp!, period);
     const group = groups.get(key) ?? {
       first: point,

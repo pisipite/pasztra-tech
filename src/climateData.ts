@@ -6,6 +6,15 @@ const monthLabel = new Intl.DateTimeFormat("hu-HU", { month: "short" });
 
 export type ClimateAggregation = "min" | "average" | "max";
 
+export function isValidClimateValues(temperature: unknown, humidity: unknown) {
+  return typeof temperature === "number"
+    && Number.isFinite(temperature)
+    && temperature !== 0
+    && typeof humidity === "number"
+    && Number.isFinite(humidity)
+    && humidity !== 0;
+}
+
 export function climatePointsForPeriod(
   history: ClimatePoint[],
   period: PeriodKey,
@@ -14,7 +23,8 @@ export function climatePointsForPeriod(
   customEnd: string,
   aggregation: ClimateAggregation = "average",
 ) {
-  const filtered = history.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+  const filtered = history.filter((point) => isValidClimateValues(point.temperature, point.humidity)
+    && timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
   if (period === "day" || filtered.some((point) => !point.timestamp)) return filtered;
 
   const groups = new Map<string, { timestamp: string; temperatureTotal: number; humidityTotal: number; temperatureMin: number; temperatureMax: number; humidityMin: number; humidityMax: number; count: number }>();

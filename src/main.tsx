@@ -2,7 +2,7 @@ import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { DashboardCards } from "./components/DashboardCards";
 import { SettingsPanel } from "./components/SettingsPanel";
-import { climatePointsForPeriod, type ClimateAggregation } from "./climateData";
+import { climatePointsForPeriod, isValidClimateValues, type ClimateAggregation } from "./climateData";
 import { ConsumptionPlanner } from "./ConsumptionPlanner";
 import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
@@ -140,7 +140,7 @@ function App() {
     const point = [...(data.solar.energyChart ?? [])].reverse().find((item) => Number.isFinite(item.batterySoc));
     return point?.batterySoc;
   }, [data.solar.energyChart]);
-  const activeDevice = data.govee.devices[0];
+  const activeDevice = data.govee.devices.find((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
   const source = data.source ?? (!settings.live || !settings.endpoint ? "demo" : "live");
   const solarConnected = connectionIsFresh(data.connections?.solar, source === "live" && data.solar.status === "online", data.updatedAt, clock);
   const climateConnected = connectionIsFresh(data.connections?.climate, source === "live" && Boolean(activeDevice), activeDevice?.updatedAt ?? data.updatedAt, clock);

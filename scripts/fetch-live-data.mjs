@@ -31,9 +31,16 @@ function localMonthKey(value) {
   return localDateKey(value).slice(0, 7);
 }
 
+function isValidClimateSample(sample) {
+  return Number.isFinite(sample?.temperature)
+    && sample.temperature !== 0
+    && Number.isFinite(sample?.humidity)
+    && sample.humidity !== 0;
+}
+
 function averageClimate(samples, keyType) {
   const groups = new Map();
-  for (const sample of samples) {
+  for (const sample of samples.filter(isValidClimateSample)) {
     const key = keyType === "month" ? localMonthKey(sample.timestamp) : localDateKey(sample.timestamp);
     const group = groups.get(key) ?? { temperature: 0, humidity: 0, count: 0 };
     group.temperature += sample.temperature;
@@ -83,10 +90,10 @@ async function updateClimateHistory(govee) {
   const earliest = now.getTime() - climateRetentionMs;
   const byTimestamp = new Map(
     (Array.isArray(stored) ? stored : [])
-      .filter((item) => Number.isFinite(item?.temperature) && Number.isFinite(item?.humidity) && new Date(item?.timestamp).getTime() >= earliest)
+      .filter((item) => isValidClimateSample(item) && new Date(item?.timestamp).getTime() >= earliest)
       .map((item) => [item.timestamp, item]),
   );
-  byTimestamp.set(sample.timestamp, sample);
+  if (isValidClimateSample(sample)) byTimestamp.set(sample.timestamp, sample);
   const history = [...byTimestamp.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
   await Promise.all([mkdir(historyDir, { recursive: true }), mkdir(outputDir, { recursive: true })]);
@@ -872,6 +879,10 @@ async function getGovee() {
   const humidityPct = numberValue(state("sensorHumidity"));
   const battery = capabilities.find((item) => /battery/i.test(item.instance ?? ""));
 
+  if (!isValidClimateSample({ temperature: temperatureC, humidity: humidityPct })) {
+    throw new Error("A mérő 0 értéket adott vissza; a hibás minta kihagyva.");
+  }
+
   return {
     devices: [{
       id: device.device,
@@ -918,6 +929,7 @@ for (const range of ["today", "7d", "30d", "year"]) {
   };
   if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] };
   if (govee) dashboard.govee = { ...govee, chart: climateCharts[range] };
+  else dashboard.govee = { devices: [], chart: [] };
   if (forecast) dashboard.forecast = forecast;
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
 }
@@ -933,6 +945,7 @@ if (sungrow) {
     };
     dashboard.solar = { ...sungrow.metrics, chart: dayData.chart, energyChart: dayData.energyChart };
     if (govee) dashboard.govee = { ...govee, chart: climateCharts.days[date] ?? [] };
+    else dashboard.govee = { devices: [], chart: [] };
     if (forecast) dashboard.forecast = forecast;
     await writeFile(resolve(outputDir, `dashboard-day-${date}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
   }
