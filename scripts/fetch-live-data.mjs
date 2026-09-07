@@ -8,6 +8,7 @@ const execFileAsync = promisify(execFile);
 const outputDir = resolve("public/data");
 const historyDir = resolve(".data-history");
 const historyFile = resolve(historyDir, "govee-history.json");
+const energyHistoryFile = resolve(historyDir, "sungrow-energy-history.json");
 const sungrowDayHistoryDir = resolve(historyDir, "sungrow-days");
 const now = new Date();
 const pad = (value) => String(value).padStart(2, "0");
@@ -649,34 +650,79 @@ function energyMapFromReport(report, listName, period, points) {
   return new Map(entries);
 }
 
+const dailyEnergyPoints = {
+  pv: "p83077",
+  gridPurchase: "p83102",
+  gridFeedIn: "p83072",
+  batteryCharge: "p83088",
+  batteryDischarge: "p83089",
+  load: "p83118",
+};
+
+const monthlyEnergyPoints = {
+  pv: "p83078",
+  gridPurchase: "p83103",
+  gridFeedIn: "p83073",
+  batteryCharge: "p83088",
+  batteryDischarge: "p83091",
+  load: "p83118",
+};
+
+async function readCachedEnergyHistory() {
+  try {
+    const stored = JSON.parse(await readFile(energyHistoryFile, "utf8"));
+    return new Map(Object.entries(stored?.daily ?? stored).filter(([key, value]) => /^\d{4}-\d{2}-\d{2}$/.test(key) && value && typeof value === "object"));
+  } catch {
+    return new Map();
+  }
+}
+
+async function writeCachedEnergyHistory(daily) {
+  await mkdir(historyDir, { recursive: true });
+  const ordered = Object.fromEntries([...daily.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  await writeFile(energyHistoryFile, `${JSON.stringify({ daily: ordered })}\n`, "utf8");
+}
+
+function dailyHistoryMonthIds() {
+  const first = now.getMonth() === 0
+    ? new Date(now.getFullYear() - 1, 11, 1, 12)
+    : new Date(now.getFullYear(), 0, 1, 12);
+  const last = new Date(now.getFullYear(), now.getMonth(), 1, 12);
+  const ids = [];
+  for (const cursor = new Date(first); cursor <= last; cursor.setMonth(cursor.getMonth() + 1)) {
+    ids.push(`${cursor.getFullYear()}${pad(cursor.getMonth() + 1)}`);
+  }
+  return ids;
+}
+
+function energyHistoryHasMonth(daily, requestedMonthId) {
+  const prefix = `${requestedMonthId.slice(0, 4)}-${requestedMonthId.slice(4, 6)}-`;
+  return [...daily.keys()].some((key) => key.startsWith(prefix));
+}
+
 async function getEnergyHistory(psId) {
-  const [monthResult, yearResult] = await Promise.allSettled([
-    sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${monthId}`, "DateType:2", `PsId:${psId}`]),
-    sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]),
-  ]);
-  if (monthResult.status === "rejected") console.error(`Sungrow napi hálózati energia: ${monthResult.reason.message}`);
+  const daily = await readCachedEnergyHistory();
+  const requestedMonths = dailyHistoryMonthIds();
+  const missingMonths = requestedMonths.filter((id) => id === monthId || !energyHistoryHasMonth(daily, id));
+  const yearPromise = sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${yearId}`, "DateType:3", `PsId:${psId}`]);
+
+  for (const requestedMonthId of missingMonths) {
+    try {
+      const report = await sungrowJson("AppService.getHouseholdStoragePsReport", [`DateId:${requestedMonthId}`, "DateType:2", `PsId:${psId}`]);
+      const monthDays = energyMapFromReport(report, "monthDataDayList", "day", dailyEnergyPoints);
+      monthDays.forEach((value, key) => daily.set(key, value));
+    } catch (error) {
+      console.error(`Sungrow napi energia (${requestedMonthId}): ${error.message}`);
+    }
+  }
+
+  if (daily.size) await writeCachedEnergyHistory(daily);
+  const [yearResult] = await Promise.allSettled([yearPromise]);
   if (yearResult.status === "rejected") console.error(`Sungrow havi hálózati energia: ${yearResult.reason.message}`);
-  const daily = monthResult.status === "fulfilled"
-    ? energyMapFromReport(monthResult.value, "monthDataDayList", "day", {
-      pv: "p83077",
-      gridPurchase: "p83102",
-      gridFeedIn: "p83072",
-      batteryCharge: "p83088",
-      batteryDischarge: "p83089",
-      load: "p83118",
-    })
-    : new Map();
   const monthly = yearResult.status === "fulfilled"
-    ? energyMapFromReport(yearResult.value, "yearDataMonthList", "month", {
-      pv: "p83078",
-      gridPurchase: "p83103",
-      gridFeedIn: "p83073",
-      batteryCharge: "p83088",
-      batteryDischarge: "p83091",
-      load: "p83118",
-    })
+    ? energyMapFromReport(yearResult.value, "yearDataMonthList", "month", monthlyEnergyPoints)
     : new Map();
-  console.log(`Sungrow hálózati energia: ${daily.size} nap, ${monthly.size} hónap.`);
+  console.log(`Sungrow energiaelőzmény: ${daily.size} nap, ${monthly.size} hónap; most lekérve: ${missingMonths.length} hónap.`);
   return { daily, monthly };
 }
 
