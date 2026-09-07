@@ -115,7 +115,10 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
       <div className="climate-reading">
         <div className="temperature"><strong>{activeDevice.temperatureC.toFixed(1)}°</strong><span>C</span></div>
         <div className="humidity-reading">
-          <span className="humidity-drop" aria-hidden="true">💧</span>
+          <svg className="humidity-drop" viewBox="0 0 34 44" aria-hidden="true">
+            <path className="humidity-drop__body" d="M17 2.8C14.7 8.5 5.2 18.7 5.2 27.1c0 7.2 5.1 12.2 11.8 12.2s11.8-5 11.8-12.2C28.8 18.7 19.3 8.5 17 2.8Z" />
+            <path className="humidity-drop__glint" d="M11.1 28.5c.5 3.1 2.5 5.1 5.3 5.7" />
+          </svg>
           <div><strong>{activeDevice.humidityPct}%</strong><span>pára</span></div>
         </div>
       </div>

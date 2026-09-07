@@ -369,7 +369,40 @@ main { max-width: 1560px; padding-top: 18px; padding-bottom: 40px; }
 
 .comfort-badge { border: 2px solid var(--poster-deep); border-radius: 3px; color: var(--poster-deep); background: rgba(139,152,81,.3); }
 .comfort-badge--alert { background: rgba(209,107,53,.22); }
-.humidity-reading { color: var(--poster-blue); }
+.humidity-reading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-left: clamp(18px, 2.5vw, 32px);
+  border-left: 1px solid rgba(7,63,57,.24);
+  color: var(--poster-blue);
+}
+.humidity-reading > div { display: grid; gap: 1px; }
+.humidity-reading strong {
+  color: var(--poster-blue);
+  font-family: "DM Mono", monospace;
+  font-size: clamp(30px, 3.2vw, 44px);
+  line-height: .92;
+  letter-spacing: -.065em;
+  font-weight: 500;
+}
+.humidity-reading span:not(.humidity-drop) {
+  margin: 0;
+  color: #766e58;
+  font-family: "Oswald", Impact, sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.humidity-drop {
+  width: 28px;
+  height: 37px;
+  overflow: visible;
+  transform: rotate(-4deg);
+}
+.humidity-drop__body { fill: rgba(45,120,147,.62); stroke: var(--poster-deep); stroke-width: 2.2; stroke-linejoin: round; }
+.humidity-drop__glint { fill: none; stroke: var(--poster-paper-light); stroke-width: 2; stroke-linecap: round; opacity: .72; }
 .climate-line--temperature { stroke: var(--poster-orange); }
 .climate-line--humidity { stroke: var(--poster-blue); }
 .climate-axis--temperature { fill: var(--poster-orange); }
