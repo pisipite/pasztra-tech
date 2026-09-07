@@ -103,7 +103,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
     && activeDevice.temperatureC <= 25
     && activeDevice.humidityPct >= 40
     && activeDevice.humidityPct <= 60;
-  const aggregationAvailable = climatePeriod === "week" || climatePeriod === "month" || climatePeriod === "year";
+  const aggregationAvailable = climatePeriod !== "day";
 
   return (
     <article className="card climate-card" id="klima">

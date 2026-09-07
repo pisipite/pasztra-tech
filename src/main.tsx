@@ -133,7 +133,7 @@ function App() {
   }, []);
 
   const climateSeries = useMemo(
-    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climatePeriod === "week" || climatePeriod === "month" || climatePeriod === "year" ? climateAggregation : "average"),
+    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climatePeriod === "day" ? "average" : climateAggregation),
     [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation],
   );
   const batterySoc = useMemo(() => {
