@@ -623,11 +623,14 @@ function energyKwh(row, pointId) {
 }
 
 function reportRowKey(row, period) {
+  for (const field of ["timeStamp", "dateId"]) {
+    const raw = textValue(ownValue(row, field));
+    const compact = raw.replace(/\D/g, "");
+    if (/^(19|20)\d{4}/.test(compact) && period === "month") return `${compact.slice(0, 4)}-${compact.slice(4, 6)}`;
+    if (/^(19|20)\d{6}/.test(compact) && period === "day") return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}`;
+  }
   const timestamp = parseSungrowTimestamp(ownValue(row, "timeStamp"));
   if (timestamp) return period === "month" ? localMonthKey(timestamp) : localDateKey(timestamp);
-  const dateId = textValue(ownValue(row, "dateId")).replace(/\D/g, "");
-  if (period === "month" && dateId.length >= 6) return `${dateId.slice(0, 4)}-${dateId.slice(4, 6)}`;
-  if (period === "day" && dateId.length >= 8) return `${dateId.slice(0, 4)}-${dateId.slice(4, 6)}-${dateId.slice(6, 8)}`;
   return undefined;
 }
 
