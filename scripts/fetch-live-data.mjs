@@ -422,6 +422,38 @@ function buildDayCharts(date, production, load, batterySamples = [], gridSamples
   return { flowSchema: 2, chart, energyChart };
 }
 
+function summarizeHouseholdDay(dateKey, dayData) {
+  const points = dayData?.energyChart ?? [];
+  if (!points.length) return null;
+  const hoursPerPoint = 24 / points.length;
+  const totals = { pv: 0, load: 0, gridPurchase: 0, gridFeedIn: 0, batteryCharge: 0, batteryDischarge: 0 };
+  for (const point of points) {
+    totals.pv += Math.max(0, Number(point.pv) || 0) * hoursPerPoint;
+    totals.load += Math.max(0, Number(point.load) || 0) * hoursPerPoint;
+    totals.gridPurchase += Math.max(0, Number(point.grid) || 0) * hoursPerPoint;
+    totals.gridFeedIn += Math.max(0, -(Number(point.grid) || 0)) * hoursPerPoint;
+    totals.batteryCharge += Math.max(0, -(Number(point.battery) || 0)) * hoursPerPoint;
+    totals.batteryDischarge += Math.max(0, Number(point.battery) || 0) * hoursPerPoint;
+  }
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const rounded = Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, Math.round(value * 1000) / 1000]));
+  return {
+    label: `${day}.${month}.`,
+    timestamp: new Date(year, month - 1, day, 12).toISOString(),
+    ...rounded,
+    grid: Math.round((totals.gridPurchase - totals.gridFeedIn) * 1000) / 1000,
+  };
+}
+
+function householdDailySeries(reported, dayHistory) {
+  const byDay = new Map(reported.filter((point) => point.timestamp).map((point) => [localDateKey(point.timestamp), point]));
+  for (const [dateKey, dayData] of dayHistory) {
+    const summary = summarizeHouseholdDay(dateKey, dayData);
+    if (summary) byDay.set(dateKey, summary);
+  }
+  return [...byDay.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
 async function readCachedSungrowDay(key) {
   try {
     const value = JSON.parse(await readFile(resolve(sungrowDayHistoryDir, `${key}.json`), "utf8"));
@@ -1365,7 +1397,7 @@ if (bulgariaMix) {
     ...bulgariaMix,
     household: sungrow ? {
       hourly: sungrow.energyCharts.today,
-      daily: sungrow.energyCharts["30d"],
+      daily: householdDailySeries(sungrow.energyCharts["30d"], sungrow.dayHistory),
       monthly: sungrow.energyCharts.year,
     } : undefined,
   };

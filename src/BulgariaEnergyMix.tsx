@@ -159,22 +159,19 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   }, [data.points, period, anchor, customStart, customEnd]);
   const rawPoints = useMemo(() => rawMixPoints(data, period, effectiveAnchor, customStart, customEnd), [data, period, effectiveAnchor, customStart, customEnd]);
   const points = useMemo(() => selectedMixPoints(data, period, effectiveAnchor, customStart, customEnd), [data, period, effectiveAnchor, customStart, customEnd]);
-  const availableSeries = series.filter((item) => points.some((point) => point[item.key] > 0));
+  const availableSeries = series.filter((item) => item.key !== "imports" && points.some((point) => point[item.key] > 0));
   const visibleSeries = availableSeries.filter((item) => !hiddenSeries.has(item.key));
   const generationSeries = series.filter((item) => item.key !== "imports");
   const intervalHours = Math.max(1 / 60, data.resolutionMinutes / 60);
   const energyTotals = Object.fromEntries(mixKeys.map((key) => [key, rawPoints.reduce((sum, point) => sum + point[key] * intervalHours, 0)])) as Record<MixSeriesKey, number>;
   const generation = generationSeries.reduce((sum, item) => sum + energyTotals[item.key], 0);
   const consumption = rawPoints.reduce((sum, point) => sum + Math.max(0, point.load) * intervalHours, 0);
-  const renewableShare = generation > 0
-    ? rawPoints.reduce((sum, point) => {
-      const pointGeneration = generationSeries.reduce((pointSum, item) => pointSum + point[item.key], 0);
-      return sum + point.renewableSharePct * pointGeneration * intervalHours;
-    }, 0) / generation
-    : 0;
+  const renewableGeneration = generationSeries.filter((item) => item.renewable).reduce((sum, item) => sum + energyTotals[item.key], 0);
+  const renewableShare = generation > 0 ? renewableGeneration / generation * 100 : 0;
   const renewableShareDisplay = Math.max(0, Math.min(100, renewableShare));
 
-  const donutValues = generationSeries.map((item) => {
+  const donutSeries = [...generationSeries].sort((a, b) => Number(Boolean(b.renewable)) - Number(Boolean(a.renewable)));
+  const donutValues = donutSeries.map((item) => {
     const value = energyTotals[item.key];
     const percentage = generation > 0 ? value / generation * 100 : 0;
     return { ...item, value, percentage };
@@ -302,9 +299,9 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
                 {tickValues.map((value) => <g key={value}><line className="mix-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="mix-axis" x={margin.left - 10} y={y(value) + 4} textAnchor="end">{value >= 1000 ? `${compactNumber.format(value / 1000)}k` : compactNumber.format(value)}</text></g>)}
                 <text className="mix-axis mix-axis__title" x={margin.left} y={13}>MW</text>
                 {areaSeries.map((item) => {
-                  const upperPath = item.upper.map((value, index) => `${index ? "L" : "M"}${x(index)},${y(value)}`).join(" ");
-                  const lowerPath = item.lower.map((value, index) => ({ value, index })).reverse().map(({ value, index }) => `L${x(index)},${y(value)}`).join(" ");
-                  return <path key={item.key} d={`${upperPath} ${lowerPath} Z`} fill={item.color} opacity=".9" />;
+                  const upperPoints = item.upper.map((value, index) => `${x(index)},${y(value)}`);
+                  const lowerPoints = item.lower.map((value, index) => ({ value, index })).reverse().map(({ value, index }) => `${x(index)},${y(value)}`);
+                  return <polygon key={item.key} points={[...upperPoints, ...lowerPoints].join(" ")} fill={item.color} opacity=".9" />;
                 })}
                 {period === "day"
                   ? dayTicks.map((hour) => <text key={hour} className="mix-axis" x={margin.left + hour / 24 * plotWidth} y={height - 14} textAnchor={hour === 0 ? "start" : hour === 24 ? "end" : "middle"}>{String(hour).padStart(2, "0")}:00</text>)
