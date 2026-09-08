@@ -1047,9 +1047,22 @@ async function getWeatherTwins(temperatureC, humidityPct) {
   url.searchParams.set("current", "temperature_2m,relative_humidity_2m");
   url.searchParams.set("timezone", "auto");
   url.searchParams.set("forecast_days", "1");
-  const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "pasztra-tech-dashboard/1.0" } });
-  if (!response.ok) throw new Error(`Open-Meteo városkeresés: HTTP ${response.status}`);
-  const body = await response.json();
+  let body;
+  let lastStatus = "hálózati hiba";
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    if (attempt > 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, attempt * 2500));
+    try {
+      const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "pasztra-tech-dashboard/1.0" } });
+      lastStatus = `HTTP ${response.status}`;
+      if (response.ok) {
+        body = await response.json();
+        break;
+      }
+    } catch (error) {
+      lastStatus = error instanceof Error ? error.message : lastStatus;
+    }
+  }
+  if (!body) throw new Error(`Open-Meteo városkeresés: ${lastStatus}`);
   const locations = Array.isArray(body) ? body : [body];
   const matches = locations.map((location, index) => {
     const city = weatherTwinCities[index];
