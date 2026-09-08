@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { BackToTop } from "./components/BackToTop";
 
 const latitude = 42.12836849354413;
 const longitude = 23.223018914073588;
@@ -177,7 +178,7 @@ export function SunHorizon() {
     <section className="sun-horizon-card" id="napallas" aria-labelledby="sun-horizon-title" data-testid="sun-horizon">
       <header className="sun-horizon-head">
         <div>
-          <p className="eyebrow">ÉGI IRÁNYTŰ</p>
+          <div className="section-kicker"><p className="eyebrow">Napállás</p><BackToTop /></div>
           <h2 id="sun-horizon-title">Nap és horizont</h2>
           <p>A nap pillanatnyi helyzete a pasztrai hegyoldal vázlatos körvonala fölött.</p>
         </div>

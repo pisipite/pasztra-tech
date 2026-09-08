@@ -16,6 +16,45 @@
   --night: #111b18;
 }
 
+html { scroll-behavior: smooth; }
+.topbar, article[id], section[id] { scroll-margin-top: 112px; }
+.section-kicker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.section-kicker .eyebrow { margin: 0; }
+.back-to-top {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid rgba(7,63,57,.3);
+  border-radius: 2px 9px 3px 6px;
+  color: var(--poster-deep);
+  background: rgba(248,234,198,.38);
+  font: 600 11px "Oswald", Impact, sans-serif;
+  letter-spacing: .055em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: color .15s ease, background .15s ease, transform .15s ease;
+}
+.back-to-top:hover { color: var(--poster-paper-light); background: var(--poster-deep); transform: translateY(-1px); }
+.back-to-top:focus-visible { outline: 3px solid var(--poster-yellow); outline-offset: 2px; }
+.back-to-top span { font-size: 15px; line-height: 1; }
+.solar-card .back-to-top {
+  border-color: rgba(248,234,198,.45);
+  color: var(--poster-paper-light);
+  background: rgba(248,234,198,.08);
+}
+.solar-card .back-to-top:hover { color: var(--poster-deep); background: var(--poster-yellow); }
+
+@media (max-width: 640px) {
+  .back-to-top { min-height: 23px; padding: 2px 7px; }
+}
+
 /* Bulgária energiamixe — országos termelés és a ház hálózati fogyasztásának kapcsolata */
 .bulgaria-mix {
   position: relative;

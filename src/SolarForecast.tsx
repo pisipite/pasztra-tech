@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { smoothPath } from "./chartUtils";
+import { BackToTop } from "./components/BackToTop";
 import type { DashboardData, SolarForecastPoint } from "./types";
 
 type Props = { data: DashboardData };
@@ -23,7 +24,7 @@ export function SolarForecast({ data }: Props) {
   }, [data.solar.energyChart, selectedDay, selectedIndex]);
 
   if (!forecast || !selectedDay) {
-    return <article className="forecast-card card" id="elojelzes"><div><p className="eyebrow">Termelési előrejelzés</p><h2>Az időjárási becslés a következő frissítéssel érkezik.</h2></div></article>;
+    return <article className="forecast-card card" id="elojelzes"><div><div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div><h2>Az időjárási becslés a következő frissítéssel érkezik.</h2></div></article>;
   }
 
   const width = 1000;
@@ -48,7 +49,7 @@ export function SolarForecast({ data }: Props) {
       <span className="sun-charm sun-charm--forecast" aria-hidden="true"><i /></span>
       <div className="forecast-head">
         <div>
-          <p className="eyebrow">Open-Meteo · 72 óra</p>
+          <div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div>
           <h2>Termelési előrejelzés</h2>
           <p className="forecast-subtitle">5 kWp rendszer · becsült 27° dőlés · dél–délnyugati tájolás</p>
         </div>

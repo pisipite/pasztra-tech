@@ -3,6 +3,7 @@ import { smoothPath } from "./chartUtils";
 import { isCurrentPeriod, periodLabel, timestampInPeriod } from "./dateUtils";
 import { batteryChargeValue, batteryDischargeValue, batteryNetValue, gridFeedInValue, gridNetValue, gridPurchaseValue, mergeEnergyAndClimate } from "./energyData";
 import type { DashboardData, EnergyChartPoint, PeriodKey } from "./types";
+import { BackToTop } from "./components/BackToTop";
 
 type Props = {
   data: DashboardData;
@@ -190,7 +191,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
       <span className="plant-sprout plant-sprout--energy" aria-hidden="true"><i /><i /><i /></span>
       <div className="analysis-toolbar">
         <div>
-          <p className="eyebrow">Energiafolyam</p>
+          <div className="section-kicker"><p className="eyebrow">Energiafolyam</p><BackToTop /></div>
           <h2>Termelés és felhasználás</h2>
         </div>
         <div className="period-tabs" role="tablist" aria-label="Időfelbontás">

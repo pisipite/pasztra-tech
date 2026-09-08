@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties, type MouseEvent } from "react";
 import { dateFromInput, dateInputValue, DAY_MS, isCurrentPeriod, periodLabel, timestampInPeriod } from "./dateUtils";
 import { batteryNetValue, gridNetValue } from "./energyData";
+import { BackToTop } from "./components/BackToTop";
 import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, EnergyChartPoint, PeriodKey } from "./types";
 
 type MixSeriesKey = "nuclear" | "coal" | "gas" | "hydro" | "solar" | "wind" | "other" | "imports";
@@ -212,7 +213,7 @@ export function BulgariaEnergyMix({ data }: Props) {
     <article className="bulgaria-mix card" id="energiamix">
       <div className="bulgaria-mix__head">
         <div>
-          <p className="eyebrow">Országos energia · Bulgária</p>
+          <div className="section-kicker"><p className="eyebrow">Országos energia · Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
           <p className="bulgaria-mix__freshness"><i className={data.source === "live" ? "is-live" : ""} />{data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}</p>
         </div>

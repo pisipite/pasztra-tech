@@ -273,7 +273,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar">
+      <header className="topbar" id="oldal-teteje">
         <a href="#main" className="brand" aria-label="Pasztra tech: Napfény kezdőlap">
           <span className="brand__mark"><i /></span>
           <span>Pasztra tech<em>:</em> Napfény</span>
@@ -292,14 +292,13 @@ function App() {
 
       <nav className="section-nav" aria-label="Ugrás az oldal szakaszaihoz">
         <div className="section-nav__track">
-          <a href="#kezdolap">Kezdőlap</a>
-          <a href="#energia">Energia</a>
-          <a href="#energiamix">Energiamix</a>
+          <a href="#energia">Energiafolyam</a>
+          <a href="#energiamix">Országos energia · Bulgária</a>
           <a href="#elojelzes">Előrejelzés</a>
-          <a href="#fogyasztasi-proba">Fogyasztási próba</a>
+          <a href="#fogyasztasi-proba">Interaktív próba</a>
           <a href="#napallas">Napállás</a>
-          <a href="#napelem">Napelem</a>
-          <a href="#klima">Klíma</a>
+          <a href="#napelem">Termelés</a>
+          <a href="#klima">Hőmérséklet</a>
         </div>
       </nav>
 

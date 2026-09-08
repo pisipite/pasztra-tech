@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardData, SolarForecast } from "./types";
+import { BackToTop } from "./components/BackToTop";
 
 type DayOffset = 0 | 1 | 2;
 
@@ -222,7 +223,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   }, [baseLoadKw, batterySettings, manualStart, trial]);
 
   if (!forecast || forecast.days.length < 3 || !slots.length) {
-    return <article className="planner-card card" id="fogyasztasi-proba"><p className="eyebrow">Interaktív próba</p><h2>Fogyasztási próba</h2><p className="planner-empty">A következő 72 órás termelési előrejelzéssel együtt válik elérhetővé.</p></article>;
+    return <article className="planner-card card" id="fogyasztasi-proba"><div className="section-kicker"><p className="eyebrow">Interaktív próba</p><BackToTop /></div><h2>Fogyasztási próba</h2><p className="planner-empty">A következő 72 órás termelési előrejelzéssel együtt válik elérhetővé.</p></article>;
   }
 
   const daySlots = slots.filter((slot) => slot.dayOffset === trial.dayOffset);
@@ -296,7 +297,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
     <article className="planner-card card planner-card--simple" id="fogyasztasi-proba">
       <header className="planner-head">
         <div>
-          <p className="eyebrow">Interaktív próba · 72 óra</p>
+          <div className="section-kicker"><p className="eyebrow">Interaktív próba</p><BackToTop /></div>
           <h2>Honnan jön majd az energia?</h2>
           <p>Egyetlen próba-fogyasztás energiaigényét és időtartamát vizsgálhatod. A blokk mozgatható, a jobb széle pedig kihúzható.</p>
         </div>
