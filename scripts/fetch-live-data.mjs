@@ -9,6 +9,7 @@ const outputDir = resolve("public/data");
 const historyDir = resolve(".data-history");
 const historyFile = resolve(historyDir, "govee-history.json");
 const energyHistoryFile = resolve(historyDir, "sungrow-energy-history.json");
+const bulgariaMixHistoryFile = resolve(historyDir, "bulgaria-energy-mix.json");
 const sungrowDayHistoryDir = resolve(historyDir, "sungrow-days");
 const now = new Date();
 const pad = (value) => String(value).padStart(2, "0");
@@ -967,6 +968,85 @@ async function getGovee() {
   };
 }
 
+const energyMixFields = {
+  nuclear: ["nuclear"],
+  coal: ["fossil_brown_coal_lignite", "fossil_hard_coal", "fossil_coal_derived_gas", "fossil_peat"],
+  gas: ["fossil_gas"],
+  hydro: ["hydro_run_of_river", "hydro_water_reservoir", "hydro_pumped_storage"],
+  solar: ["solar"],
+  wind: ["wind_onshore", "wind_offshore"],
+  other: ["biomass", "waste", "geothermal", "fossil_oil", "other", "other_renewable"],
+};
+
+function roundedEnergyMixValue(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.round(number * 10) / 10 : 0;
+}
+
+function normalizeEnergyMixPoint(row) {
+  const values = row?.values ?? {};
+  const point = Object.fromEntries(Object.entries(energyMixFields).map(([key, fields]) => [
+    key,
+    roundedEnergyMixValue(fields.reduce((sum, field) => sum + Math.max(0, Number(values[field]) || 0), 0)),
+  ]));
+  const generation = Object.values(point).reduce((sum, value) => sum + value, 0);
+  if (!row?.timestamp || generation <= 0) return null;
+  return {
+    timestamp: row.timestamp,
+    ...point,
+    imports: roundedEnergyMixValue(Math.max(0, Number(values.cross_border_electricity_trading) || 0)),
+    load: roundedEnergyMixValue(values.load),
+    renewableSharePct: roundedEnergyMixValue(values.renewable_share_of_generation),
+  };
+}
+
+async function readBulgariaMixHistory() {
+  try {
+    const stored = JSON.parse(await readFile(bulgariaMixHistoryFile, "utf8"));
+    return Array.isArray(stored?.points) ? stored.points : [];
+  } catch {
+    return [];
+  }
+}
+
+async function getBulgariaEnergyMix() {
+  const stored = await readBulgariaMixHistory();
+  const start = stored.length
+    ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2, 12)
+    : new Date(now.getFullYear() - 1, now.getMonth(), now.getDate() - 7, 12);
+  const dateParam = (value) => `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12);
+  const url = new URL("https://api.energy-charts.info/v2/public_power");
+  url.searchParams.set("country", "bg");
+  url.searchParams.set("start", dateParam(start));
+  url.searchParams.set("end", dateParam(tomorrow));
+  const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "pasztra-tech-dashboard/1.0" } });
+  if (!response.ok) throw new Error(`Energy-Charts: HTTP ${response.status}`);
+  const body = await response.json();
+  const received = (Array.isArray(body?.data) ? body.data : []).map(normalizeEnergyMixPoint).filter(Boolean);
+  const earliest = now.getTime() - 400 * 86_400_000;
+  const points = [...new Map([...stored, ...received]
+    .filter((point) => new Date(point.timestamp).getTime() >= earliest)
+    .map((point) => [point.timestamp, point])).values()]
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  if (!points.length) throw new Error("Az Energy-Charts nem adott vissza bolgár termelési adatot.");
+  const result = {
+    source: "live",
+    updatedAt: body.generated_at ?? now.toISOString(),
+    availableFrom: points[0].timestamp,
+    availableUntil: points.at(-1).timestamp,
+    unit: "MW",
+    resolutionMinutes: numberValue(body.interval_minutes, 60),
+    license: body.license ?? "CC BY 4.0, attribution: energy-charts.info",
+    sourceUrl: "https://www.energy-charts.info/charts/power/chart.htm?c=BG&l=en",
+    points,
+  };
+  await mkdir(historyDir, { recursive: true });
+  await writeFile(bulgariaMixHistoryFile, `${JSON.stringify(result)}\n`, "utf8");
+  console.log(`Bulgária energiamix: ${received.length} friss, ${points.length} tárolt órás minta.`);
+  return result;
+}
+
 async function optionalSource(name, fetcher) {
   try {
     return await fetcher();
@@ -976,13 +1056,14 @@ async function optionalSource(name, fetcher) {
   }
 }
 
-const [sungrow, govee, forecast] = await Promise.all([
+const [sungrow, govee, forecast, bulgariaMix] = await Promise.all([
   optionalSource("Sungrow", getSungrow),
   optionalSource("Govee", getGovee),
   optionalSource("Előrejelzés", getSolarForecast),
+  optionalSource("Bulgária energiamix", getBulgariaEnergyMix),
 ]);
 
-if (!sungrow && !govee && !forecast) {
+if (!sungrow && !govee && !forecast && !bulgariaMix) {
   console.log("Nincsenek beállítva élő adatforrások; a bemutató mód marad aktív.");
   process.exit(0);
 }
@@ -1021,6 +1102,18 @@ if (sungrow) {
   }
 }
 
+if (bulgariaMix) {
+  const energyMixOutput = {
+    ...bulgariaMix,
+    household: sungrow ? {
+      hourly: sungrow.energyCharts.today,
+      daily: sungrow.energyCharts["30d"],
+      monthly: sungrow.energyCharts.year,
+    } : undefined,
+  };
+  await writeFile(resolve(outputDir, "bulgaria-energy-mix.json"), `${JSON.stringify(energyMixOutput)}\n`, "utf8");
+}
+
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");
-const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo"].filter(Boolean);
+const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo", bulgariaMix && "Energy-Charts"].filter(Boolean);
 console.log(`Élő dashboard-adatok elkészítve (${activeSources.join(" + ")}).`);

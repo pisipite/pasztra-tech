@@ -2,17 +2,19 @@ import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { DashboardCards } from "./components/DashboardCards";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { BulgariaEnergyMix } from "./BulgariaEnergyMix";
 import { climatePointsForPeriod, isValidClimateValues, type ClimateAggregation } from "./climateData";
 import { ConsumptionPlanner } from "./ConsumptionPlanner";
 import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
+import { makeDemoBulgariaEnergyMix } from "./energyMixData";
 import { formatHeadingDate, formatTime } from "./formatUtils";
 import { dispatchDashboardRefresh, waitForFreshDashboard } from "./githubRefresh";
 import { SolarForecast } from "./SolarForecast";
 import { SunHorizon } from "./SunHorizon";
-import type { DashboardData, DataConnection, PeriodKey } from "./types";
+import type { BulgariaEnergyMixData, DashboardData, DataConnection, PeriodKey } from "./types";
 import "./styles.css";
 
 const connectionStaleMs = 45 * 60 * 1000;
@@ -39,6 +41,7 @@ function App() {
   const [climateLoading, setClimateLoading] = useState(false);
   const [settings, setSettings] = useState<DashboardSettings>(getInitialSettings);
   const [data, setData] = useState(() => makeDemoData("today"));
+  const [bulgariaMix, setBulgariaMix] = useState(makeDemoBulgariaEnergyMix);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -109,6 +112,25 @@ function App() {
     }
   }, []);
 
+  const loadBulgariaMix = useCallback(async (currentSettings: DashboardSettings) => {
+    if (!currentSettings.live || !currentSettings.endpoint) {
+      setBulgariaMix(makeDemoBulgariaEnergyMix());
+      return;
+    }
+    try {
+      const dashboardUrl = new URL(currentSettings.endpoint.replace("{range}", "today"), window.location.href);
+      const mixUrl = new URL("bulgaria-energy-mix.json", dashboardUrl);
+      mixUrl.searchParams.set("updated", String(Date.now()));
+      const response = await fetch(mixUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const next = await response.json() as BulgariaEnergyMixData;
+      if (!Array.isArray(next.points)) throw new Error("Érvénytelen energiamix-adat.");
+      setBulgariaMix(next);
+    } catch {
+      // Keep the last known national energy-mix data while the source is unavailable.
+    }
+  }, []);
+
   useEffect(() => {
     const initial = window.setTimeout(() => void loadData(period, settings, anchor, customStart, customEnd), 0);
     const timer = window.setInterval(() => void loadData(period, settings, anchor, customStart, customEnd), Math.min(settings.refreshSeconds, 300) * 1000);
@@ -126,6 +148,15 @@ function App() {
       window.clearInterval(timer);
     };
   }, [climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, settings, loadClimateHistory]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void loadBulgariaMix(settings), 0);
+    const timer = window.setInterval(() => void loadBulgariaMix(settings), Math.min(settings.refreshSeconds, 300) * 1000);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
+  }, [settings, loadBulgariaMix]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(Date.now()), 60_000);
@@ -178,6 +209,7 @@ function App() {
       await Promise.all([
         loadData(period, settings, anchor, customStart, customEnd),
         loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
+        loadBulgariaMix(settings),
       ]);
       setClock(Date.now());
       setManualRefreshState("success");
@@ -190,7 +222,7 @@ function App() {
       setManualRefreshState("error");
       setManualRefreshMessage(refreshError instanceof Error ? refreshError.message : "A frissítés nem sikerült.");
     }
-  }, [manualRefreshState, settings, data.updatedAt, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory]);
+  }, [manualRefreshState, settings, data.updatedAt, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory, loadBulgariaMix]);
 
   const manualRefreshBusy = manualRefreshState === "starting" || manualRefreshState === "waiting";
   const manualRefreshLabel = manualRefreshState === "starting"
@@ -262,6 +294,7 @@ function App() {
         <div className="section-nav__track">
           <a href="#kezdolap">Kezdőlap</a>
           <a href="#energia">Energia</a>
+          <a href="#energiamix">Energiamix</a>
           <a href="#elojelzes">Előrejelzés</a>
           <a href="#fogyasztasi-proba">Fogyasztási próba</a>
           <a href="#napallas">Napállás</a>
@@ -294,6 +327,8 @@ function App() {
           onStep={stepPeriod}
           onCustomChange={(start, end) => { setCustomStart(start); setCustomEnd(end); }}
         />
+
+        <BulgariaEnergyMix data={bulgariaMix} />
 
         <SolarForecast data={data} />
 

@@ -16,6 +16,255 @@
   --night: #111b18;
 }
 
+/* Bulgária energiamixe — országos termelés és a ház hálózati fogyasztásának kapcsolata */
+.bulgaria-mix {
+  position: relative;
+  overflow: hidden;
+  margin: 26px 0;
+  padding: clamp(24px, 3.4vw, 46px);
+  border: 3px solid var(--poster-deep);
+  border-radius: 5px 34px 9px 22px;
+  background:
+    radial-gradient(circle at 17% 19%, rgba(7,63,57,.055) 0 1px, transparent 1.4px) 0 0 / 11px 11px,
+    var(--poster-paper-light);
+  box-shadow: 10px 11px 0 rgba(7,63,57,.14);
+}
+.bulgaria-mix::before {
+  content: "";
+  position: absolute;
+  top: -42px;
+  right: 8%;
+  width: 92px;
+  height: 92px;
+  border: 3px solid var(--poster-deep);
+  border-radius: 50%;
+  background: var(--poster-yellow);
+  box-shadow: 0 0 0 12px rgba(233,170,32,.13);
+}
+.bulgaria-mix::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  bottom: 38%;
+  width: 80px;
+  height: 18px;
+  background: var(--poster-orange);
+  transform: rotate(-9deg);
+}
+.bulgaria-mix__head,
+.bulgaria-mix__home-head,
+.bulgaria-mix__chart-head,
+.bulgaria-mix__bar-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+.bulgaria-mix__head { position: relative; z-index: 1; align-items: flex-start; }
+.bulgaria-mix h2 {
+  max-width: 660px;
+  margin: 3px 0 8px;
+  color: var(--poster-deep);
+  font: 700 clamp(34px, 5vw, 66px)/.96 "Oswald", Impact, sans-serif;
+  letter-spacing: -.035em;
+  text-transform: uppercase;
+}
+.bulgaria-mix__freshness {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  color: #6d6b58;
+  font-size: 12px;
+}
+.bulgaria-mix__freshness i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #a05a47;
+  box-shadow: 0 0 0 4px rgba(160,90,71,.13);
+}
+.bulgaria-mix__freshness i.is-live { background: #418153; box-shadow: 0 0 0 4px rgba(65,129,83,.14); }
+.bulgaria-mix__tabs { flex: 0 0 auto; }
+.bulgaria-mix__controls { display: flex; margin: 24px 0 12px; }
+.bulgaria-mix__controls .period-stepper { width: min(390px, 100%); background: rgba(255,255,255,.28); }
+.bulgaria-mix__custom { margin: 0 0 15px; }
+.bulgaria-mix__metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 20px 0 0;
+  border: 2px solid var(--poster-deep);
+  border-radius: 4px 18px 5px 12px;
+  background: var(--poster-yellow);
+  transform: rotate(-.18deg);
+}
+.bulgaria-mix__metrics > div { padding: 18px 21px; border-right: 2px solid var(--poster-deep); }
+.bulgaria-mix__metrics > div:last-child { border-right: 0; }
+.bulgaria-mix__metrics span,
+.bulgaria-mix__now > p,
+.bulgaria-mix__chart-head span,
+.bulgaria-mix__bar-title b {
+  display: block;
+  color: rgba(7,63,57,.72);
+  font: 600 11px "Oswald", Impact, sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.bulgaria-mix__metrics strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--poster-deep);
+  font: 700 clamp(25px, 3vw, 39px)/1 "Oswald", Impact, sans-serif;
+}
+.bulgaria-mix__main {
+  display: grid;
+  grid-template-columns: minmax(220px, .68fr) minmax(0, 2fr);
+  gap: 0;
+  margin-top: 23px;
+  overflow: hidden;
+  border: 2px solid var(--poster-deep);
+  border-radius: 17px 4px 24px 6px;
+  color: var(--poster-paper-light);
+  background: var(--poster-deep);
+}
+.bulgaria-mix__now {
+  display: flex;
+  min-height: 390px;
+  padding: 28px 24px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid rgba(241,223,180,.28);
+  text-align: center;
+}
+.bulgaria-mix__now > p { align-self: flex-start; margin: 0 0 15px; color: rgba(248,234,198,.68); }
+.bulgaria-mix__donut {
+  display: grid;
+  width: min(190px, 90%);
+  aspect-ratio: 1;
+  place-items: center;
+  margin: 5px auto 19px;
+  border-radius: 50%;
+  background: var(--mix-donut);
+  transform: rotate(-2deg);
+}
+.bulgaria-mix__donut > div {
+  display: grid;
+  width: 61%;
+  aspect-ratio: 1;
+  place-content: center;
+  border-radius: 50%;
+  color: var(--poster-deep);
+  background: var(--poster-paper-light);
+}
+.bulgaria-mix__donut strong { font: 700 23px/1 "Oswald", Impact, sans-serif; }
+.bulgaria-mix__donut span { margin-top: 5px; font-size: 11px; text-transform: uppercase; }
+.bulgaria-mix__now > strong { font: 600 15px "Oswald", Impact, sans-serif; }
+.bulgaria-mix__now > span { margin-top: 6px; color: rgba(248,234,198,.66); font-size: 11px; }
+.bulgaria-mix__history { min-width: 0; padding: 24px 22px 18px; background: #eee0b9; color: var(--poster-deep); }
+.bulgaria-mix__chart-head strong { font: 600 19px "Oswald", Impact, sans-serif; text-transform: uppercase; }
+.bulgaria-mix__chart { position: relative; min-height: 320px; margin-top: 13px; }
+.bulgaria-mix__chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.mix-gridline { stroke: rgba(7,63,57,.19); stroke-width: 1; stroke-dasharray: 3 7; }
+.mix-axis { fill: rgba(7,63,57,.68); font: 11px "DM Mono", monospace; }
+.mix-axis__title { font-weight: 600; }
+.mix-hover-line { stroke: var(--poster-paper-light); stroke-width: 1.5; stroke-dasharray: 4 5; }
+.bulgaria-mix__tooltip {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 3;
+  display: grid;
+  min-width: 205px;
+  gap: 7px;
+  padding: 14px;
+  border: 2px solid var(--poster-deep);
+  border-radius: 4px 13px 5px 9px;
+  color: var(--poster-deep);
+  background: rgba(248,234,198,.95);
+  box-shadow: 6px 6px 0 rgba(7,63,57,.15);
+  pointer-events: none;
+}
+.bulgaria-mix__tooltip > strong { margin-bottom: 3px; font-size: 11px; }
+.bulgaria-mix__tooltip span { display: grid; grid-template-columns: 9px 1fr auto; align-items: center; gap: 7px; font-size: 11px; }
+.bulgaria-mix__tooltip i,
+.bulgaria-mix__legend i,
+.bulgaria-mix__source-list i { width: 9px; height: 9px; border-radius: 50%; }
+.bulgaria-mix__tooltip b { font-family: "DM Mono", monospace; font-size: 10px; }
+.bulgaria-mix__empty { display: grid; min-height: 310px; place-items: center; color: #786e58; font-size: 12px; text-align: center; }
+.bulgaria-mix__legend { display: flex; flex-wrap: wrap; gap: 7px 13px; margin: 9px 0 0 58px; }
+.bulgaria-mix__legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  border: 0;
+  color: var(--poster-deep);
+  background: transparent;
+  cursor: pointer;
+  font: 600 11px "Manrope", sans-serif;
+}
+.bulgaria-mix__legend button.is-hidden { opacity: .35; text-decoration: line-through; }
+.bulgaria-mix__home {
+  position: relative;
+  margin-top: 22px;
+  padding: 25px 28px 21px;
+  border: 2px solid var(--poster-deep);
+  border-radius: 4px 21px 8px 15px;
+  background: rgba(255,255,255,.24);
+}
+.bulgaria-mix__home::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 11%;
+  width: 54px;
+  height: 12px;
+  background: var(--poster-teal);
+  transform: rotate(3deg);
+}
+.bulgaria-mix__home h3 { margin: 2px 0 0; color: var(--poster-deep); font: 700 27px "Oswald", Impact, sans-serif; text-transform: uppercase; }
+.bulgaria-mix__home-head > strong { color: var(--poster-orange); font: 700 34px "Oswald", Impact, sans-serif; }
+.bulgaria-mix__home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 35px; margin-top: 23px; }
+.bulgaria-mix__bar-title { align-items: baseline; margin-bottom: 8px; }
+.bulgaria-mix__bar-title span { color: var(--poster-deep); font-size: 12px; font-weight: 700; }
+.bulgaria-mix__stack { display: flex; overflow: hidden; height: 24px; border: 2px solid var(--poster-deep); border-radius: 2px 10px 3px 6px; background: rgba(7,63,57,.09); }
+.bulgaria-mix__stack i { display: block; min-width: 1px; height: 100%; }
+.bulgaria-mix__source-list { display: flex; flex-wrap: wrap; gap: 6px 13px; margin-top: 9px; }
+.bulgaria-mix__source-list span { display: inline-flex; align-items: center; gap: 6px; color: #5f6252; font-size: 10px; }
+.bulgaria-mix__note,
+.bulgaria-mix__home-empty { margin: 17px 0 0; color: #77705c; font-size: 11px; line-height: 1.55; }
+.bulgaria-mix__credit { margin: 14px 3px 0; color: #7b725d; font-size: 10px; }
+.bulgaria-mix__credit a { color: var(--poster-deep); font-weight: 700; }
+
+@media (max-width: 900px) {
+  .bulgaria-mix__head { display: grid; }
+  .bulgaria-mix__tabs { justify-self: stretch; }
+  .bulgaria-mix__main { grid-template-columns: 1fr; }
+  .bulgaria-mix__now { min-height: 300px; border-right: 0; border-bottom: 1px solid rgba(241,223,180,.28); }
+  .bulgaria-mix__donut { width: 170px; }
+  .bulgaria-mix__home-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .bulgaria-mix { margin-left: -10px; margin-right: -10px; padding: 23px 14px; border-radius: 4px 20px 7px 13px; box-shadow: 5px 7px 0 rgba(7,63,57,.14); }
+  .bulgaria-mix h2 { font-size: 38px; }
+  .bulgaria-mix::before { right: 4%; width: 70px; height: 70px; }
+  .bulgaria-mix__tabs { display: grid; grid-template-columns: repeat(5, 1fr); }
+  .bulgaria-mix__tabs button { min-width: 0; padding-left: 5px; padding-right: 5px; font-size: 10px; }
+  .bulgaria-mix__metrics { grid-template-columns: 1fr 1fr; }
+  .bulgaria-mix__metrics > div { padding: 14px; }
+  .bulgaria-mix__metrics > div:nth-child(2) { border-right: 0; }
+  .bulgaria-mix__metrics > div:last-child { grid-column: 1 / -1; border-top: 2px solid var(--poster-deep); }
+  .bulgaria-mix__history { padding: 21px 10px 16px; }
+  .bulgaria-mix__chart { overflow-x: auto; }
+  .bulgaria-mix__chart svg { width: 720px; max-width: none; }
+  .bulgaria-mix__tooltip { position: sticky; left: 5px; right: auto; width: 205px; }
+  .bulgaria-mix__legend { margin-left: 10px; }
+  .bulgaria-mix__home { padding: 23px 16px 18px; }
+  .bulgaria-mix__home-head { align-items: flex-start; flex-direction: column; gap: 8px; }
+}
+
 /* Kézi felhőfrissítés — a publikus oldalról indítható GitHub Actions futás */
 .data-refresh-button {
   display: inline-flex;

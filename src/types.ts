@@ -55,6 +55,37 @@ export interface SolarForecast {
   days: SolarForecastDay[];
 }
 
+export interface BulgariaEnergyMixPoint {
+  timestamp: string;
+  nuclear: number;
+  coal: number;
+  gas: number;
+  hydro: number;
+  solar: number;
+  wind: number;
+  other: number;
+  imports: number;
+  load: number;
+  renewableSharePct: number;
+}
+
+export interface BulgariaEnergyMixData {
+  source: "live" | "demo";
+  updatedAt: string;
+  availableFrom?: string;
+  availableUntil?: string;
+  unit: "MW";
+  resolutionMinutes: number;
+  license: string;
+  sourceUrl: string;
+  points: BulgariaEnergyMixPoint[];
+  household?: {
+    hourly: EnergyChartPoint[];
+    daily: EnergyChartPoint[];
+    monthly: EnergyChartPoint[];
+  };
+}
+
 export interface SolarData {
   status: "online" | "offline" | "warning";
   currentPowerKw: number;
