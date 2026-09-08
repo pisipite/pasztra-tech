@@ -327,7 +327,7 @@ function App() {
           onCustomChange={(start, end) => { setCustomStart(start); setCustomEnd(end); }}
         />
 
-        <BulgariaEnergyMix data={bulgariaMix} />
+        <BulgariaEnergyMix data={bulgariaMix} householdFallback={data.solar.energyChart} />
 
         <SolarForecast data={data} />
 

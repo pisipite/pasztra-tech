@@ -8,6 +8,7 @@ type MixSeriesKey = "nuclear" | "coal" | "gas" | "hydro" | "solar" | "wind" | "o
 
 type Props = {
   data: BulgariaEnergyMixData;
+  householdFallback?: EnergyChartPoint[];
 };
 
 const periods: { key: PeriodKey; label: string }[] = [
@@ -30,6 +31,7 @@ const series: { key: MixSeriesKey; label: string; color: string; renewable?: boo
 ];
 
 const mixKeys = series.map((item) => item.key);
+const generationKeys = series.filter((item) => item.key !== "imports").map((item) => item.key);
 const compactNumber = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
 const hourFormatter = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
 const dayFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric" });
@@ -52,8 +54,12 @@ function averageMixPoints(points: BulgariaEnergyMixPoint[], bucket: "day" | "mon
   })) as BulgariaEnergyMixPoint[];
 }
 
+function isCompleteMixPoint(point: BulgariaEnergyMixPoint) {
+  return point.load > 0 && generationKeys.filter((key) => point[key] > 0).length >= 5;
+}
+
 function selectedMixPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
-  const filtered = data.points.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+  const filtered = data.points.filter((point) => isCompleteMixPoint(point) && timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
   if (period === "day") return filtered;
   if (period === "year") return averageMixPoints(filtered, "month");
   if (period === "custom" && customStart && customEnd) {
@@ -65,10 +71,10 @@ function selectedMixPoints(data: BulgariaEnergyMixData, period: PeriodKey, ancho
 }
 
 function rawMixPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
-  return data.points.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+  return data.points.filter((point) => isCompleteMixPoint(point) && timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
 }
 
-function householdPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
+function householdPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string, fallback: EnergyChartPoint[] = []) {
   const sources = period === "day"
     ? [data.household?.hourly ?? [], data.household?.daily ?? []]
     : period === "year"
@@ -79,6 +85,11 @@ function householdPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor:
   for (const source of sources) {
     const filtered = source.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
     if (filtered.length) return { points: filtered, powerValues: source === data.household?.hourly };
+  }
+  const fallbackPoints = fallback.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+  if (fallbackPoints.length) {
+    const powerValues = fallbackPoints.some((point) => Number.isFinite(point.grid) && !Number.isFinite(point.gridPurchase));
+    return { points: fallbackPoints, powerValues };
   }
   return { points: [] as EnergyChartPoint[], powerValues: false };
 }
@@ -132,7 +143,7 @@ function axisLabel(point: BulgariaEnergyMixPoint, period: PeriodKey, customStart
   return dayFormatter.format(date);
 }
 
-export function BulgariaEnergyMix({ data }: Props) {
+export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const [period, setPeriod] = useState<PeriodKey>("day");
   const [anchor, setAnchor] = useState(() => new Date());
   const [customStart, setCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
@@ -161,6 +172,7 @@ export function BulgariaEnergyMix({ data }: Props) {
       return sum + point.renewableSharePct * pointGeneration * intervalHours;
     }, 0) / generation
     : 0;
+  const renewableShareDisplay = Math.max(0, Math.min(100, renewableShare));
 
   const donutValues = generationSeries.map((item) => {
     const value = energyTotals[item.key];
@@ -172,7 +184,6 @@ export function BulgariaEnergyMix({ data }: Props) {
     offset: donutValues.slice(0, index).reduce((sum, previous) => sum + previous.percentage, 0),
   }));
   const activeDonut = donutItems.find((item) => item.key === hoveredDonut);
-  const leadingSource = [...donutItems].sort((a, b) => b.value - a.value)[0];
 
   const width = 1000;
   const height = 320;
@@ -197,7 +208,7 @@ export function BulgariaEnergyMix({ data }: Props) {
   const dayTicks = Array.from({ length: 9 }, (_, index) => index * 3);
   const active = hovered === null ? undefined : points[hovered];
 
-  const selectedHousehold = useMemo(() => householdPoints(data, period, effectiveAnchor, customStart, customEnd), [data, period, effectiveAnchor, customStart, customEnd]);
+  const selectedHousehold = useMemo(() => householdPoints(data, period, anchor, customStart, customEnd, householdFallback), [data, period, anchor, customStart, customEnd, householdFallback]);
   const home = useMemo(() => householdSummary(selectedHousehold.points, selectedHousehold.powerValues), [selectedHousehold]);
   const homeSegments = [
     { label: "Hálózat", value: home.grid, color: "#2d7893" },
@@ -262,25 +273,25 @@ export function BulgariaEnergyMix({ data }: Props) {
 
       {period === "custom" && <div className="custom-range bulgaria-mix__custom"><label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => setCustomStart(event.target.value)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => setCustomEnd(event.target.value)} /></label></div>}
 
-      <div className="bulgaria-mix__metrics">
-        <div><span>Összes termelés</span><strong>{formatEnergyMwh(generation)}</strong></div>
-        <div><span>Országos fogyasztás</span><strong>{formatEnergyMwh(consumption)}</strong></div>
-        <div><span>Megújuló részarány</span><strong>{compactNumber.format(renewableShare)}%</strong></div>
-      </div>
-
       <div className="bulgaria-mix__main">
         <section className="bulgaria-mix__now" aria-label="A kiválasztott időszak összesített energiamixe">
           <p>A kiválasztott időszak</p>
           <div className="bulgaria-mix__donut">
-            <svg viewBox="0 0 100 100" role="img" aria-label={`Összes termelés: ${formatEnergyMwh(generation)}`}>
+            <svg viewBox="0 0 100 100" role="img" aria-label={`Összes termelés: ${formatEnergyMwh(generation)}; megújuló részarány: ${compactNumber.format(renewableShareDisplay)}%`}>
               <circle className="mix-donut__track" cx="50" cy="50" r="39" pathLength="100" />
               {donutItems.map((item) => <circle key={item.key} className="mix-donut__slice" cx="50" cy="50" r="39" pathLength="100" stroke={item.color} strokeDasharray={`${item.percentage} ${100 - item.percentage}`} strokeDashoffset={-item.offset} tabIndex={0} onMouseEnter={() => setHoveredDonut(item.key)} onMouseLeave={() => setHoveredDonut(null)} onFocus={() => setHoveredDonut(item.key)} onBlur={() => setHoveredDonut(null)}><title>{item.label}: {formatEnergyMwh(item.value)}</title></circle>)}
             </svg>
-            <div className="mix-donut__center"><strong>{formatEnergyMwh(generation)}</strong><span>termelés</span></div>
+            <div className="mix-donut__center">
+              <svg className="mix-donut__renewable-ring" viewBox="0 0 100 100" aria-hidden="true">
+                <circle className="mix-donut__renewable-track" cx="50" cy="50" r="43" pathLength="100" />
+                <circle className="mix-donut__renewable-value" cx="50" cy="50" r="43" pathLength="100" strokeDasharray={`${renewableShareDisplay} ${100 - renewableShareDisplay}`} />
+              </svg>
+              <strong>{compactNumber.format(renewableShareDisplay)}%</strong><span>megújuló</span>
+            </div>
             {activeDonut && <div className="mix-donut__tooltip"><span>{activeDonut.label}</span><strong>{formatEnergyMwh(activeDonut.value)}</strong></div>}
           </div>
-          <strong>{leadingSource ? `${leadingSource.label}: ${compactNumber.format(leadingSource.percentage)}%` : "Nincs elérhető adat"}</strong>
-          <span>{periodLabel(period, effectiveAnchor, customStart, customEnd)}</span>
+          <strong>Országos fogyasztás: {formatEnergyMwh(consumption)}</strong>
+          <span>Összes termelés: {formatEnergyMwh(generation)} · {periodLabel(period, effectiveAnchor, customStart, customEnd)}</span>
         </section>
 
         <section className="bulgaria-mix__history" aria-label="A bolgár energiamix alakulása">

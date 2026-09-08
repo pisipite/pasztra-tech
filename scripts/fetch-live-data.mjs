@@ -1228,12 +1228,16 @@ function roundedEnergyMixValue(value) {
 
 function normalizeEnergyMixPoint(row) {
   const values = row?.values ?? {};
+  const populatedGenerationGroups = Object.values(energyMixFields).filter((fields) => (
+    fields.some((field) => values[field] !== null && values[field] !== undefined && Number.isFinite(Number(values[field])))
+  )).length;
+  if (!row?.timestamp || !Number.isFinite(Number(values.load)) || populatedGenerationGroups < 5) return null;
   const point = Object.fromEntries(Object.entries(energyMixFields).map(([key, fields]) => [
     key,
     roundedEnergyMixValue(fields.reduce((sum, field) => sum + Math.max(0, Number(values[field]) || 0), 0)),
   ]));
   const generation = Object.values(point).reduce((sum, value) => sum + value, 0);
-  if (!row?.timestamp || generation <= 0) return null;
+  if (generation <= 0) return null;
   return {
     timestamp: row.timestamp,
     ...point,
@@ -1241,6 +1245,14 @@ function normalizeEnergyMixPoint(row) {
     load: roundedEnergyMixValue(values.load),
     renewableSharePct: roundedEnergyMixValue(values.renewable_share_of_generation),
   };
+}
+
+function isCompleteEnergyMixPoint(point) {
+  const populatedGenerationGroups = Object.keys(energyMixFields).filter((key) => Number(point?.[key]) > 0).length;
+  return Boolean(point?.timestamp)
+    && Number.isFinite(new Date(point.timestamp).getTime())
+    && Number(point.load) > 0
+    && populatedGenerationGroups >= 5;
 }
 
 async function readBulgariaMixHistory() {
@@ -1269,7 +1281,7 @@ async function getBulgariaEnergyMix() {
   const received = (Array.isArray(body?.data) ? body.data : []).map(normalizeEnergyMixPoint).filter(Boolean);
   const earliest = now.getTime() - 400 * 86_400_000;
   const points = [...new Map([...stored, ...received]
-    .filter((point) => new Date(point.timestamp).getTime() >= earliest)
+    .filter((point) => new Date(point.timestamp).getTime() >= earliest && isCompleteEnergyMixPoint(point))
     .map((point) => [point.timestamp, point])).values()]
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   if (!points.length) throw new Error("Az Energy-Charts nem adott vissza bolgár termelési adatot.");
