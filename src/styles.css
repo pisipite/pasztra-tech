@@ -253,16 +253,36 @@ html { scroll-behavior: smooth; }
 }
 .bulgaria-mix__now > p { align-self: flex-start; margin: 0 0 15px; color: rgba(248,234,198,.68); }
 .bulgaria-mix__donut {
+  position: relative;
   display: grid;
   width: min(190px, 90%);
   aspect-ratio: 1;
   place-items: center;
   margin: 5px auto 19px;
   border-radius: 50%;
-  background: var(--mix-donut);
+  background: transparent;
   transform: rotate(-2deg);
 }
-.bulgaria-mix__donut > div {
+.bulgaria-mix__donut > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(-90deg);
+}
+.mix-donut__track,
+.mix-donut__slice { fill: none; stroke-width: 21; }
+.mix-donut__track { stroke: rgba(248,234,198,.14); }
+.mix-donut__slice {
+  cursor: help;
+  transition: opacity .15s ease, stroke-width .15s ease;
+}
+.mix-donut__slice:hover,
+.mix-donut__slice:focus { opacity: .82; stroke-width: 24; outline: none; }
+.mix-donut__center {
+  position: relative;
+  z-index: 1;
   display: grid;
   width: 61%;
   aspect-ratio: 1;
@@ -271,8 +291,28 @@ html { scroll-behavior: smooth; }
   color: var(--poster-deep);
   background: var(--poster-paper-light);
 }
-.bulgaria-mix__donut strong { font: 700 23px/1 "Oswald", Impact, sans-serif; }
-.bulgaria-mix__donut span { margin-top: 5px; font-size: 11px; text-transform: uppercase; }
+.mix-donut__center strong { font: 700 23px/1 "Oswald", Impact, sans-serif; }
+.mix-donut__center span { margin-top: 5px; font-size: 11px; text-transform: uppercase; }
+.mix-donut__tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  z-index: 4;
+  display: grid;
+  min-width: 145px;
+  gap: 3px;
+  padding: 9px 11px;
+  border: 2px solid var(--poster-deep);
+  border-radius: 4px 11px 5px 8px;
+  color: var(--poster-deep);
+  background: var(--poster-paper-light);
+  box-shadow: 5px 6px 0 rgba(0,0,0,.18);
+  text-align: left;
+  transform: translate(-50%, 65%) rotate(2deg);
+  pointer-events: none;
+}
+.mix-donut__tooltip span { margin: 0; color: #716b59; font: 600 10px "Oswald", Impact, sans-serif; letter-spacing: .07em; text-transform: uppercase; }
+.mix-donut__tooltip strong { font: 700 17px "Oswald", Impact, sans-serif; }
 .bulgaria-mix__now > strong { font: 600 15px "Oswald", Impact, sans-serif; }
 .bulgaria-mix__now > span { margin-top: 6px; color: rgba(248,234,198,.66); font-size: 11px; }
 .bulgaria-mix__history { min-width: 0; padding: 24px 22px 18px; background: #eee0b9; color: var(--poster-deep); }
@@ -339,7 +379,9 @@ html { scroll-behavior: smooth; }
 }
 .bulgaria-mix__home h3 { margin: 2px 0 0; color: var(--poster-deep); font: 700 27px "Oswald", Impact, sans-serif; text-transform: uppercase; }
 .bulgaria-mix__home-head > strong { color: var(--poster-orange); font: 700 34px "Oswald", Impact, sans-serif; }
-.bulgaria-mix__home-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 35px; margin-top: 23px; }
+.bulgaria-mix__home-grid { display: block; margin-top: 23px; }
+.bulgaria-mix__grid-detail { margin-top: 24px; }
+.bulgaria-mix__grid-scale { max-width: 100%; transition: width .25s ease; }
 .bulgaria-mix__bar-title { align-items: baseline; margin-bottom: 8px; }
 .bulgaria-mix__bar-title span { color: var(--poster-deep); font-size: 12px; font-weight: 700; }
 .bulgaria-mix__stack { display: flex; overflow: hidden; height: 24px; border: 2px solid var(--poster-deep); border-radius: 2px 10px 3px 6px; background: rgba(7,63,57,.09); }
@@ -357,7 +399,7 @@ html { scroll-behavior: smooth; }
   .bulgaria-mix__main { grid-template-columns: 1fr; }
   .bulgaria-mix__now { min-height: 300px; border-right: 0; border-bottom: 1px solid rgba(241,223,180,.28); }
   .bulgaria-mix__donut { width: 170px; }
-  .bulgaria-mix__home-grid { grid-template-columns: 1fr; }
+  .bulgaria-mix__home-grid { display: block; }
 }
 
 @media (max-width: 640px) {
