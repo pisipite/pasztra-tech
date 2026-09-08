@@ -10,6 +10,7 @@ const historyDir = resolve(".data-history");
 const historyFile = resolve(historyDir, "govee-history.json");
 const energyHistoryFile = resolve(historyDir, "sungrow-energy-history.json");
 const bulgariaMixHistoryFile = resolve(historyDir, "bulgaria-energy-mix.json");
+const weatherTwinHistoryFile = resolve(historyDir, "weather-twins.json");
 const sungrowDayHistoryDir = resolve(historyDir, "sungrow-days");
 const now = new Date();
 const pad = (value) => String(value).padStart(2, "0");
@@ -17,6 +18,7 @@ const dayId = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate()
 const monthId = dayId.slice(0, 6);
 const yearId = dayId.slice(0, 4);
 const climateRetentionMs = 370 * 86_400_000;
+const weatherTwinCacheMs = 30 * 60_000;
 const sungrowDayRetention = Math.max(7, Math.min(62, numberFromEnvironment("SUNGROW_DAY_HISTORY_DAYS", 31)));
 
 function numberFromEnvironment(name, fallback) {
@@ -1038,32 +1040,150 @@ const weatherTwinCities = [
   ["Buenos Aires", "Argentína", "Buenos Airesben", -34.6037, -58.3816],
   ["São Paulo", "Brazília", "São Paulóban", -23.5505, -46.6333],
   ["Rio de Janeiro", "Brazília", "Rio de Janeiróban", -22.9068, -43.1729],
+  ["Ljubljana", "Szlovénia", "Ljubljanában", 46.0569, 14.5058],
+  ["Pozsony", "Szlovákia", "Pozsonyban", 48.1486, 17.1077],
+  ["Kijev", "Ukrajna", "Kijevben", 50.4501, 30.5234],
+  ["Kisinyov", "Moldova", "Kisinyovban", 47.0105, 28.8638],
+  ["Riga", "Lettország", "Rigában", 56.9496, 24.1052],
+  ["Tallinn", "Észtország", "Tallinnban", 59.437, 24.7536],
+  ["Vilnius", "Litvánia", "Vilniusban", 54.6872, 25.2797],
+  ["Koppenhága", "Dánia", "Koppenhágában", 55.6761, 12.5683],
+  ["Dublin", "Írország", "Dublinban", 53.3498, -6.2603],
+  ["Brüsszel", "Belgium", "Brüsszelben", 50.8503, 4.3517],
+  ["Amszterdam", "Hollandia", "Amszterdamban", 52.3676, 4.9041],
+  ["Zürich", "Svájc", "Zürichben", 47.3769, 8.5417],
+  ["Milánó", "Olaszország", "Milánóban", 45.4642, 9.19],
+  ["Barcelona", "Spanyolország", "Barcelonában", 41.3874, 2.1686],
+  ["Marseille", "Franciaország", "Marseille-ben", 43.2965, 5.3698],
+  ["München", "Németország", "Münchenben", 48.1351, 11.582],
+  ["Hamburg", "Németország", "Hamburgban", 53.5511, 9.9937],
+  ["Manchester", "Egyesült Királyság", "Manchesterben", 53.4808, -2.2426],
+  ["Edinburgh", "Egyesült Királyság", "Edinburghban", 55.9533, -3.1883],
+  ["Porto", "Portugália", "Portóban", 41.1579, -8.6291],
+  ["Podgorica", "Montenegró", "Podgoricában", 42.4304, 19.2594],
+  ["Pristina", "Koszovó", "Pristinában", 42.6629, 21.1655],
+  ["Izmir", "Törökország", "Izmirben", 38.4237, 27.1428],
+  ["Ankara", "Törökország", "Ankarában", 39.9334, 32.8597],
+  ["Nicosia", "Ciprus", "Nicosiában", 35.1856, 33.3823],
+  ["Ammán", "Jordánia", "Ammánban", 31.9539, 35.9106],
+  ["Bejrút", "Libanon", "Bejrútban", 33.8938, 35.5018],
+  ["Bagdad", "Irak", "Bagdadban", 33.3152, 44.3661],
+  ["Teherán", "Irán", "Teheránban", 35.6892, 51.389],
+  ["Baku", "Azerbajdzsán", "Bakuban", 40.4093, 49.8671],
+  ["Asztana", "Kazahsztán", "Asztanában", 51.1694, 71.4491],
+  ["Taskent", "Üzbegisztán", "Taskentben", 41.2995, 69.2401],
+  ["Doha", "Katar", "Dohában", 25.2854, 51.531],
+  ["Kuvaitváros", "Kuvait", "Kuvaitvárosban", 29.3759, 47.9774],
+  ["Maszkat", "Omán", "Maszkatban", 23.588, 58.3829],
+  ["Alexandria", "Egyiptom", "Alexandriában", 31.2001, 29.9187],
+  ["Algír", "Algéria", "Algírban", 36.7538, 3.0588],
+  ["Addisz-Abeba", "Etiópia", "Addisz-Abebában", 8.9806, 38.7578],
+  ["Kampala", "Uganda", "Kampalában", 0.3476, 32.5825],
+  ["Kigali", "Ruanda", "Kigaliban", -1.9441, 30.0619],
+  ["Dar es-Salaam", "Tanzánia", "Dar es-Salaamban", -6.7924, 39.2083],
+  ["Luanda", "Angola", "Luandában", -8.839, 13.2894],
+  ["Maputo", "Mozambik", "Maputóban", -25.9692, 32.5732],
+  ["Harare", "Zimbabwe", "Hararéban", -17.8252, 31.0335],
+  ["Gaborone", "Botswana", "Gaboronéban", -24.6282, 25.9231],
+  ["Windhoek", "Namíbia", "Windhoekben", -22.5609, 17.0658],
+  ["Abidjan", "Elefántcsontpart", "Abidjanban", 5.36, -4.0083],
+  ["Kinshasa", "Kongói Demokratikus Köztársaság", "Kinshasában", -4.4419, 15.2663],
+  ["Karacsi", "Pakisztán", "Karacsiban", 24.8607, 67.0011],
+  ["Lahor", "Pakisztán", "Lahorban", 31.5204, 74.3587],
+  ["Katmandu", "Nepál", "Katmanduban", 27.7172, 85.324],
+  ["Dakka", "Banglades", "Dakkában", 23.8103, 90.4125],
+  ["Colombo", "Srí Lanka", "Colombóban", 6.9271, 79.8612],
+  ["Yangon", "Mianmar", "Yangonban", 16.8409, 96.1735],
+  ["Phnompen", "Kambodzsa", "Phnompenben", 11.5564, 104.9282],
+  ["Kuala Lumpur", "Malajzia", "Kuala Lumpurban", 3.139, 101.6869],
+  ["Jakarta", "Indonézia", "Jakartában", -6.2088, 106.8456],
+  ["Manila", "Fülöp-szigetek", "Manilában", 14.5995, 120.9842],
+  ["Ho Si Minh-város", "Vietnám", "Ho Si Minh-városban", 10.8231, 106.6297],
+  ["Oszaka", "Japán", "Oszakában", 34.6937, 135.5023],
+  ["Szapporó", "Japán", "Szapporóban", 43.0618, 141.3545],
+  ["Puszan", "Dél-Korea", "Puszanban", 35.1796, 129.0756],
+  ["Kanton", "Kína", "Kantonban", 23.1291, 113.2644],
+  ["Csengtu", "Kína", "Csengtuban", 30.5728, 104.0668],
+  ["Csungking", "Kína", "Csungkingban", 29.4316, 106.9123],
+  ["Vuhan", "Kína", "Vuhanban", 30.5928, 114.3055],
+  ["Ulánbátor", "Mongólia", "Ulánbátorban", 47.8864, 106.9057],
+  ["Brisbane", "Ausztrália", "Brisbane-ben", -27.4698, 153.0251],
+  ["Perth", "Ausztrália", "Perthben", -31.9505, 115.8605],
+  ["Adelaide", "Ausztrália", "Adelaide-ben", -34.9285, 138.6007],
+  ["Wellington", "Új-Zéland", "Wellingtonban", -41.2866, 174.7756],
+  ["Honolulu", "Egyesült Államok", "Honoluluban", 21.3069, -157.8583],
+  ["Seattle", "Egyesült Államok", "Seattle-ben", 47.6062, -122.3321],
+  ["San Francisco", "Egyesült Államok", "San Franciscóban", 37.7749, -122.4194],
+  ["Denver", "Egyesült Államok", "Denverben", 39.7392, -104.9903],
+  ["Dallas", "Egyesült Államok", "Dallasban", 32.7767, -96.797],
+  ["Houston", "Egyesült Államok", "Houstonban", 29.7604, -95.3698],
+  ["Atlanta", "Egyesült Államok", "Atlantában", 33.749, -84.388],
+  ["Boston", "Egyesült Államok", "Bostonban", 42.3601, -71.0589],
+  ["Washington", "Egyesült Államok", "Washingtonban", 38.9072, -77.0369],
+  ["Phoenix", "Egyesült Államok", "Phoenixben", 33.4484, -112.074],
+  ["Montréal", "Kanada", "Montréalban", 45.5017, -73.5673],
+  ["Calgary", "Kanada", "Calgaryban", 51.0447, -114.0719],
+  ["Ottawa", "Kanada", "Ottawában", 45.4215, -75.6972],
+  ["Guatemalaváros", "Guatemala", "Guatemalavárosban", 14.6349, -90.5069],
+  ["San José", "Costa Rica", "San Joséban", 9.9281, -84.0907],
+  ["Panamaváros", "Panama", "Panamavárosban", 8.9824, -79.5199],
+  ["Quito", "Ecuador", "Quitóban", -0.1807, -78.4678],
+  ["Medellín", "Kolumbia", "Medellínben", 6.2442, -75.5812],
+  ["Caracas", "Venezuela", "Caracasban", 10.4806, -66.9036],
+  ["La Paz", "Bolívia", "La Pazban", -16.4897, -68.1193],
+  ["Asunción", "Paraguay", "Asunciónban", -25.2637, -57.5759],
+  ["Montevideo", "Uruguay", "Montevideóban", -34.9011, -56.1645],
+  ["Salvador", "Brazília", "Salvadorban", -12.9777, -38.5016],
+  ["Recife", "Brazília", "Recifében", -8.0476, -34.877],
+  ["Manaus", "Brazília", "Manausban", -3.119, -60.0217],
 ];
 
-async function getWeatherTwins(temperatureC, humidityPct) {
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
-  url.searchParams.set("latitude", weatherTwinCities.map((city) => city[3]).join(","));
-  url.searchParams.set("longitude", weatherTwinCities.map((city) => city[4]).join(","));
-  url.searchParams.set("current", "temperature_2m,relative_humidity_2m");
-  url.searchParams.set("timezone", "auto");
-  url.searchParams.set("forecast_days", "1");
-  let body;
-  let lastStatus = "hálózati hiba";
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (attempt > 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, attempt * 2500));
-    try {
-      const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "pasztra-tech-dashboard/1.0" } });
-      lastStatus = `HTTP ${response.status}`;
-      if (response.ok) {
-        body = await response.json();
-        break;
-      }
-    } catch (error) {
-      lastStatus = error instanceof Error ? error.message : lastStatus;
+async function readWeatherTwinCache(temperatureC, humidityPct) {
+  try {
+    const cache = JSON.parse(await readFile(weatherTwinHistoryFile, "utf8"));
+    const cacheAge = now.getTime() - new Date(cache.updatedAt).getTime();
+    const referenceStillClose = Math.abs(Number(cache.referenceTemperatureC) - temperatureC) <= 1
+      && Math.abs(Number(cache.referenceHumidityPct) - humidityPct) <= 5;
+    if (cacheAge >= 0 && cacheAge <= weatherTwinCacheMs && referenceStillClose && Array.isArray(cache.matches) && cache.matches.length) {
+      return cache.matches.slice(0, 6);
     }
+  } catch { /* a következő frissítés újraépíti a gyorsítótárat */ }
+  return null;
+}
+
+async function getWeatherTwins(temperatureC, humidityPct) {
+  const cachedMatches = await readWeatherTwinCache(temperatureC, humidityPct);
+  if (cachedMatches) return cachedMatches;
+
+  const cityBatches = [];
+  for (let index = 0; index < weatherTwinCities.length; index += 60) cityBatches.push(weatherTwinCities.slice(index, index + 60));
+  const locations = [];
+  for (const cities of cityBatches) {
+    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    url.searchParams.set("latitude", cities.map((city) => city[3]).join(","));
+    url.searchParams.set("longitude", cities.map((city) => city[4]).join(","));
+    url.searchParams.set("current", "temperature_2m,relative_humidity_2m");
+    url.searchParams.set("timezone", "auto");
+    url.searchParams.set("forecast_days", "1");
+    let body;
+    let lastStatus = "hálózati hiba";
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (attempt > 0) await new Promise((resolveDelay) => setTimeout(resolveDelay, attempt * 2500));
+      try {
+        const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "pasztra-tech-dashboard/1.0" } });
+        lastStatus = `HTTP ${response.status}`;
+        if (response.ok) {
+          body = await response.json();
+          break;
+        }
+      } catch (error) {
+        lastStatus = error instanceof Error ? error.message : lastStatus;
+      }
+    }
+    if (!body) throw new Error(`Open-Meteo városkeresés: ${lastStatus}`);
+    locations.push(...(Array.isArray(body) ? body : [body]));
   }
-  if (!body) throw new Error(`Open-Meteo városkeresés: ${lastStatus}`);
-  const locations = Array.isArray(body) ? body : [body];
+
   const matches = locations.map((location, index) => {
     const city = weatherTwinCities[index];
     const currentTemperature = Number(location?.current?.temperature_2m);
@@ -1081,6 +1201,13 @@ async function getWeatherTwins(temperatureC, humidityPct) {
     };
   }).filter(Boolean).sort((a, b) => a.score - b.score).slice(0, 6);
   if (!matches.length) throw new Error("Az Open-Meteo nem adott vissza összehasonlítható városi adatot.");
+  await mkdir(historyDir, { recursive: true });
+  await writeFile(weatherTwinHistoryFile, `${JSON.stringify({
+    updatedAt: now.toISOString(),
+    referenceTemperatureC: temperatureC,
+    referenceHumidityPct: humidityPct,
+    matches,
+  }, null, 2)}\n`, "utf8");
   return matches;
 }
 

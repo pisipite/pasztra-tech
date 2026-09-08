@@ -119,6 +119,7 @@ html { scroll-behavior: smooth; }
   text-transform: uppercase;
 }
 .weather-twins__tooltip > span { display: grid; grid-template-columns: minmax(90px, auto) 1fr; gap: 10px; align-items: baseline; }
+.weather-twins__tooltip > span.is-primary { margin-bottom: 2px; padding-bottom: 8px; border-bottom: 1px solid rgba(7,63,57,.2); }
 .weather-twins__tooltip b { font-size: 12px; }
 .weather-twins__tooltip small { color: #716b59; font: 500 10px "DM Mono", monospace; text-align: right; }
 
