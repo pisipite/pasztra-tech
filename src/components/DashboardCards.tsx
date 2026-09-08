@@ -40,12 +40,13 @@ function SolarCard({ data, batterySoc, loading, onRefresh }: Pick<Props, "data" 
     <article className="card solar-card" id="napelem">
       <div className="solar-orbit" aria-hidden="true"><i /><i /><i /></div>
       <span className="sun-charm sun-charm--solar" aria-hidden="true"><i /></span>
-      <div className="card__head">
-        <div>
+      <div className="card__head section-header section-header--dark">
+        <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow eyebrow--light">Termelés</p><BackToTop /></div>
+          <h2>Napelemes rendszer</h2>
           <div className="system-status"><span className={`dot dot--${data.solar.status}`} />{solarStatusText(data.solar.status)}</div>
         </div>
-        <button className="refresh-button" onClick={onRefresh} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button>
+        <button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button>
       </div>
       <div className="solar-main">
         <div className="power-reading">
@@ -95,7 +96,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
   if (!activeDevice) {
     return (
       <article className="card climate-card" id="klima">
-        <div className="card__head"><div><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>Nincs elérhető mérő</h2></div></div>
+        <div className="card__head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>Nincs elérhető mérő</h2></div></div>
       </article>
     );
   }
@@ -112,9 +113,9 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
   return (
     <article className="card climate-card" id="klima">
       <span className="plant-sprout plant-sprout--climate" aria-hidden="true"><i /><i /><i /></span>
-      <div className="card__head">
-        <div><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>{activeDevice.room}</h2></div>
-        <span className={`comfort-badge ${comfortable ? "" : "comfort-badge--alert"}`}>{comfortable ? "Kellemes" : "Ellenőrizendő"}</span>
+      <div className="card__head section-header">
+        <div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>{activeDevice.room}</h2></div>
+        <span className={`comfort-badge section-header__tools ${comfortable ? "" : "comfort-badge--alert"}`}>{comfortable ? "Kellemes" : "Ellenőrizendő"}</span>
       </div>
       <div className="climate-reading">
         <div className="temperature"><strong>{activeDevice.temperatureC.toFixed(1)}°</strong><span>C</span></div>

@@ -241,13 +241,13 @@ export function BulgariaEnergyMix({ data }: Props) {
 
   return (
     <article className="bulgaria-mix card" id="energiamix">
-      <div className="bulgaria-mix__head">
-        <div>
+      <div className="bulgaria-mix__head section-header">
+        <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Országos energia · Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
           <p className="bulgaria-mix__freshness"><i className={data.source === "live" ? "is-live" : ""} />{data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}</p>
         </div>
-        <div className="period-tabs bulgaria-mix__tabs" role="tablist" aria-label="Bulgária energiamix időszaka">
+        <div className="period-tabs bulgaria-mix__tabs section-header__tools" role="tablist" aria-label="Bulgária energiamix időszaka">
           {periods.map((item) => <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setAnchor(new Date()); }}>{item.label}</button>)}
         </div>
       </div>

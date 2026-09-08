@@ -24,7 +24,7 @@ export function SolarForecast({ data }: Props) {
   }, [data.solar.energyChart, selectedDay, selectedIndex]);
 
   if (!forecast || !selectedDay) {
-    return <article className="forecast-card card" id="elojelzes"><div><div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div><h2>Az időjárási becslés a következő frissítéssel érkezik.</h2></div></article>;
+    return <article className="forecast-card card" id="elojelzes"><div className="forecast-head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div><h2>Termelési előrejelzés</h2><p className="forecast-subtitle">Az időjárási becslés a következő frissítéssel érkezik.</p></div></div></article>;
   }
 
   const width = 1000;
@@ -47,13 +47,13 @@ export function SolarForecast({ data }: Props) {
   return (
     <article className="forecast-card card" id="elojelzes">
       <span className="sun-charm sun-charm--forecast" aria-hidden="true"><i /></span>
-      <div className="forecast-head">
-        <div>
+      <div className="forecast-head section-header">
+        <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div>
           <h2>Termelési előrejelzés</h2>
           <p className="forecast-subtitle">5 kWp rendszer · becsült 27° dőlés · dél–délnyugati tájolás</p>
         </div>
-        <div className="forecast-tabs" role="tablist" aria-label="Előrejelzési nap">
+        <div className="forecast-tabs section-header__tools" role="tablist" aria-label="Előrejelzési nap">
           {forecast.days.map((day, index) => <button key={day.date} role="tab" aria-selected={selectedIndex === index} className={selectedIndex === index ? "active" : ""} onClick={() => { setSelectedIndex(index); setHovered(null); }}>{day.label}</button>)}
         </div>
       </div>

@@ -189,12 +189,12 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   return (
     <article className="energy-analysis card" id="energia">
       <span className="plant-sprout plant-sprout--energy" aria-hidden="true"><i /><i /><i /></span>
-      <div className="analysis-toolbar">
-        <div>
+      <div className="analysis-toolbar section-header">
+        <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Energiafolyam</p><BackToTop /></div>
           <h2>Termelés és felhasználás</h2>
         </div>
-        <div className="period-tabs" role="tablist" aria-label="Időfelbontás">
+        <div className="period-tabs section-header__tools" role="tablist" aria-label="Időfelbontás">
           {periods.map((item) => (
             <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => onPeriodChange(item.key)}>{item.label}</button>
           ))}

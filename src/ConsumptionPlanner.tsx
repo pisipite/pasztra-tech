@@ -223,7 +223,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   }, [baseLoadKw, batterySettings, manualStart, trial]);
 
   if (!forecast || forecast.days.length < 3 || !slots.length) {
-    return <article className="planner-card card" id="fogyasztasi-proba"><div className="section-kicker"><p className="eyebrow">Interaktív próba</p><BackToTop /></div><h2>Fogyasztási próba</h2><p className="planner-empty">A következő 72 órás termelési előrejelzéssel együtt válik elérhetővé.</p></article>;
+    return <article className="planner-card card" id="fogyasztasi-proba"><header className="planner-head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Interaktív próba</p><BackToTop /></div><h2>Fogyasztási próba</h2><p className="planner-empty">A következő 72 órás termelési előrejelzéssel együtt válik elérhetővé.</p></div></header></article>;
   }
 
   const daySlots = slots.filter((slot) => slot.dayOffset === trial.dayOffset);
@@ -295,13 +295,13 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
 
   return (
     <article className="planner-card card planner-card--simple" id="fogyasztasi-proba">
-      <header className="planner-head">
-        <div>
+      <header className="planner-head section-header">
+        <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Interaktív próba</p><BackToTop /></div>
           <h2>Honnan jön majd az energia?</h2>
           <p>Egyetlen próba-fogyasztás energiaigényét és időtartamát vizsgálhatod. A blokk mozgatható, a jobb széle pedig kihúzható.</p>
         </div>
-        <button className="planner-auto" onClick={() => setManualStart(undefined)}>Legjobb időpont keresése</button>
+        <button className="planner-auto section-header__tools" onClick={() => setManualStart(undefined)}>Legjobb időpont keresése</button>
       </header>
 
       <div className="planner-simple-inputs">

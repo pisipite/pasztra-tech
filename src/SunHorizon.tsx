@@ -176,13 +176,13 @@ export function SunHorizon() {
 
   return (
     <section className="sun-horizon-card" id="napallas" aria-labelledby="sun-horizon-title" data-testid="sun-horizon">
-      <header className="sun-horizon-head">
-        <div>
+      <header className="sun-horizon-head section-header">
+        <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Napállás</p><BackToTop /></div>
           <h2 id="sun-horizon-title">Nap és horizont</h2>
           <p>A nap pillanatnyi helyzete a pasztrai hegyoldal vázlatos körvonala fölött.</p>
         </div>
-        <span className={`sun-horizon-status${model.visible ? " is-visible" : ""}`}>
+        <span className={`sun-horizon-status section-header__tools${model.visible ? " is-visible" : ""}`}>
           <i aria-hidden="true" />{status}
         </span>
       </header>
