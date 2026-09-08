@@ -105,6 +105,9 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
     && activeDevice.humidityPct >= 40
     && activeDevice.humidityPct <= 60;
   const aggregationAvailable = climatePeriod !== "day";
+  const weatherTwins = data.govee.weatherTwins ?? [];
+  const closestWeatherTwin = weatherTwins[0];
+  const otherWeatherTwins = weatherTwins.slice(1, 6);
 
   return (
     <article className="card climate-card" id="klima">
@@ -123,6 +126,16 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
           <div><strong>{activeDevice.humidityPct}%</strong><span>pára</span></div>
         </div>
       </div>
+      {closestWeatherTwin && <div className="weather-twins">
+        <span>Éppen mint</span>
+        <button type="button" aria-describedby={otherWeatherTwins.length ? "weather-twins-tooltip" : undefined}>
+          {closestWeatherTwin.locative}.
+          {otherWeatherTwins.length > 0 && <span className="weather-twins__tooltip" id="weather-twins-tooltip" role="tooltip">
+            <strong>Hasonló most még</strong>
+            {otherWeatherTwins.map((place) => <span key={`${place.city}-${place.country}`}><b>{place.city}</b><small>{place.country} · {place.temperatureC.toFixed(1)} °C · {place.humidityPct.toFixed(0)}%</small></span>)}
+          </span>}
+        </button>
+      </div>}
       <div className="climate-chart-wrap">
         <div className="climate-chart-heading">
           <div><span>Hőmérséklet alakulása</span><strong>Hőmérséklet és páratartalom</strong></div>

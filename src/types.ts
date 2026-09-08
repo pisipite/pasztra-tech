@@ -112,6 +112,15 @@ export interface GoveeDevice {
   updatedAt: string;
 }
 
+export interface WeatherTwin {
+  city: string;
+  country: string;
+  locative: string;
+  temperatureC: number;
+  humidityPct: number;
+  score: number;
+}
+
 export interface DataConnection {
   connected: boolean;
   updatedAt?: string;
@@ -128,6 +137,7 @@ export interface DashboardData {
   govee: {
     devices: GoveeDevice[];
     chart: ClimatePoint[];
+    weatherTwins?: WeatherTwin[];
   };
   forecast?: SolarForecast;
 }

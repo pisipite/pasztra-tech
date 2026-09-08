@@ -131,6 +131,14 @@ export function makeDemoData(range: RangeKey): DashboardData {
         },
       ],
       chart: climate,
+      weatherTwins: [
+        { city: "Lisszabon", country: "Portugália", locative: "Lisszabonban", temperatureC: 23.6, humidityPct: 49, score: .15 },
+        { city: "Sydney", country: "Ausztrália", locative: "Sydneyben", temperatureC: 23.1, humidityPct: 51, score: .41 },
+        { city: "Fokváros", country: "Dél-Afrika", locative: "Fokvárosban", temperatureC: 22.8, humidityPct: 46, score: .52 },
+        { city: "Athén", country: "Görögország", locative: "Athénban", temperatureC: 24.2, humidityPct: 47, score: .57 },
+        { city: "Buenos Aires", country: "Argentína", locative: "Buenos Airesben", temperatureC: 22.5, humidityPct: 52, score: .63 },
+        { city: "Los Angeles", country: "Egyesült Államok", locative: "Los Angelesben", temperatureC: 24.0, humidityPct: 44, score: .71 },
+      ],
     },
     forecast: {
       updatedAt: now.toISOString(),

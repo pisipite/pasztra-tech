@@ -51,8 +51,83 @@ html { scroll-behavior: smooth; }
 }
 .solar-card .back-to-top:hover { color: var(--poster-deep); background: var(--poster-yellow); }
 
+.weather-twins {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  width: fit-content;
+  margin: -18px 0 27px 4px;
+  color: #77705c;
+  font-size: 13px;
+}
+.weather-twins > button {
+  position: relative;
+  padding: 1px 0 2px;
+  border: 0;
+  border-bottom: 1px dashed rgba(7,63,57,.55);
+  color: var(--poster-deep);
+  background: transparent;
+  cursor: help;
+  font: 700 13px "Manrope", sans-serif;
+}
+.weather-twins > button:focus-visible { outline: 3px solid var(--poster-yellow); outline-offset: 4px; }
+.weather-twins__tooltip {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 13px);
+  z-index: 20;
+  display: grid;
+  width: min(310px, calc(100vw - 54px));
+  gap: 8px;
+  padding: 15px 16px;
+  border: 2px solid var(--poster-deep);
+  border-radius: 5px 16px 7px 11px;
+  color: var(--poster-deep);
+  background: var(--poster-paper-light);
+  box-shadow: 7px 8px 0 rgba(7,63,57,.15);
+  text-align: left;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(5px) rotate(-.35deg);
+  transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+  pointer-events: none;
+}
+.weather-twins__tooltip::after {
+  content: "";
+  position: absolute;
+  left: 20px;
+  bottom: -8px;
+  width: 12px;
+  height: 12px;
+  border-right: 2px solid var(--poster-deep);
+  border-bottom: 2px solid var(--poster-deep);
+  background: var(--poster-paper-light);
+  transform: rotate(45deg);
+}
+.weather-twins > button:hover .weather-twins__tooltip,
+.weather-twins > button:focus-visible .weather-twins__tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0) rotate(-.35deg);
+}
+.weather-twins__tooltip > strong {
+  color: var(--poster-orange);
+  font: 700 12px "Oswald", Impact, sans-serif;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.weather-twins__tooltip > span { display: grid; grid-template-columns: minmax(90px, auto) 1fr; gap: 10px; align-items: baseline; }
+.weather-twins__tooltip b { font-size: 12px; }
+.weather-twins__tooltip small { color: #716b59; font: 500 10px "DM Mono", monospace; text-align: right; }
+
 @media (max-width: 640px) {
   .back-to-top { min-height: 23px; padding: 2px 7px; }
+  .weather-twins { margin-top: -8px; }
+  .weather-twins__tooltip { left: -24px; }
+  .weather-twins__tooltip > span { grid-template-columns: 1fr; gap: 2px; }
+  .weather-twins__tooltip small { text-align: left; }
 }
 
 /* Bulgária energiamixe — országos termelés és a ház hálózati fogyasztásának kapcsolata */

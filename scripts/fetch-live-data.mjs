@@ -968,6 +968,109 @@ async function getGovee() {
   };
 }
 
+const weatherTwinCities = [
+  ["Szófia", "Bulgária", "Szófiában", 42.6977, 23.3219],
+  ["Athén", "Görögország", "Athénban", 37.9838, 23.7275],
+  ["Isztambul", "Törökország", "Isztambulban", 41.0082, 28.9784],
+  ["Bukarest", "Románia", "Bukarestben", 44.4268, 26.1025],
+  ["Belgrád", "Szerbia", "Belgrádban", 44.7866, 20.4489],
+  ["Szkopje", "Észak-Macedónia", "Szkopjéban", 41.9981, 21.4254],
+  ["Szaloniki", "Görögország", "Szalonikiben", 40.6401, 22.9444],
+  ["Róma", "Olaszország", "Rómában", 41.9028, 12.4964],
+  ["Madrid", "Spanyolország", "Madridban", 40.4168, -3.7038],
+  ["Lisszabon", "Portugália", "Lisszabonban", 38.7223, -9.1393],
+  ["Párizs", "Franciaország", "Párizsban", 48.8566, 2.3522],
+  ["London", "Egyesült Királyság", "Londonban", 51.5074, -0.1278],
+  ["Berlin", "Németország", "Berlinben", 52.52, 13.405],
+  ["Bécs", "Ausztria", "Bécsben", 48.2082, 16.3738],
+  ["Prága", "Csehország", "Prágában", 50.0755, 14.4378],
+  ["Varsó", "Lengyelország", "Varsóban", 52.2297, 21.0122],
+  ["Budapest", "Magyarország", "Budapesten", 47.4979, 19.0402],
+  ["Zágráb", "Horvátország", "Zágrábban", 45.815, 15.9819],
+  ["Szarajevó", "Bosznia-Hercegovina", "Szarajevóban", 43.8563, 18.4131],
+  ["Tirana", "Albánia", "Tiranában", 41.3275, 19.8187],
+  ["Valletta", "Málta", "Vallettában", 35.8989, 14.5146],
+  ["Reykjavík", "Izland", "Reykjavíkban", 64.1466, -21.9426],
+  ["Oslo", "Norvégia", "Oslóban", 59.9139, 10.7522],
+  ["Stockholm", "Svédország", "Stockholmban", 59.3293, 18.0686],
+  ["Helsinki", "Finnország", "Helsinkiben", 60.1699, 24.9384],
+  ["Moszkva", "Oroszország", "Moszkvában", 55.7558, 37.6173],
+  ["Tbiliszi", "Grúzia", "Tbilisziben", 41.7151, 44.8271],
+  ["Jereván", "Örményország", "Jerevánban", 40.1872, 44.5152],
+  ["Kairó", "Egyiptom", "Kairóban", 30.0444, 31.2357],
+  ["Casablanca", "Marokkó", "Casablancában", 33.5731, -7.5898],
+  ["Marrákes", "Marokkó", "Marrákesben", 31.6295, -7.9811],
+  ["Tunisz", "Tunézia", "Tuniszban", 36.8065, 10.1815],
+  ["Fokváros", "Dél-Afrika", "Fokvárosban", -33.9249, 18.4241],
+  ["Johannesburg", "Dél-Afrika", "Johannesburgban", -26.2041, 28.0473],
+  ["Nairobi", "Kenya", "Nairobiban", -1.2921, 36.8219],
+  ["Lagos", "Nigéria", "Lagosban", 6.5244, 3.3792],
+  ["Accra", "Ghána", "Accrában", 5.6037, -0.187],
+  ["Dakar", "Szenegál", "Dakarban", 14.7167, -17.4677],
+  ["Dubaj", "Egyesült Arab Emírségek", "Dubajban", 25.2048, 55.2708],
+  ["Rijád", "Szaúd-Arábia", "Rijádban", 24.7136, 46.6753],
+  ["Tel-Aviv", "Izrael", "Tel-Avivban", 32.0853, 34.7818],
+  ["Delhi", "India", "Delhiben", 28.6139, 77.209],
+  ["Mumbai", "India", "Mumbaiban", 19.076, 72.8777],
+  ["Bangkok", "Thaiföld", "Bangkokban", 13.7563, 100.5018],
+  ["Szingapúr", "Szingapúr", "Szingapúrban", 1.3521, 103.8198],
+  ["Hanoi", "Vietnám", "Hanoiban", 21.0278, 105.8342],
+  ["Hongkong", "Kína", "Hongkongban", 22.3193, 114.1694],
+  ["Tajpej", "Tajvan", "Tajpejben", 25.033, 121.5654],
+  ["Tokió", "Japán", "Tokióban", 35.6762, 139.6503],
+  ["Szöul", "Dél-Korea", "Szöulban", 37.5665, 126.978],
+  ["Peking", "Kína", "Pekingben", 39.9042, 116.4074],
+  ["Sanghaj", "Kína", "Sanghajban", 31.2304, 121.4737],
+  ["Sydney", "Ausztrália", "Sydneyben", -33.8688, 151.2093],
+  ["Melbourne", "Ausztrália", "Melbourne-ben", -37.8136, 144.9631],
+  ["Auckland", "Új-Zéland", "Aucklandben", -36.8509, 174.7645],
+  ["New York", "Egyesült Államok", "New Yorkban", 40.7128, -74.006],
+  ["Chicago", "Egyesült Államok", "Chicagóban", 41.8781, -87.6298],
+  ["Miami", "Egyesült Államok", "Miamiban", 25.7617, -80.1918],
+  ["Los Angeles", "Egyesült Államok", "Los Angelesben", 34.0522, -118.2437],
+  ["Vancouver", "Kanada", "Vancouverben", 49.2827, -123.1207],
+  ["Toronto", "Kanada", "Torontóban", 43.6532, -79.3832],
+  ["Mexikóváros", "Mexikó", "Mexikóvárosban", 19.4326, -99.1332],
+  ["Havanna", "Kuba", "Havannában", 23.1136, -82.3666],
+  ["Bogotá", "Kolumbia", "Bogotában", 4.711, -74.0721],
+  ["Lima", "Peru", "Limában", -12.0464, -77.0428],
+  ["Santiago", "Chile", "Santiagóban", -33.4489, -70.6693],
+  ["Buenos Aires", "Argentína", "Buenos Airesben", -34.6037, -58.3816],
+  ["São Paulo", "Brazília", "São Paulóban", -23.5505, -46.6333],
+  ["Rio de Janeiro", "Brazília", "Rio de Janeiróban", -22.9068, -43.1729],
+];
+
+async function getWeatherTwins(temperatureC, humidityPct) {
+  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  url.searchParams.set("latitude", weatherTwinCities.map((city) => city[3]).join(","));
+  url.searchParams.set("longitude", weatherTwinCities.map((city) => city[4]).join(","));
+  url.searchParams.set("current", "temperature_2m,relative_humidity_2m");
+  url.searchParams.set("timezone", "auto");
+  url.searchParams.set("forecast_days", "1");
+  const response = await fetch(url, { headers: { Accept: "application/json", "User-Agent": "pasztra-tech-dashboard/1.0" } });
+  if (!response.ok) throw new Error(`Open-Meteo városkeresés: HTTP ${response.status}`);
+  const body = await response.json();
+  const locations = Array.isArray(body) ? body : [body];
+  const matches = locations.map((location, index) => {
+    const city = weatherTwinCities[index];
+    const currentTemperature = Number(location?.current?.temperature_2m);
+    const currentHumidity = Number(location?.current?.relative_humidity_2m);
+    if (!city || !Number.isFinite(currentTemperature) || !Number.isFinite(currentHumidity)) return null;
+    const temperatureDifference = Math.abs(currentTemperature - temperatureC);
+    const humidityDifference = Math.abs(currentHumidity - humidityPct);
+    return {
+      city: city[0],
+      country: city[1],
+      locative: city[2],
+      temperatureC: Math.round(currentTemperature * 10) / 10,
+      humidityPct: Math.round(currentHumidity),
+      score: Math.round(Math.hypot(temperatureDifference / 2, humidityDifference / 8) * 100) / 100,
+    };
+  }).filter(Boolean).sort((a, b) => a.score - b.score).slice(0, 6);
+  if (!matches.length) throw new Error("Az Open-Meteo nem adott vissza összehasonlítható városi adatot.");
+  return matches;
+}
+
 const energyMixFields = {
   nuclear: ["nuclear"],
   coal: ["fossil_brown_coal_lignite", "fossil_hard_coal", "fossil_coal_derived_gas", "fossil_peat"],
@@ -1062,6 +1165,9 @@ const [sungrow, govee, forecast, bulgariaMix] = await Promise.all([
   optionalSource("Előrejelzés", getSolarForecast),
   optionalSource("Bulgária energiamix", getBulgariaEnergyMix),
 ]);
+const weatherTwins = govee?.devices[0]
+  ? await optionalSource("Időjárási ikervárosok", () => getWeatherTwins(govee.devices[0].temperatureC, govee.devices[0].humidityPct))
+  : null;
 
 if (!sungrow && !govee && !forecast && !bulgariaMix) {
   console.log("Nincsenek beállítva élő adatforrások; a bemutató mód marad aktív.");
@@ -1079,7 +1185,7 @@ for (const range of ["today", "7d", "30d", "year"]) {
     climate: { connected: Boolean(govee), ...(govee ? { updatedAt: govee.devices[0].updatedAt } : {}) },
   };
   if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] };
-  if (govee) dashboard.govee = { ...govee, chart: climateCharts[range] };
+  if (govee) dashboard.govee = { ...govee, chart: climateCharts[range], ...(weatherTwins ? { weatherTwins } : {}) };
   else dashboard.govee = { devices: [], chart: [] };
   if (forecast) dashboard.forecast = forecast;
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
@@ -1095,7 +1201,7 @@ if (sungrow) {
       climate: { connected: Boolean(govee), ...(govee ? { updatedAt: govee.devices[0].updatedAt } : {}) },
     };
     dashboard.solar = { ...sungrow.metrics, chart: dayData.chart, energyChart: dayData.energyChart };
-    if (govee) dashboard.govee = { ...govee, chart: climateCharts.days[date] ?? [] };
+    if (govee) dashboard.govee = { ...govee, chart: climateCharts.days[date] ?? [], ...(weatherTwins ? { weatherTwins } : {}) };
     else dashboard.govee = { devices: [], chart: [] };
     if (forecast) dashboard.forecast = forecast;
     await writeFile(resolve(outputDir, `dashboard-day-${date}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
