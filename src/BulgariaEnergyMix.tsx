@@ -125,9 +125,9 @@ function formatEnergyMwh(value: number) {
 }
 
 function localHourFraction(timestamp: string) {
-  const match = timestamp.match(/T(\d{2}):(\d{2})/);
-  if (!match) return 0;
-  return (Number(match[1]) * 60 + Number(match[2])) / 1440;
+  const date = new Date(timestamp);
+  if (!Number.isFinite(date.getTime())) return 0;
+  return (date.getHours() * 60 + date.getMinutes()) / 1440;
 }
 
 function formatKwh(value: number) {

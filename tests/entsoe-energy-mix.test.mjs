@@ -26,8 +26,23 @@ test("ENTSO-E terhelési XML-ből órás átlagot készít", () => {
   assert.equal(parseEntsoeLoad(xml).get("2026-09-09T10:00:00.000Z"), 3300);
 });
 
+test("az egyórás hiányt interpolálja, a valódi nulla értéket megtartja", () => {
+  const xml = `<GL_MarketDocument>
+    <TimeSeries><inBiddingZone_Domain.mRID>10YCA-BULGARIA-R</inBiddingZone_Domain.mRID><MktPSRType><psrType>B14</psrType></MktPSRType><Period>
+      <timeInterval><start>2026-09-09T10:00Z</start><end>2026-09-09T13:00Z</end></timeInterval><resolution>PT60M</resolution>
+      <Point><position>1</position><quantity>1000</quantity></Point><Point><position>3</position><quantity>1200</quantity></Point>
+    </Period></TimeSeries>
+    <TimeSeries><inBiddingZone_Domain.mRID>10YCA-BULGARIA-R</inBiddingZone_Domain.mRID><MktPSRType><psrType>B16</psrType></MktPSRType><Period>
+      <timeInterval><start>2026-09-09T10:00Z</start><end>2026-09-09T13:00Z</end></timeInterval><resolution>PT60M</resolution>
+      <Point><position>1</position><quantity>10</quantity></Point><Point><position>2</position><quantity>0</quantity></Point><Point><position>3</position><quantity>20</quantity></Point>
+    </Period></TimeSeries>
+  </GL_MarketDocument>`;
+  const parsed = parseEntsoeGeneration(xml);
+  assert.equal(parsed.get("2026-09-09T11:00:00.000Z").nuclear, 1100);
+  assert.equal(parsed.get("2026-09-09T11:00:00.000Z").solar, 0);
+});
+
 test("ENTSO-E visszautasításának szövegét hibaként adja tovább", () => {
   const xml = `<Acknowledgement_MarketDocument><Reason><code>999</code><text>No matching data found</text></Reason></Acknowledgement_MarketDocument>`;
   assert.throws(() => parseEntsoeLoad(xml), /No matching data found/);
 });
-

@@ -105,9 +105,9 @@ export function parseEntsoeGeneration(xml) {
 
   const exact = new Map();
   for (const sample of byPsr.values()) {
-    const point = exact.get(sample.timestamp) ?? Object.fromEntries(mixKeys.map((key) => [key, 0]));
+    const point = exact.get(sample.timestamp) ?? {};
     const group = psrGroups[sample.psrType];
-    point[group] += sample.value;
+    point[group] = (point[group] ?? 0) + sample.value;
     if (renewablePsrTypes.has(sample.psrType)) point.renewable = (point.renewable ?? 0) + sample.value;
     exact.set(sample.timestamp, point);
   }
@@ -115,15 +115,38 @@ export function parseEntsoeGeneration(xml) {
   const hourly = new Map();
   for (const [timestamp, point] of exact) {
     const key = hourlyKey(timestamp);
-    const group = hourly.get(key) ?? { count: 0, renewable: 0, ...Object.fromEntries(mixKeys.map((field) => [field, 0])) };
-    for (const field of mixKeys) group[field] += point[field];
-    group.renewable += point.renewable ?? 0;
-    group.count += 1;
+    const group = hourly.get(key) ?? {
+      sums: Object.fromEntries([...mixKeys, "renewable"].map((field) => [field, 0])),
+      counts: Object.fromEntries([...mixKeys, "renewable"].map((field) => [field, 0])),
+    };
+    for (const field of [...mixKeys, "renewable"]) {
+      if (!Number.isFinite(point[field])) continue;
+      group.sums[field] += point[field];
+      group.counts[field] += 1;
+    }
     hourly.set(key, group);
   }
-  return new Map([...hourly].map(([timestamp, group]) => [timestamp, {
-    ...Object.fromEntries(mixKeys.map((field) => [field, group[field] / group.count])),
-    renewable: group.renewable / group.count,
+
+  const rows = [...hourly].sort(([a], [b]) => a.localeCompare(b)).map(([timestamp, group]) => ({
+    timestamp,
+    ...Object.fromEntries([...mixKeys, "renewable"].map((field) => [field, group.counts[field] ? group.sums[field] / group.counts[field] : null])),
+  }));
+  for (const field of [...mixKeys, "renewable"]) {
+    for (let index = 1; index < rows.length - 1; index += 1) {
+      if (rows[index][field] !== null) continue;
+      const previous = rows[index - 1];
+      const next = rows[index + 1];
+      const previousTime = new Date(previous.timestamp).getTime();
+      const currentTime = new Date(rows[index].timestamp).getTime();
+      const nextTime = new Date(next.timestamp).getTime();
+      if (currentTime - previousTime !== 3_600_000 || nextTime - currentTime !== 3_600_000) continue;
+      if (!Number.isFinite(previous[field]) || !Number.isFinite(next[field])) continue;
+      rows[index][field] = (previous[field] + next[field]) / 2;
+    }
+  }
+  return new Map(rows.map(({ timestamp, ...values }) => [timestamp, {
+    ...Object.fromEntries(mixKeys.map((field) => [field, values[field] ?? 0])),
+    renewable: values.renewable ?? 0,
   }]));
 }
 
