@@ -149,7 +149,11 @@ async function requestEntsoe(token, params) {
     headers: { Accept: "application/xml, text/xml", "User-Agent": "pasztra-tech-dashboard/1.0" },
   });
   const body = await response.text();
-  if (!response.ok) throw new Error(`ENTSO-E: HTTP ${response.status}`);
+  const apiError = acknowledgementError(body);
+  if (!response.ok || apiError) {
+    const range = `${params.periodStart ?? "?"}–${params.periodEnd ?? "?"}`;
+    throw new Error(`ENTSO-E ${params.documentType ?? "?"} (${range}): HTTP ${response.status}${apiError ? ` · ${apiError}` : ""}`);
+  }
   return body;
 }
 
@@ -186,4 +190,3 @@ export const entsoeMetadata = {
   sourceUrl: "https://transparency.entsoe.eu/",
   sourceName: "ENTSO-E Transparency Platform",
 };
-
