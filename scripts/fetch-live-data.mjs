@@ -450,7 +450,9 @@ function householdDailySeries(reported, dayHistory) {
   const byDay = new Map(reported.filter((point) => point.timestamp).map((point) => [localDateKey(point.timestamp), point]));
   for (const [dateKey, dayData] of dayHistory) {
     const summary = summarizeHouseholdDay(dateKey, dayData);
-    if (summary) byDay.set(dateKey, summary);
+    // The Sungrow daily energy counters are authoritative. Reconstructed totals
+    // from the five-minute power curve only fill days missing from that series.
+    if (summary && !byDay.has(dateKey)) byDay.set(dateKey, summary);
   }
   return [...byDay.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 }
