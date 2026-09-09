@@ -1353,15 +1353,25 @@ async function getEntsoeBulgariaEnergyMix(token) {
     : new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`);
   const requestedStart = Number.isFinite(historyStart.getTime()) ? historyStart : new Date(now.getTime() - 365 * 86_400_000);
   const requestedEnd = new Date(now.getTime() + 24 * 60 * 60_000);
-  // The current ENTSO-E Actual Total Load export accepts at most P1M.
-  // Fixed 28-day windows remain valid for every calendar month.
-  const chunkSizeMs = 28 * 86_400_000;
-  const received = [];
+  // The current Actual Total Load export accepts at most P1M. Two-week
+  // windows are also less likely to hit the provider's five-second backend timeout.
+  const chunkSizeMs = 14 * 86_400_000;
+  const ranges = [];
   for (let cursor = requestedStart.getTime(); cursor < requestedEnd.getTime(); cursor += chunkSizeMs) {
-    const chunkStart = new Date(cursor);
-    const chunkEnd = new Date(Math.min(cursor + chunkSizeMs, requestedEnd.getTime()));
-    received.push(...await fetchEntsoeBulgariaMix(token, chunkStart, chunkEnd));
+    ranges.push([
+      new Date(cursor),
+      new Date(Math.min(cursor + chunkSizeMs, requestedEnd.getTime())),
+    ]);
   }
+  const received = [];
+  let nextRange = 0;
+  await Promise.all(Array.from({ length: Math.min(3, ranges.length) }, async () => {
+    while (nextRange < ranges.length) {
+      const [chunkStart, chunkEnd] = ranges[nextRange];
+      nextRange += 1;
+      received.push(...await fetchEntsoeBulgariaMix(token, chunkStart, chunkEnd));
+    }
+  }));
   const earliest = new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`).getTime();
   const points = [...new Map([...stored, ...received]
     .filter((point) => new Date(point.timestamp).getTime() >= earliest && isCompleteEnergyMixPoint(point))
