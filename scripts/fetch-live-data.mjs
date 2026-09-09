@@ -1348,33 +1348,62 @@ async function getEntsoeBulgariaEnergyMix(token) {
   const previous = await readBulgariaMixDocument();
   const isEntsoeHistory = String(previous?.sourceUrl ?? "").includes("entsoe.eu");
   const stored = isEntsoeHistory && Array.isArray(previous?.points) ? previous.points : [];
-  const historyStart = stored.length
-    ? new Date(now.getTime() - 3 * 86_400_000)
-    : new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`);
-  const requestedStart = Number.isFinite(historyStart.getTime()) ? historyStart : new Date(now.getTime() - 365 * 86_400_000);
+  const historyFloor = new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`);
+  if (!Number.isFinite(historyFloor.getTime())) historyFloor.setTime(now.getTime() - 365 * 86_400_000);
   const requestedEnd = new Date(now.getTime() + 24 * 60 * 60_000);
   // The current Actual Total Load export accepts at most P1M. Two-week
   // windows are also less likely to hit the provider's five-second backend timeout.
   const chunkSizeMs = 14 * 86_400_000;
+  const backfillSizeMs = 168 * 86_400_000;
+  const intervals = [];
+  let backfillFloorReached = Boolean(previous?.backfillComplete);
+  if (!stored.length) {
+    const start = new Date(Math.max(historyFloor.getTime(), requestedEnd.getTime() - backfillSizeMs));
+    intervals.push([start, requestedEnd]);
+    backfillFloorReached = start.getTime() <= historyFloor.getTime();
+  } else {
+    intervals.push([new Date(now.getTime() - 3 * 86_400_000), requestedEnd]);
+    if (!previous?.backfillComplete) {
+      const backfillEnd = new Date(stored[0].timestamp);
+      const backfillStart = new Date(Math.max(historyFloor.getTime(), backfillEnd.getTime() - backfillSizeMs));
+      intervals.push([backfillStart, backfillEnd]);
+      backfillFloorReached = backfillStart.getTime() <= historyFloor.getTime();
+    }
+  }
+  for (const failed of Array.isArray(previous?.failedRanges) ? previous.failedRanges : []) {
+    const start = new Date(failed.start);
+    const end = new Date(failed.end);
+    if (Number.isFinite(start.getTime()) && Number.isFinite(end.getTime()) && start < end) intervals.push([start, end]);
+  }
   const ranges = [];
-  for (let cursor = requestedStart.getTime(); cursor < requestedEnd.getTime(); cursor += chunkSizeMs) {
-    ranges.push([
-      new Date(cursor),
-      new Date(Math.min(cursor + chunkSizeMs, requestedEnd.getTime())),
-    ]);
+  const rangeIds = new Set();
+  for (const [intervalStart, intervalEnd] of intervals) {
+    for (let cursor = intervalStart.getTime(); cursor < intervalEnd.getTime(); cursor += chunkSizeMs) {
+      const range = [new Date(cursor), new Date(Math.min(cursor + chunkSizeMs, intervalEnd.getTime()))];
+      const id = `${range[0].toISOString()}|${range[1].toISOString()}`;
+      if (!rangeIds.has(id)) {
+        rangeIds.add(id);
+        ranges.push(range);
+      }
+    }
   }
   const received = [];
+  const failedRanges = [];
   let nextRange = 0;
   await Promise.all(Array.from({ length: Math.min(3, ranges.length) }, async () => {
     while (nextRange < ranges.length) {
       const [chunkStart, chunkEnd] = ranges[nextRange];
       nextRange += 1;
-      received.push(...await fetchEntsoeBulgariaMix(token, chunkStart, chunkEnd));
+      try {
+        received.push(...await fetchEntsoeBulgariaMix(token, chunkStart, chunkEnd));
+      } catch (error) {
+        failedRanges.push({ start: chunkStart.toISOString(), end: chunkEnd.toISOString() });
+        console.error(`ENTSO-E részidőszak: ${error.message}`);
+      }
     }
   }));
-  const earliest = new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`).getTime();
   const points = [...new Map([...stored, ...received]
-    .filter((point) => new Date(point.timestamp).getTime() >= earliest && isCompleteEnergyMixPoint(point))
+    .filter((point) => new Date(point.timestamp).getTime() >= historyFloor.getTime() && isCompleteEnergyMixPoint(point))
     .map((point) => [point.timestamp, point])).values()]
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   if (!points.length) throw new Error("Az ENTSO-E nem adott vissza bolgár termelési és terhelési adatot.");
@@ -1386,11 +1415,13 @@ async function getEntsoeBulgariaEnergyMix(token) {
     unit: "MW",
     resolutionMinutes: 60,
     ...entsoeMetadata,
+    backfillComplete: backfillFloorReached || Boolean(previous?.backfillComplete),
+    failedRanges,
     points,
   };
   await mkdir(historyDir, { recursive: true });
   await writeFile(bulgariaMixHistoryFile, `${JSON.stringify(result)}\n`, "utf8");
-  console.log(`Bulgária energiamix (ENTSO-E): ${received.length} friss, ${points.length} tárolt órás minta.`);
+  console.log(`Bulgária energiamix (ENTSO-E): ${received.length} friss, ${points.length} tárolt órás minta; visszatöltés ${result.backfillComplete ? "kész" : "folyamatban"}, hibás szelet: ${failedRanges.length}.`);
   return result;
 }
 
