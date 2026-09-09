@@ -145,16 +145,22 @@ async function requestEntsoe(token, params) {
   const url = new URL(ENTSOE_ENDPOINT);
   url.searchParams.set("securityToken", token);
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
-  const response = await fetch(url, {
-    headers: { Accept: "application/xml, text/xml", "User-Agent": "pasztra-tech-dashboard/1.0" },
-  });
-  const body = await response.text();
-  const apiError = acknowledgementError(body);
-  if (!response.ok || apiError) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const response = await fetch(url, {
+      headers: { Accept: "application/xml, text/xml", "User-Agent": "pasztra-tech-dashboard/1.0" },
+    });
+    const body = await response.text();
+    const apiError = acknowledgementError(body);
+    if (response.ok && !apiError) return body;
+    const isTransient = response.status >= 500 || /unexpected error|timeout|temporar|I\/O error/i.test(apiError);
+    if (isTransient && attempt < 3) {
+      await new Promise((resolve) => setTimeout(resolve, (attempt + 1) * 1500));
+      continue;
+    }
     const range = `${params.periodStart ?? "?"}–${params.periodEnd ?? "?"}`;
     throw new Error(`ENTSO-E ${params.documentType ?? "?"} (${range}): HTTP ${response.status}${apiError ? ` · ${apiError}` : ""}`);
   }
-  return body;
+  throw new Error("ENTSO-E: az újrapróbálások elfogytak.");
 }
 
 export async function fetchEntsoeBulgariaMix(token, start, end) {
