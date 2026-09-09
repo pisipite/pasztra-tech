@@ -53,6 +53,8 @@ jobs:
           GOVEE_DEVICE_ID: ${{ vars.GOVEE_DEVICE_ID }}
           GOVEE_DEVICE_SKU: ${{ vars.GOVEE_DEVICE_SKU }}
           GOVEE_ROOM_NAME: ${{ vars.GOVEE_ROOM_NAME }}
+          ENTSOE_SECURITY_TOKEN: ${{ secrets.ENTSOE_SECURITY_TOKEN }}
+          ENTSOE_HISTORY_START: "2025-01-01"
           CLIMATE_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/govee-history.json
           CO2_KG_PER_KWH: ${{ vars.CO2_KG_PER_KWH }}
           SOLAR_LATITUDE: ${{ secrets.SOLAR_LATITUDE }}

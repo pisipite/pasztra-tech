@@ -55,7 +55,7 @@ function averageMixPoints(points: BulgariaEnergyMixPoint[], bucket: "day" | "mon
 }
 
 function isCompleteMixPoint(point: BulgariaEnergyMixPoint) {
-  return point.load > 0 && generationKeys.filter((key) => point[key] > 0).length >= 5;
+  return point.load > 0 && generationKeys.reduce((sum, key) => sum + Math.max(0, point[key] ?? 0), 0) > 0;
 }
 
 function selectedMixPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
@@ -166,7 +166,11 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const energyTotals = Object.fromEntries(mixKeys.map((key) => [key, rawPoints.reduce((sum, point) => sum + point[key] * intervalHours, 0)])) as Record<MixSeriesKey, number>;
   const generation = generationSeries.reduce((sum, item) => sum + energyTotals[item.key], 0);
   const consumption = rawPoints.reduce((sum, point) => sum + Math.max(0, point.load) * intervalHours, 0);
-  const renewableGeneration = generationSeries.filter((item) => item.renewable).reduce((sum, item) => sum + energyTotals[item.key], 0);
+  const renewableGeneration = rawPoints.reduce((sum, point) => {
+    const pointGeneration = generationKeys.reduce((total, key) => total + Math.max(0, point[key] ?? 0), 0);
+    const share = Math.max(0, Math.min(100, point.renewableSharePct ?? 0));
+    return sum + pointGeneration * share / 100 * intervalHours;
+  }, 0);
   const renewableShare = generation > 0 ? renewableGeneration / generation * 100 : 0;
   const renewableShareDisplay = Math.max(0, Math.min(100, renewableShare));
 
@@ -332,7 +336,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
         <p className="bulgaria-mix__note">A hálózati bontás az időszak országos mixével súlyozott becslés. Az akkumulátor töltési eredetének naplózását egy következő adatgyűjtési lépésben pontosítjuk.</p>
       </section>
 
-      <p className="bulgaria-mix__credit">Forrás: <a href={data.sourceUrl} target="_blank" rel="noreferrer">Energy-Charts.info</a> · {data.license}</p>
+      <p className="bulgaria-mix__credit">Forrás: <a href={data.sourceUrl} target="_blank" rel="noreferrer">{data.sourceName ?? "Energy-Charts.info"}</a> · {data.license}</p>
     </article>
   );
 }

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
+import { entsoeMetadata, fetchEntsoeBulgariaMix } from "./entsoe-energy-mix.mjs";
 
 const execFileAsync = promisify(execFile);
 const outputDir = resolve("public/data");
@@ -1280,11 +1281,11 @@ function normalizeEnergyMixPoint(row) {
 }
 
 function isCompleteEnergyMixPoint(point) {
-  const populatedGenerationGroups = Object.keys(energyMixFields).filter((key) => Number(point?.[key]) > 0).length;
+  const generation = Object.keys(energyMixFields).reduce((sum, key) => sum + Math.max(0, Number(point?.[key]) || 0), 0);
   return Boolean(point?.timestamp)
     && Number.isFinite(new Date(point.timestamp).getTime())
     && Number(point.load) > 0
-    && populatedGenerationGroups >= 5;
+    && generation > 0;
 }
 
 async function readBulgariaMixHistory() {
@@ -1296,7 +1297,7 @@ async function readBulgariaMixHistory() {
   }
 }
 
-async function getBulgariaEnergyMix() {
+async function getEnergyChartsBulgariaMix() {
   const stored = await readBulgariaMixHistory();
   const start = stored.length
     ? new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2, 12)
@@ -1326,12 +1327,71 @@ async function getBulgariaEnergyMix() {
     resolutionMinutes: numberValue(body.interval_minutes, 60),
     license: body.license ?? "CC BY 4.0, attribution: energy-charts.info",
     sourceUrl: "https://www.energy-charts.info/charts/power/chart.htm?c=BG&l=en",
+    sourceName: "Energy-Charts.info",
     points,
   };
   await mkdir(historyDir, { recursive: true });
   await writeFile(bulgariaMixHistoryFile, `${JSON.stringify(result)}\n`, "utf8");
   console.log(`Bulgária energiamix: ${received.length} friss, ${points.length} tárolt órás minta.`);
   return result;
+}
+
+async function readBulgariaMixDocument() {
+  try {
+    return JSON.parse(await readFile(bulgariaMixHistoryFile, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+async function getEntsoeBulgariaEnergyMix(token) {
+  const previous = await readBulgariaMixDocument();
+  const isEntsoeHistory = String(previous?.sourceUrl ?? "").includes("entsoe.eu");
+  const stored = isEntsoeHistory && Array.isArray(previous?.points) ? previous.points : [];
+  const historyStart = stored.length
+    ? new Date(now.getTime() - 3 * 86_400_000)
+    : new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`);
+  const requestedStart = Number.isFinite(historyStart.getTime()) ? historyStart : new Date(now.getTime() - 365 * 86_400_000);
+  const requestedEnd = new Date(now.getTime() + 24 * 60 * 60_000);
+  const chunkSizeMs = 92 * 86_400_000;
+  const received = [];
+  for (let cursor = requestedStart.getTime(); cursor < requestedEnd.getTime(); cursor += chunkSizeMs) {
+    const chunkStart = new Date(cursor);
+    const chunkEnd = new Date(Math.min(cursor + chunkSizeMs, requestedEnd.getTime()));
+    received.push(...await fetchEntsoeBulgariaMix(token, chunkStart, chunkEnd));
+  }
+  const earliest = new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`).getTime();
+  const points = [...new Map([...stored, ...received]
+    .filter((point) => new Date(point.timestamp).getTime() >= earliest && isCompleteEnergyMixPoint(point))
+    .map((point) => [point.timestamp, point])).values()]
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  if (!points.length) throw new Error("Az ENTSO-E nem adott vissza bolgár termelési és terhelési adatot.");
+  const result = {
+    source: "live",
+    updatedAt: now.toISOString(),
+    availableFrom: points[0].timestamp,
+    availableUntil: points.at(-1).timestamp,
+    unit: "MW",
+    resolutionMinutes: 60,
+    ...entsoeMetadata,
+    points,
+  };
+  await mkdir(historyDir, { recursive: true });
+  await writeFile(bulgariaMixHistoryFile, `${JSON.stringify(result)}\n`, "utf8");
+  console.log(`Bulgária energiamix (ENTSO-E): ${received.length} friss, ${points.length} tárolt órás minta.`);
+  return result;
+}
+
+async function getBulgariaEnergyMix() {
+  const token = process.env.ENTSOE_SECURITY_TOKEN?.trim();
+  if (token) {
+    try {
+      return await getEntsoeBulgariaEnergyMix(token);
+    } catch (error) {
+      console.error(`ENTSO-E elsődleges adatforrás: ${error.message}; Energy-Charts tartalék következik.`);
+    }
+  }
+  return getEnergyChartsBulgariaMix();
 }
 
 async function optionalSource(name, fetcher) {
@@ -1405,5 +1465,5 @@ if (bulgariaMix) {
 }
 
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");
-const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo", bulgariaMix && "Energy-Charts"].filter(Boolean);
+const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo", bulgariaMix && (bulgariaMix.sourceName ?? "energiamix")].filter(Boolean);
 console.log(`Élő dashboard-adatok elkészítve (${activeSources.join(" + ")}).`);

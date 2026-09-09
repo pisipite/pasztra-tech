@@ -78,6 +78,7 @@ export interface BulgariaEnergyMixData {
   resolutionMinutes: number;
   license: string;
   sourceUrl: string;
+  sourceName?: string;
   points: BulgariaEnergyMixPoint[];
   household?: {
     hourly: EnergyChartPoint[];

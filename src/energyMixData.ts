@@ -45,6 +45,7 @@ export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
     resolutionMinutes: 180,
     license: "Mintaadat",
     sourceUrl: "https://www.energy-charts.info/charts/power/chart.htm?c=BG&l=en",
+    sourceName: "Energy-Charts.info",
     points,
   };
 }

@@ -15,6 +15,7 @@ A **Settings → Secrets and variables → Actions → Secrets** részen hozd l�
 | `SUNGROW_USER` | iSolarCloud felhasználónév vagy e-mail |
 | `SUNGROW_PASSWORD` | iSolarCloud jelszó |
 | `GOVEE_API_KEY` | Govee Developer API-kulcs |
+| `ENTSOE_SECURITY_TOKEN` | ENTSO-E Transparency Platform Web API Security Token |
 | `SOLAR_LATITUDE` | A rendszer pontos földrajzi szélessége az időjárási előrejelzéshez |
 | `SOLAR_LONGITUDE` | A rendszer pontos földrajzi hosszúsága az időjárási előrejelzéshez |
 
@@ -63,6 +64,6 @@ Nyisd meg az **Actions → Deploy to GitHub Pages** munkafolyamatot, majd válas
 
 ## Hogyan működik?
 
-Az automatizmus a GoSungrow `AppService.getPowerStationData` és `WebAppService.showPSView` végpontjaiból készíti el a napelemes adatokat. A Govee eszközök felderítéséhez a `/router/api/v1/user/devices`, az állapot lekéréséhez a `/router/api/v1/device/state` végpontot használja.
+Az automatizmus a GoSungrow `AppService.getPowerStationData` és `WebAppService.showPSView` végpontjaiból készíti el a napelemes adatokat. A Govee eszközök felderítéséhez a `/router/api/v1/user/devices`, az állapot lekéréséhez a `/router/api/v1/device/state` végpontot használja. A bolgár országos termelési mix és terhelés elsődleges forrása az ENTSO-E Transparency Platform; a lekérő 2025. január 1-jétől órás előzményt épít, majd a későbbi futásokban csak az utolsó három napot frissíti.
 
 A GoSungrow az iSolarCloud nem hivatalos, közösségi kliensprogramja. Mivel az iSolarCloud felülete változhat, egy későbbi szolgáltatói módosítás után az adatlekérés igazítást igényelhet.
