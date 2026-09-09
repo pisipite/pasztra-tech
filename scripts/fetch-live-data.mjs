@@ -1353,7 +1353,9 @@ async function getEntsoeBulgariaEnergyMix(token) {
     : new Date(`${process.env.ENTSOE_HISTORY_START || "2025-01-01"}T00:00:00Z`);
   const requestedStart = Number.isFinite(historyStart.getTime()) ? historyStart : new Date(now.getTime() - 365 * 86_400_000);
   const requestedEnd = new Date(now.getTime() + 24 * 60 * 60_000);
-  const chunkSizeMs = 92 * 86_400_000;
+  // The current ENTSO-E Actual Total Load export accepts at most P1M.
+  // Fixed 28-day windows remain valid for every calendar month.
+  const chunkSizeMs = 28 * 86_400_000;
   const received = [];
   for (let cursor = requestedStart.getTime(); cursor < requestedEnd.getTime(); cursor += chunkSizeMs) {
     const chunkStart = new Date(cursor);
