@@ -49,7 +49,55 @@ export function mergePlantHistory(storedPlants, batches, historyFloor) {
     }
   }
   return [...plants.values()]
-    .map((plant) => ({ ...plant, days: plant.days.filter((day) => Number(day.observedHours ?? 0) >= 23) }))
     .filter((plant) => plant.days.length)
+    .sort((a, b) => a.name.localeCompare(b.name, "hu"));
+}
+
+const sofiaParts = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Europe/Sofia",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  hourCycle: "h23",
+});
+
+export function reconcileNuclearPlant(plants, mixPoints) {
+  const grouped = new Map();
+  for (const point of mixPoints) {
+    if (!Number.isFinite(point?.nuclear) || !(point.nuclear > 0)) continue;
+    const parts = Object.fromEntries(sofiaParts.formatToParts(new Date(point.timestamp)).map((part) => [part.type, part.value]));
+    const date = `${parts.year}-${parts.month}-${parts.day}`;
+    const hour = Number(parts.hour);
+    const day = grouped.get(date) ?? { date, sums: Array(24).fill(0), counts: Array(24).fill(0) };
+    day.sums[hour] += point.nuclear;
+    day.counts[hour] += 1;
+    grouped.set(date, day);
+  }
+  const days = [...grouped.values()].flatMap((day) => {
+    const observedHours = day.counts.filter(Boolean).length;
+    if (observedHours < 23) return [];
+    const hourlyMw = day.sums.map((sum, hour) => day.counts[hour] ? Math.round(sum / day.counts[hour] * 10) / 10 : 0);
+    const energyMwh = hourlyMw.reduce((sum, value) => sum + value, 0);
+    return [{
+      date: day.date,
+      energyMwh: Math.round(energyMwh * 10) / 10,
+      averageMw: Math.round(energyMwh / observedHours * 10) / 10,
+      peakMw: Math.round(Math.max(...hourlyMw) * 10) / 10,
+      hourlyMw,
+      hourlyCoverage: day.counts.map((count) => count ? 1 : 0),
+      observedHours,
+    }];
+  }).sort((a, b) => a.date.localeCompare(b.date));
+  const nuclear = {
+    id: "kozloduy",
+    name: "Kozloduj Atomerőmű",
+    type: "nuclear",
+    latitude: 43.746,
+    longitude: 23.77,
+    capacityMw: 2080,
+    days,
+  };
+  return [...plants.filter((plant) => plant.id !== nuclear.id), ...(days.length ? [nuclear] : [])]
     .sort((a, b) => a.name.localeCompare(b.name, "hu"));
 }

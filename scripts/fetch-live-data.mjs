@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { entsoeMetadata, fetchEntsoeBulgariaMix, fetchEntsoeBulgariaPlants } from "./entsoe-energy-mix.mjs";
-import { mergePlantHistory } from "./entsoe-plant-history.mjs";
+import { mergePlantHistory, reconcileNuclearPlant } from "./entsoe-plant-history.mjs";
 import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -1349,7 +1349,7 @@ async function readBulgariaMixDocument() {
 }
 
 async function updateEntsoePlantHistory(token, previous, historyFloor) {
-  const plantHistoryVersion = 4;
+  const plantHistoryVersion = 5;
   const stored = previous?.plantHistoryVersion === plantHistoryVersion && Array.isArray(previous?.plants) ? previous.plants : [];
   const lastAttempt = new Date(previous?.plantsUpdatedAt ?? 0).getTime();
   if (previous?.plantHistoryVersion === plantHistoryVersion && Number.isFinite(lastAttempt) && now.getTime() - lastAttempt >= 0 && now.getTime() - lastAttempt < 5 * 3_600_000) {
@@ -1477,6 +1477,8 @@ async function getEntsoeBulgariaEnergyMix(token) {
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
   if (!points.length) throw new Error("Az ENTSO-E nem adott vissza bolgár termelési és terhelési adatot.");
   const plantHistory = await updateEntsoePlantHistory(token, previous, historyFloor);
+  const plants = reconcileNuclearPlant(plantHistory.plants, points);
+  const plantDates = plants.flatMap((plant) => plant.days.map((day) => day.date)).sort();
   const result = {
     source: "live",
     updatedAt: now.toISOString(),
@@ -1488,6 +1490,9 @@ async function getEntsoeBulgariaEnergyMix(token) {
     backfillComplete: backfillFloorReached || Boolean(previous?.backfillComplete),
     failedRanges,
     ...plantHistory,
+    plants,
+    plantDataFrom: plantDates[0],
+    plantDataUntil: plantDates.at(-1),
     points,
   };
   await mkdir(historyDir, { recursive: true });
