@@ -77,6 +77,8 @@ export interface BulgariaPowerPlantDay {
   averageMw: number;
   peakMw: number;
   hourlyMw: number[];
+  hourlyCoverage?: number[];
+  observedHours?: number;
 }
 
 export interface BulgariaPowerPlant {

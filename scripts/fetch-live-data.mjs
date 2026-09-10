@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { entsoeMetadata, fetchEntsoeBulgariaMix, fetchEntsoeBulgariaPlants } from "./entsoe-energy-mix.mjs";
+import { mergePlantHistory } from "./entsoe-plant-history.mjs";
 import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -1347,31 +1348,9 @@ async function readBulgariaMixDocument() {
   }
 }
 
-function mergePlantHistory(storedPlants, batches, historyFloor) {
-  const plants = new Map((Array.isArray(storedPlants) ? storedPlants : []).map((plant) => [plant.id, {
-    ...plant,
-    days: Array.isArray(plant.days) ? plant.days.filter((day) => day?.date >= historyFloor) : [],
-  }]));
-  for (const batch of batches) {
-    for (const plant of batch) {
-      const current = plants.get(plant.id) ?? { ...plant, days: [] };
-      current.name = plant.name;
-      current.type = plant.type;
-      current.latitude = plant.latitude;
-      current.longitude = plant.longitude;
-      current.capacityMw = plant.capacityMw;
-      current.days = [...new Map([...current.days, ...plant.days]
-        .filter((day) => day?.date >= historyFloor)
-        .map((day) => [day.date, day])).values()].sort((a, b) => a.date.localeCompare(b.date));
-      plants.set(plant.id, current);
-    }
-  }
-  return [...plants.values()].filter((plant) => plant.days.length).sort((a, b) => a.name.localeCompare(b.name, "hu"));
-}
-
 async function updateEntsoePlantHistory(token, previous, historyFloor) {
-  const plantHistoryVersion = 2;
-  const stored = Array.isArray(previous?.plants) ? previous.plants : [];
+  const plantHistoryVersion = 3;
+  const stored = previous?.plantHistoryVersion === plantHistoryVersion && Array.isArray(previous?.plants) ? previous.plants : [];
   const lastAttempt = new Date(previous?.plantsUpdatedAt ?? 0).getTime();
   if (previous?.plantHistoryVersion === plantHistoryVersion && Number.isFinite(lastAttempt) && now.getTime() - lastAttempt >= 0 && now.getTime() - lastAttempt < 5 * 3_600_000) {
     return {
@@ -1380,13 +1359,14 @@ async function updateEntsoePlantHistory(token, previous, historyFloor) {
       plantsUpdatedAt: previous.plantsUpdatedAt,
       plantDataFrom: previous.plantDataFrom,
       plantDataUntil: previous.plantDataUntil,
+      unmappedPlantResources: previous.unmappedPlantResources ?? [],
     };
   }
 
   const latestDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6));
   const requestedDays = [];
   if (!stored.length) {
-    for (let offset = 30; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
+    for (let offset = 90; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
   } else {
     for (let offset = 2; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
     const earliest = stored.flatMap((plant) => plant.days ?? []).map((day) => day.date).sort()[0];
@@ -1401,13 +1381,16 @@ async function updateEntsoePlantHistory(token, previous, historyFloor) {
     .filter((day) => day >= historyFloor && day <= latestDay)
     .map((day) => [day.toISOString().slice(0, 10), day])).values()];
   const batches = [];
+  const unmapped = new Map();
   let nextDay = 0;
   await Promise.all(Array.from({ length: Math.min(3, uniqueDays.length) }, async () => {
     while (nextDay < uniqueDays.length) {
       const day = uniqueDays[nextDay];
       nextDay += 1;
       try {
-        batches.push(await fetchEntsoeBulgariaPlants(token, day, new Date(day.getTime() + 86_400_000)));
+        const document = await fetchEntsoeBulgariaPlants(token, day, new Date(day.getTime() + 86_400_000));
+        batches.push(document.plants);
+        for (const resource of document.unmapped) unmapped.set(`${resource.psrType}|${resource.resourceName}|${resource.resourceId}`, resource);
       } catch (error) {
         console.error(`ENTSO-E erőművi nap (${day.toISOString().slice(0, 10)}): ${error.message}`);
       }
@@ -1424,6 +1407,7 @@ async function updateEntsoePlantHistory(token, previous, historyFloor) {
     plantsUpdatedAt: now.toISOString(),
     plantDataFrom: dates[0],
     plantDataUntil: dates.at(-1),
+    unmappedPlantResources: [...unmapped.values()],
   };
 }
 

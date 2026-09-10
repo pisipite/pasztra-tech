@@ -53,14 +53,15 @@ function aggregatePlants(plants: BulgariaPowerPlant[], period: PeriodKey, anchor
       const values = days.map((day) => day.hourlyMw?.[hour]).filter((value): value is number => Number.isFinite(value));
       return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
     });
-    return [{
+    const summary = {
       ...plant,
       energyMwh: days.reduce((sum, day) => sum + day.energyMwh, 0),
       averageMw: days.reduce((sum, day) => sum + day.averageMw, 0) / days.length,
       peakMw: Math.max(0, ...days.map((day) => day.peakMw)),
       hourlyMw,
       dayCount: days.length,
-    }];
+    };
+    return summary.energyMwh > 0 ? [summary] : [];
   });
 }
 

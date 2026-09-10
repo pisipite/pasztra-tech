@@ -195,11 +195,12 @@ export function parseEntsoeLoad(xml) {
   return averageHourly(samples.values());
 }
 
-export function parseEntsoeGenerationUnits(xml) {
+export function parseEntsoeGenerationUnitDocument(xml) {
   const error = acknowledgementError(xml);
   if (error) throw new Error(`ENTSO-E: ${error}`);
 
   const plantSamples = new Map();
+  const unmapped = new Map();
   for (const timeSeries of xmlBlocks(xml, "TimeSeries")) {
     const psrType = xmlText(timeSeries, "psrType");
     const type = psrGroups[psrType];
@@ -208,7 +209,11 @@ export function parseEntsoeGenerationUnits(xml) {
     const resourceName = xmlText(timeSeries, "registeredResource.name") || xmlText(resource, "name") || xmlText(timeSeries, "name");
     const resourceId = xmlText(timeSeries, "registeredResource.mRID") || xmlText(resource, "mRID");
     const plant = plantForResource(`${resourceName} ${resourceId}`, psrType);
-    if (!plant) continue;
+    if (!plant) {
+      const key = `${psrType}|${resourceName}|${resourceId}`;
+      unmapped.set(key, { psrType, resourceName, resourceId });
+      continue;
+    }
     const samples = plantSamples.get(plant.id) ?? { plant, values: new Map() };
     for (const sample of seriesValues(timeSeries)) {
       const current = samples.values.get(sample.timestamp) ?? { powerMw: 0, resolutionMinutes: sample.resolutionMinutes };
@@ -219,7 +224,7 @@ export function parseEntsoeGenerationUnits(xml) {
     plantSamples.set(plant.id, samples);
   }
 
-  return [...plantSamples.values()].map(({ plant, values }) => {
+  const plants = [...plantSamples.values()].map(({ plant, values }) => {
     const days = new Map();
     for (const [timestamp, sample] of values) {
       const { date, hour } = sofiaDateParts(timestamp);
@@ -245,9 +250,16 @@ export function parseEntsoeGenerationUnits(xml) {
         averageMw: Math.round(day.energyMwh / Math.max(day.observedHours, 1) * 10) / 10,
         peakMw: Math.round(day.peakMw * 10) / 10,
         hourlyMw: day.hourlyEnergy.map((energy, hour) => day.hourlyCoverage[hour] ? Math.round(energy / day.hourlyCoverage[hour] * 10) / 10 : 0),
+        hourlyCoverage: day.hourlyCoverage,
+        observedHours: day.observedHours,
       })),
     };
   }).filter((plant) => plant.days.length);
+  return { plants, unmapped: [...unmapped.values()] };
+}
+
+export function parseEntsoeGenerationUnits(xml) {
+  return parseEntsoeGenerationUnitDocument(xml).plants;
 }
 
 function entsoeDate(value) {
@@ -312,7 +324,7 @@ export async function fetchEntsoeBulgariaPlants(token, start, end) {
     periodStart: entsoeDate(start),
     periodEnd: entsoeDate(end),
   });
-  return parseEntsoeGenerationUnits(xml);
+  return parseEntsoeGenerationUnitDocument(xml);
 }
 
 export const entsoeMetadata = {
