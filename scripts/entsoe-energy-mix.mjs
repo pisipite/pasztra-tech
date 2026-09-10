@@ -42,8 +42,11 @@ const bulgariaPlantCatalog = [
   { id: "varna", name: "Várnai Hőerőmű", type: "gas", latitude: 43.198, longitude: 27.695, capacityMw: 1260, matches: [/varna/i] },
 ];
 
-function plantForResource(name) {
-  return bulgariaPlantCatalog.find((plant) => plant.matches.some((expression) => expression.test(name)));
+function plantForResource(name, psrType) {
+  const matched = bulgariaPlantCatalog.find((plant) => plant.matches.some((expression) => expression.test(name)));
+  // Bulgaria has a single nuclear site. ENTSO-E sometimes publishes only the
+  // generation-unit EIC here, so the production type is the reliable fallback.
+  return matched ?? (psrType === "B14" ? bulgariaPlantCatalog.find((plant) => plant.id === "kozloduy") : undefined);
 }
 
 function sofiaDateParts(timestamp) {
@@ -204,7 +207,7 @@ export function parseEntsoeGenerationUnits(xml) {
     const resource = xmlBlocks(timeSeries, "PowerSystemResources")[0] ?? "";
     const resourceName = xmlText(timeSeries, "registeredResource.name") || xmlText(resource, "name") || xmlText(timeSeries, "name");
     const resourceId = xmlText(timeSeries, "registeredResource.mRID") || xmlText(resource, "mRID");
-    const plant = plantForResource(`${resourceName} ${resourceId}`);
+    const plant = plantForResource(`${resourceName} ${resourceId}`, psrType);
     if (!plant) continue;
     const samples = plantSamples.get(plant.id) ?? { plant, values: new Map() };
     for (const sample of seriesValues(timeSeries)) {

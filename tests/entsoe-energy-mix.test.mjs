@@ -39,6 +39,14 @@ test("ENTSO-E erőművi XML-ből térképes napi összesítést készít", () =>
   assert.equal(plant.days[0].hourlyMw[13], 1150);
 });
 
+test("az EIC-kóddal közölt bolgár nukleáris egységet Kozlodujhoz rendeli", () => {
+  const xml = `<GL_MarketDocument><TimeSeries>
+    <MktPSRType><psrType>B14</psrType><PowerSystemResources><mRID>48W-UNIT-CODE</mRID></PowerSystemResources></MktPSRType>
+    ${period([900, 900, 900, 900])}
+  </TimeSeries></GL_MarketDocument>`;
+  assert.equal(parseEntsoeGenerationUnits(xml)[0].id, "kozloduy");
+});
+
 test("az egyórás hiányt interpolálja, a valódi nulla értéket megtartja", () => {
   const xml = `<GL_MarketDocument>
     <TimeSeries><inBiddingZone_Domain.mRID>10YCA-BULGARIA-R</inBiddingZone_Domain.mRID><MktPSRType><psrType>B14</psrType></MktPSRType><Period>

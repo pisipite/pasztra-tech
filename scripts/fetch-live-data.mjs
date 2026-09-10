@@ -1370,11 +1370,13 @@ function mergePlantHistory(storedPlants, batches, historyFloor) {
 }
 
 async function updateEntsoePlantHistory(token, previous, historyFloor) {
+  const plantHistoryVersion = 2;
   const stored = Array.isArray(previous?.plants) ? previous.plants : [];
   const lastAttempt = new Date(previous?.plantsUpdatedAt ?? 0).getTime();
-  if (Number.isFinite(lastAttempt) && now.getTime() - lastAttempt >= 0 && now.getTime() - lastAttempt < 5 * 3_600_000) {
+  if (previous?.plantHistoryVersion === plantHistoryVersion && Number.isFinite(lastAttempt) && now.getTime() - lastAttempt >= 0 && now.getTime() - lastAttempt < 5 * 3_600_000) {
     return {
       plants: stored,
+      plantHistoryVersion,
       plantsUpdatedAt: previous.plantsUpdatedAt,
       plantDataFrom: previous.plantDataFrom,
       plantDataUntil: previous.plantDataUntil,
@@ -1418,6 +1420,7 @@ async function updateEntsoePlantHistory(token, previous, historyFloor) {
   console.log(`Bulgária erőművi térkép: ${plants.length} azonosított erőmű, ${dates.length ? `${dates[0]}–${dates.at(-1)}` : "nincs elérhető nap"}.`);
   return {
     plants,
+    plantHistoryVersion,
     plantsUpdatedAt: now.toISOString(),
     plantDataFrom: dates[0],
     plantDataUntil: dates.at(-1),
