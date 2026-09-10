@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { entsoeMetadata, fetchEntsoeBulgariaMix } from "./entsoe-energy-mix.mjs";
+import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
 
 const execFileAsync = promisify(execFile);
 const outputDir = resolve("public/data");
@@ -1404,10 +1405,10 @@ async function getEntsoeBulgariaEnergyMix(token) {
       }
     }
   }));
-  const points = [...new Map([...stored, ...received]
+  const points = repairNuclearDropouts([...new Map([...stored, ...received]
     .filter((point) => new Date(point.timestamp).getTime() >= historyFloor.getTime() && isCompleteEnergyMixPoint(point))
     .map((point) => [point.timestamp, point])).values()]
-    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
   if (!points.length) throw new Error("Az ENTSO-E nem adott vissza bolgár termelési és terhelési adatot.");
   const result = {
     source: "live",
