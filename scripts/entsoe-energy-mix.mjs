@@ -30,9 +30,11 @@ const mixKeys = ["nuclear", "coal", "gas", "hydro", "solar", "wind", "other"];
 
 const bulgariaPlantCatalog = [
   { id: "kozloduy", name: "Kozloduj Atomerőmű", type: "nuclear", latitude: 43.746, longitude: 23.77, capacityMw: 2080, matches: [/kozlod/i, /npp\s*[56]\b/i] },
-  { id: "maritsa-east-2", name: "Marica Iztok 2", type: "coal", latitude: 42.255, longitude: 26.132, capacityMw: 1620, matches: [/mar(?:i|it)sa.*(?:east|iztok).*2/i, /tpp\s*2\b/i] },
-  { id: "aes-galabovo", name: "AES Galabovo", type: "coal", latitude: 42.162, longitude: 25.886, capacityMw: 670, matches: [/aes.*galabovo/i, /mar(?:i|it)sa.*(?:east|iztok).*1/i] },
-  { id: "maritsa-east-3", name: "Marica Iztok 3", type: "coal", latitude: 42.147, longitude: 26.016, capacityMw: 908, matches: [/contourglobal/i, /mar(?:i|it)sa.*(?:east|iztok).*3/i] },
+  { id: "maritsa-east-2", name: "Marica Iztok 2", type: "coal", latitude: 42.255, longitude: 26.132, capacityMw: 1620, matches: [/mar(?:i|it)sa.*(?:east|iztok).*2/i, /tpp[_\s-]*mi2/i, /tpp\s*2\b/i] },
+  { id: "aes-galabovo", name: "AES Galabovo", type: "coal", latitude: 42.162, longitude: 25.886, capacityMw: 670, matches: [/aes.*galabovo/i, /tpp[_\s-]*galabovo/i, /mar(?:i|it)sa.*(?:east|iztok).*1/i] },
+  { id: "maritsa-3", name: "Marica 3", type: "coal", latitude: 42.0532, longitude: 25.6232, capacityMw: 120, matches: [/tpp[_\s-]*maritsa[_\s-]*3/i] },
+  { id: "maritsa-east-3", name: "Marica Iztok 3", type: "coal", latitude: 42.147, longitude: 26.016, capacityMw: 908, matches: [/contourglobal/i, /tpp[_\s-]*mi3/i, /mar(?:i|it)sa.*(?:east|iztok).*3/i] },
+  { id: "ruse-east", name: "Rusze Iztok Hőerőmű", type: "coal", latitude: 43.856, longitude: 25.984, matches: [/tpp[_\s-]*ruse/i] },
   { id: "chaira", name: "Chaira Szivattyús Erőmű", type: "hydro", latitude: 42.006, longitude: 23.805, capacityMw: 864, matches: [/chaira/i] },
   { id: "belmeken", name: "Belmeken Vízerőmű", type: "hydro", latitude: 42.165, longitude: 23.805, capacityMw: 375, matches: [/belmeken/i] },
   { id: "sestrimo", name: "Sestrimo Vízerőmű", type: "hydro", latitude: 42.117, longitude: 23.85, capacityMw: 240, matches: [/sestrimo/i] },

@@ -47,6 +47,20 @@ test("az EIC-kóddal közölt bolgár nukleáris egységet Kozlodujhoz rendeli",
   assert.equal(parseEntsoeGenerationUnits(xml)[0].id, "kozloduy");
 });
 
+test("az ENTSO-E bolgár erőműkódjait a megfelelő telephelyekhez rendeli", () => {
+  const resources = [
+    ["B02", "TPP_MI2_G1", "maritsa-east-2"],
+    ["B02", "TPP_MI3_G2", "maritsa-east-3"],
+    ["B02", "TPP_GALABOVO_G1", "aes-galabovo"],
+    ["B02", "TPP_MARITSA_3_G1", "maritsa-3"],
+    ["B05", "TPP_RUSE_G4", "ruse-east"],
+  ];
+  for (const [psrType, name, expected] of resources) {
+    const xml = `<GL_MarketDocument><TimeSeries><MktPSRType><psrType>${psrType}</psrType><PowerSystemResources><name>${name}</name></PowerSystemResources></MktPSRType>${period([100, 100, 100, 100])}</TimeSeries></GL_MarketDocument>`;
+    assert.equal(parseEntsoeGenerationUnits(xml)[0].id, expected);
+  }
+});
+
 test("az egyórás hiányt interpolálja, a valódi nulla értéket megtartja", () => {
   const xml = `<GL_MarketDocument>
     <TimeSeries><inBiddingZone_Domain.mRID>10YCA-BULGARIA-R</inBiddingZone_Domain.mRID><MktPSRType><psrType>B14</psrType></MktPSRType><Period>

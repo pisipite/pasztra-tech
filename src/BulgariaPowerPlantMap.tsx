@@ -142,7 +142,7 @@ export function BulgariaPowerPlantMap({ plants, period, anchor, customStart, cus
         </div>
         <div className="plant-map-legend" aria-label="Erőműtípusok jelmagyarázata">{availableTypes.map((type) => <span key={type}><i style={{ background: colors[type] }} />{labels[type]}</span>)}</div>
       </> : <div className="plant-map-empty"><strong>Erre az időszakra még nincs erőművenkénti adat.</strong><span>Az ENTSO-E a legalább 100 MW-os termelőegységek adatait öt nappal később teszi közzé.</span></div>}
-      <p className="plant-map-source">ENTSO-E · erőművenkénti nettó termelés · legalább 100 MW · D+5{dataFrom && dataUntil ? ` · elérhető: ${dataFrom}–${dataUntil}` : ""}</p>
+      <p className="plant-map-source">ENTSO-E · azonosított, erőművenként közölt nettó termelés · legalább 100 MW-os egységek · D+5{dataFrom && dataUntil ? ` · elérhető: ${dataFrom}–${dataUntil}` : ""}</p>
     </section>
   );
 }

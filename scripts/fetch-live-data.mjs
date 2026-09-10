@@ -1349,7 +1349,7 @@ async function readBulgariaMixDocument() {
 }
 
 async function updateEntsoePlantHistory(token, previous, historyFloor) {
-  const plantHistoryVersion = 3;
+  const plantHistoryVersion = 4;
   const stored = previous?.plantHistoryVersion === plantHistoryVersion && Array.isArray(previous?.plants) ? previous.plants : [];
   const lastAttempt = new Date(previous?.plantsUpdatedAt ?? 0).getTime();
   if (previous?.plantHistoryVersion === plantHistoryVersion && Number.isFinite(lastAttempt) && now.getTime() - lastAttempt >= 0 && now.getTime() - lastAttempt < 5 * 3_600_000) {
@@ -1366,7 +1366,7 @@ async function updateEntsoePlantHistory(token, previous, historyFloor) {
   const latestDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6));
   const requestedDays = [];
   if (!stored.length) {
-    for (let offset = 90; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
+    for (let offset = 60; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
   } else {
     for (let offset = 2; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
     const earliest = stored.flatMap((plant) => plant.days ?? []).map((day) => day.date).sort()[0];
@@ -1382,20 +1382,22 @@ async function updateEntsoePlantHistory(token, previous, historyFloor) {
     .map((day) => [day.toISOString().slice(0, 10), day])).values()];
   const batches = [];
   const unmapped = new Map();
-  let nextDay = 0;
-  await Promise.all(Array.from({ length: Math.min(3, uniqueDays.length) }, async () => {
-    while (nextDay < uniqueDays.length) {
-      const day = uniqueDays[nextDay];
-      nextDay += 1;
-      try {
-        const document = await fetchEntsoeBulgariaPlants(token, day, new Date(day.getTime() + 86_400_000));
-        batches.push(document.plants);
-        for (const resource of document.unmapped) unmapped.set(`${resource.psrType}|${resource.resourceName}|${resource.resourceId}`, resource);
-      } catch (error) {
-        console.error(`ENTSO-E erőművi nap (${day.toISOString().slice(0, 10)}): ${error.message}`);
-      }
+  const sofiaHour = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Sofia", hour: "2-digit", hourCycle: "h23" });
+  const sofiaMidnight = (day) => {
+    const utcMidnight = new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));
+    const offsetHours = Number(sofiaHour.format(utcMidnight));
+    return new Date(utcMidnight.getTime() - offsetHours * 3_600_000);
+  };
+  for (const day of uniqueDays) {
+    const nextLocalDay = new Date(day.getTime() + 86_400_000);
+    try {
+      const document = await fetchEntsoeBulgariaPlants(token, sofiaMidnight(day), sofiaMidnight(nextLocalDay));
+      batches.push(document.plants);
+      for (const resource of document.unmapped) unmapped.set(`${resource.psrType}|${resource.resourceName}|${resource.resourceId}`, resource);
+    } catch (error) {
+      console.error(`ENTSO-E erőművi nap (${day.toISOString().slice(0, 10)}): ${error.message}`);
     }
-  }));
+  }
 
   const floorKey = historyFloor.toISOString().slice(0, 10);
   const plants = mergePlantHistory(stored, batches, floorKey);
