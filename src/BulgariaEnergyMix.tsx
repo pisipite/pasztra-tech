@@ -278,20 +278,18 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
             <i aria-hidden="true">⌄</i>
           </button>
         </div>
-        <div className="period-tabs bulgaria-mix__tabs section-header__tools" role="tablist" aria-label="Bulgária energiamix időszaka">
-          {periods.map((item) => <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setAnchor(new Date()); }}>{item.label}</button>)}
+        <div className="period-control-stack section-header__tools">
+          <div className="period-tabs bulgaria-mix__tabs" role="tablist" aria-label="Bulgária energiamix időszaka">
+            {periods.map((item) => <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setAnchor(new Date()); }}>{item.label}</button>)}
+          </div>
+          <div className="period-stepper">
+            <button onClick={() => stepPeriod(-1)} aria-label="Előző energiamix-időszak">←</button>
+            <strong>{periodLabel(period, effectiveAnchor, customStart, customEnd)}</strong>
+            <button onClick={() => stepPeriod(1)} disabled={period !== "custom" && isCurrentPeriod(period, effectiveAnchor)} aria-label="Következő energiamix-időszak">→</button>
+          </div>
+          {period === "custom" && <div className="custom-range period-control-stack__custom"><label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => setCustomStart(event.target.value)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => setCustomEnd(event.target.value)} /></label></div>}
         </div>
       </div>
-
-      <div className="bulgaria-mix__controls">
-        <div className="period-stepper">
-          <button onClick={() => stepPeriod(-1)} aria-label="Előző energiamix-időszak">←</button>
-          <strong>{periodLabel(period, effectiveAnchor, customStart, customEnd)}</strong>
-          <button onClick={() => stepPeriod(1)} disabled={period !== "custom" && isCurrentPeriod(period, effectiveAnchor)} aria-label="Következő energiamix-időszak">→</button>
-        </div>
-      </div>
-
-      {period === "custom" && <div className="custom-range bulgaria-mix__custom"><label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => setCustomStart(event.target.value)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => setCustomEnd(event.target.value)} /></label></div>}
 
       {mapOpen && <div id="bulgaria-power-plant-map">
         <BulgariaPowerPlantMap

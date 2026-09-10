@@ -140,22 +140,24 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
       <div className="climate-chart-wrap">
         <div className="climate-chart-heading">
           <div><span>Hőmérséklet alakulása</span><strong>Hőmérséklet és páratartalom</strong></div>
-          <div className="period-tabs climate-period-tabs" role="tablist" aria-label="Klímaadatok időszaka">
-            {climatePeriods.map((item) => <button key={item.key} role="tab" aria-selected={climatePeriod === item.key} className={climatePeriod === item.key ? "active" : ""} onClick={() => onClimatePeriodChange(item.key)}>{item.label}</button>)}
+          <div className="period-control-stack">
+            <div className="period-tabs climate-period-tabs" role="tablist" aria-label="Klímaadatok időszaka">
+              {climatePeriods.map((item) => <button key={item.key} role="tab" aria-selected={climatePeriod === item.key} className={climatePeriod === item.key ? "active" : ""} onClick={() => onClimatePeriodChange(item.key)}>{item.label}</button>)}
+            </div>
+            <div className="period-stepper">
+              <button onClick={() => onClimateStep(-1)} aria-label="Előző klíma-időszak">←</button>
+              <strong>{periodLabel(climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd)}</strong>
+              <button onClick={() => onClimateStep(1)} disabled={climatePeriod !== "custom" && isCurrentPeriod(climatePeriod, climateAnchor)} aria-label="Következő klíma-időszak">→</button>
+            </div>
+            {climatePeriod === "custom" && <div className="custom-range period-control-stack__custom"><label><span>Kezdőnap</span><input type="date" value={climateCustomStart} max={climateCustomEnd} onChange={(event) => onClimateCustomChange(event.target.value, climateCustomEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={climateCustomEnd} min={climateCustomStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onClimateCustomChange(climateCustomStart, event.target.value)} /></label></div>}
           </div>
         </div>
         <div className="climate-chart-controls">
-          <div className="period-stepper">
-            <button onClick={() => onClimateStep(-1)} aria-label="Előző klíma-időszak">←</button>
-            <strong>{periodLabel(climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd)}</strong>
-            <button onClick={() => onClimateStep(1)} disabled={climatePeriod !== "custom" && isCurrentPeriod(climatePeriod, climateAnchor)} aria-label="Következő klíma-időszak">→</button>
-          </div>
           <div className="climate-chart-options">
             {aggregationAvailable && <div className="climate-aggregation" role="group" aria-label="Megjelenített klímaérték"><button className={climateAggregation === "min" ? "active" : ""} aria-pressed={climateAggregation === "min"} onClick={() => onClimateAggregationChange("min")}>Minimum</button><button className={climateAggregation === "average" ? "active" : ""} aria-pressed={climateAggregation === "average"} onClick={() => onClimateAggregationChange("average")}>Átlag</button><button className={climateAggregation === "max" ? "active" : ""} aria-pressed={climateAggregation === "max"} onClick={() => onClimateAggregationChange("max")}>Maximum</button></div>}
             <div className="climate-legend" aria-label="Jelmagyarázat"><button className={temperatureVisible ? "" : "is-hidden"} aria-pressed={temperatureVisible} onClick={() => setTemperatureVisible((value) => !value)}><i className="is-temperature" />Hőmérséklet</button><button className={humidityVisible ? "" : "is-hidden"} aria-pressed={humidityVisible} onClick={() => setHumidityVisible((value) => !value)}><i className="is-humidity" />Páratartalom</button></div>
           </div>
         </div>
-        {climatePeriod === "custom" && <div className="custom-range climate-custom-range"><label><span>Kezdőnap</span><input type="date" value={climateCustomStart} max={climateCustomEnd} onChange={(event) => onClimateCustomChange(event.target.value, climateCustomEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={climateCustomEnd} min={climateCustomStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onClimateCustomChange(climateCustomStart, event.target.value)} /></label></div>}
         <div className={climateLoading ? "is-climate-loading" : ""}><ClimateChart data={climateSeries} period={climatePeriod} temperatureVisible={temperatureVisible} humidityVisible={humidityVisible} /></div>
       </div>
       <div className="device-list">

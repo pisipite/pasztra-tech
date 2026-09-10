@@ -223,9 +223,6 @@ html { scroll-behavior: smooth; }
 .bulgaria-mix__map-toggle.is-open { color: var(--poster-paper-light); background: var(--poster-deep); }
 .bulgaria-mix__map-toggle.is-open > i { transform: rotate(180deg); }
 .bulgaria-mix__tabs { flex: 0 0 auto; }
-.bulgaria-mix__controls { display: flex; margin: 24px 0 12px; }
-.bulgaria-mix__controls .period-stepper { width: min(390px, 100%); background: rgba(255,255,255,.28); }
-.bulgaria-mix__custom { margin: 0 0 15px; }
 .bulgaria-mix__now > p,
 .bulgaria-mix__chart-head span,
 .bulgaria-mix__bar-title b {
@@ -1096,7 +1093,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .climate-chart-heading > div:first-child span { color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
 .climate-chart-heading > div:first-child strong { font-family: "Fraunces", serif; font-size: clamp(22px, 2.5vw, 32px); font-weight: 600; letter-spacing: -.035em; }
 .climate-period-tabs { flex: 0 0 auto; }
-.climate-chart-controls { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 14px; }
+.climate-chart-controls { display: flex; align-items: center; justify-content: flex-end; gap: 18px; margin-bottom: 14px; }
 .climate-chart-options { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 18px; }
 .climate-aggregation { display: flex; padding: 3px; border: 1px solid #d3c7b4; border-radius: 9px 4px 10px 6px; background: #eee7db; }
 .climate-aggregation button { border: 0; border-radius: 6px; padding: 7px 10px; color: #756e62; background: transparent; cursor: pointer; font-size: 9px; font-weight: 700; }
@@ -1984,6 +1981,23 @@ main { max-width: 1500px; padding-top: 28px; }
   flex: 0 0 auto;
   align-self: flex-start;
 }
+.period-control-stack {
+  display: grid;
+  width: min(390px, 100%);
+  gap: 10px;
+  justify-items: stretch;
+}
+.period-control-stack .period-tabs,
+.period-control-stack .period-stepper { width: 100%; }
+.period-control-stack__custom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  width: 100%;
+  padding: 0;
+}
+.period-control-stack__custom label { min-width: 0; }
+.period-control-stack__custom input { width: 100%; min-width: 0; }
+.analysis-controls--overlays { justify-content: flex-end; padding-top: 14px; }
 .section-header > .period-tabs,
 .section-header > .forecast-tabs { margin-top: 0; }
 .section-header--dark h2 { color: var(--poster-paper-light); }
@@ -2002,4 +2016,6 @@ main { max-width: 1500px; padding-top: 28px; }
   .section-header > .period-tabs button,
   .section-header > .forecast-tabs button { flex: 1; min-width: 0; }
   .section-header__tools { justify-self: start; }
+  .section-header .period-control-stack,
+  .climate-chart-heading .period-control-stack { width: 100%; }
 }

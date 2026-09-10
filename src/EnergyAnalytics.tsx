@@ -195,32 +195,33 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
           <div className="section-kicker"><p className="eyebrow">Energiafolyam</p><BackToTop /></div>
           <h2>Termelés és felhasználás</h2>
         </div>
-        <div className="period-tabs section-header__tools" role="tablist" aria-label="Időfelbontás">
-          {periods.map((item) => (
-            <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => onPeriodChange(item.key)}>{item.label}</button>
-          ))}
+        <div className="period-control-stack section-header__tools">
+          <div className="period-tabs" role="tablist" aria-label="Időfelbontás">
+            {periods.map((item) => (
+              <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => onPeriodChange(item.key)}>{item.label}</button>
+            ))}
+          </div>
+          <div className="period-stepper">
+            <button onClick={() => onStep(-1)} aria-label="Előző időszak">←</button>
+            <strong>{periodLabel(period, anchor, customStart, customEnd)}</strong>
+            <button onClick={() => onStep(1)} disabled={nextDisabled} aria-label="Következő időszak">→</button>
+          </div>
+          {period === "custom" && (
+            <div className="custom-range period-control-stack__custom">
+              <label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => onCustomChange(event.target.value, customEnd)} /></label>
+              <span aria-hidden="true">→</span>
+              <label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onCustomChange(customStart, event.target.value)} /></label>
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="analysis-controls">
-        <div className="period-stepper">
-          <button onClick={() => onStep(-1)} aria-label="Előző időszak">←</button>
-          <strong>{periodLabel(period, anchor, customStart, customEnd)}</strong>
-          <button onClick={() => onStep(1)} disabled={nextDisabled} aria-label="Következő időszak">→</button>
-        </div>
+      <div className="analysis-controls analysis-controls--overlays">
         <div className="overlay-toggles" aria-label="Kiegészítő adatsorok">
           <button className={temperatureVisible ? "active temperature" : ""} aria-pressed={temperatureVisible} onClick={() => setTemperatureVisible((value) => !value)}><i />Hőmérséklet</button>
           <button className={humidityVisible ? "active humidity" : ""} aria-pressed={humidityVisible} onClick={() => setHumidityVisible((value) => !value)}><i />Páratartalom</button>
         </div>
       </div>
-
-      {period === "custom" && (
-        <div className="custom-range">
-          <label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => onCustomChange(event.target.value, customEnd)} /></label>
-          <span aria-hidden="true">→</span>
-          <label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onCustomChange(customStart, event.target.value)} /></label>
-        </div>
-      )}
 
       <div className={`chart-legend${isLine ? "" : " is-bar-legend"}`} aria-label="Jelmagyarázat">
         {availableSeries.map((series) => <button type="button" key={series.key} className={`${series.groupStart ? "series-group-start " : ""}${isEnergySeriesVisible(series.key) ? "" : "is-hidden"}`.trim()} aria-pressed={isEnergySeriesVisible(series.key)} onClick={() => toggleEnergySeries(series.key)}><i style={{ background: series.color }} />{series.label}</button>)}
