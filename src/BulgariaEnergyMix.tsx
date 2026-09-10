@@ -114,8 +114,8 @@ function householdSummary(points: EnergyChartPoint[], powerValues: boolean) {
   return { load, grid, battery, directPv };
 }
 
-function formatMw(value: number) {
-  return value >= 1000 ? `${compactNumber.format(value / 1000)} GW` : `${compactNumber.format(value)} MW`;
+function formatPower(value: number, unit: "MW" | "GW") {
+  return `${compactNumber.format(unit === "GW" ? value / 1000 : value)} ${unit}`;
 }
 
 function formatEnergyMwh(value: number) {
@@ -203,6 +203,8 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   });
   const observedMax = Math.max(1, ...stacks);
   const upper = Math.max(1000, Math.ceil(observedMax / 1000) * 1000);
+  const powerUnit: "MW" | "GW" = upper >= 1000 ? "GW" : "MW";
+  const powerDivisor = powerUnit === "GW" ? 1000 : 1;
   const y = (value: number) => margin.top + (1 - value / upper) * plotHeight;
   const tickValues = Array.from({ length: 5 }, (_, index) => upper - index * upper / 4);
   const tickStep = Math.max(1, Math.ceil(points.length / 8));
@@ -300,8 +302,8 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
           <div className="bulgaria-mix__chart" onMouseMove={onChartMove} onMouseLeave={() => setHovered(null)}>
             {points.length ? <>
               <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Rétegezett területdiagram, ${periodLabel(period, effectiveAnchor, customStart, customEnd)}`}>
-                {tickValues.map((value) => <g key={value}><line className="mix-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="mix-axis" x={margin.left - 10} y={y(value) + 4} textAnchor="end">{value >= 1000 ? `${compactNumber.format(value / 1000)}k` : compactNumber.format(value)}</text></g>)}
-                <text className="mix-axis mix-axis__title" x={margin.left} y={13}>MW</text>
+                {tickValues.map((value) => <g key={value}><line className="mix-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="mix-axis" x={margin.left - 10} y={y(value) + 4} textAnchor="end">{compactNumber.format(value / powerDivisor)}</text></g>)}
+                <text className="mix-axis mix-axis__title" x={margin.left} y={13}>{powerUnit}</text>
                 {areaSeries.map((item) => {
                   const upperPoints = item.upper.map((value, index) => `${x(index)},${y(value)}`);
                   const lowerPoints = item.lower.map((value, index) => ({ value, index })).reverse().map(({ value, index }) => `${x(index)},${y(value)}`);
@@ -312,7 +314,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
                   : points.map((point, index) => (index % tickStep === 0 || index === points.length - 1) && <text key={point.timestamp} className="mix-axis" x={x(index)} y={height - 14} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{axisLabel(point, period, customStart, customEnd)}</text>)}
                 {hovered !== null && <line className="mix-hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={height - margin.bottom} />}
               </svg>
-              {active && <div className="bulgaria-mix__tooltip"><strong>{fullTimeFormatter.format(new Date(active.timestamp))}</strong>{visibleSeries.map((item) => <span key={item.key}><i style={{ background: item.color }} />{item.label}<b>{formatMw(active[item.key])}</b></span>)}</div>}
+              {active && <div className="bulgaria-mix__tooltip"><strong>{fullTimeFormatter.format(new Date(active.timestamp))}</strong>{visibleSeries.map((item) => <span key={item.key}><i style={{ background: item.color }} />{item.label}<b>{formatPower(active[item.key], powerUnit)}</b></span>)}</div>}
             </> : <div className="bulgaria-mix__empty">Erre az időszakra még nincs energiamix-adat.</div>}
           </div>
           <div className="bulgaria-mix__legend" aria-label="Kapcsolható energiaforrások">{availableSeries.map((item) => <button type="button" key={item.key} className={hiddenSeries.has(item.key) ? "is-hidden" : ""} aria-pressed={!hiddenSeries.has(item.key)} onClick={() => setHiddenSeries((current) => { const next = new Set(current); if (next.has(item.key)) next.delete(item.key); else next.add(item.key); return next; })}><i style={{ background: item.color }} />{item.label}</button>)}</div>
