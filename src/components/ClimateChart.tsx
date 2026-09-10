@@ -1,5 +1,6 @@
 import { useState, type MouseEvent } from "react";
 import { smoothPath } from "../chartUtils";
+import { formatFixedNumber } from "../formatUtils";
 import type { ClimatePoint, PeriodKey } from "../types";
 
 type Props = {
@@ -76,7 +77,7 @@ export function ClimateChart({ data, period, temperatureVisible, humidityVisible
           const y = margin.top + ratio * plotHeight;
           const temperature = tempMax - ratio * (tempMax - tempMin);
           const humidity = humidityMax - ratio * (humidityMax - humidityMin);
-          return <g key={ratio}><line className="climate-gridline" x1={margin.left} x2={width - margin.right} y1={y} y2={y} />{temperatureVisible && <text className="climate-axis climate-axis--temperature" x={margin.left - 11} y={y + 4} textAnchor="end">{temperature.toFixed(0)} °C</text>}{humidityVisible && <text className="climate-axis climate-axis--humidity" x={width - margin.right + 11} y={y + 4}>{humidity.toFixed(0)}%</text>}</g>;
+          return <g key={ratio}><line className="climate-gridline" x1={margin.left} x2={width - margin.right} y1={y} y2={y} />{temperatureVisible && <text className="climate-axis climate-axis--temperature" x={margin.left - 11} y={y + 4} textAnchor="end">{formatFixedNumber(temperature, 0)} °C</text>}{humidityVisible && <text className="climate-axis climate-axis--humidity" x={width - margin.right + 11} y={y + 4}>{formatFixedNumber(humidity, 0)}%</text>}</g>;
         })}
         {temperatureVisible && <path className="climate-line climate-line--temperature" d={temperaturePath} />}
         {humidityVisible && <path className="climate-line climate-line--humidity" d={humidityPath} />}
@@ -89,7 +90,7 @@ export function ClimateChart({ data, period, temperatureVisible, humidityVisible
         }) : data.map((point, index) => (index % labelStep === 0 || index === data.length - 1) && <text key={`${point.label}-${index}`} className="climate-x-label" x={x(index)} y={height - 18} textAnchor={index === 0 ? "start" : index === data.length - 1 ? "end" : "middle"}>{point.label}</text>)}
       </svg>
       {!temperatureVisible && !humidityVisible && <div className="climate-lines-hidden">Kapcsolj vissza egy adatsort a jelmagyarázatban.</div>}
-      {active && (temperatureVisible || humidityVisible) && <div className="climate-tooltip"><strong>{activeLabel}</strong>{temperatureVisible && <span><i className="is-temperature" />Hőmérséklet <b>{active.temperature.toFixed(1)} °C</b></span>}{humidityVisible && <span><i className="is-humidity" />Páratartalom <b>{active.humidity.toFixed(0)}%</b></span>}</div>}
+      {active && (temperatureVisible || humidityVisible) && <div className="climate-tooltip"><strong>{activeLabel}</strong>{temperatureVisible && <span><i className="is-temperature" />Hőmérséklet <b>{formatFixedNumber(active.temperature, 1)} °C</b></span>}{humidityVisible && <span><i className="is-humidity" />Páratartalom <b>{formatFixedNumber(active.humidity, 0)}%</b></span>}</div>}
     </div>
   );
 }

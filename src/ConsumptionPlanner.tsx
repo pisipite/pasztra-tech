@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardData, SolarForecast } from "./types";
 import { BackToTop } from "./components/BackToTop";
+import { formatFixedNumber, formatNumber } from "./formatUtils";
 
 type DayOffset = 0 | 1 | 2;
 
@@ -354,7 +355,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
                   shiftStart(event.key === "ArrowLeft" ? -1 : 1);
                 }
               }}
-            ><span className="planner-grip" aria-hidden="true">⋮⋮</span><strong>{trial.energyKwh.toFixed(1)} kWh</strong><b>{formatClock(start.timestamp)}</b><span
+            ><span className="planner-grip" aria-hidden="true">⋮⋮</span><strong>{formatFixedNumber(trial.energyKwh, 1)} kWh</strong><b>{formatClock(start.timestamp)}</b><span
               className="planner-resize-handle"
               role="slider"
               tabIndex={0}
@@ -362,7 +363,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
               aria-valuemin={15}
               aria-valuemax={1440}
               aria-valuenow={trial.durationMinutes}
-              aria-valuetext={`${(trial.durationMinutes / 60).toFixed(2)} óra`}
+              aria-valuetext={`${formatFixedNumber(trial.durationMinutes / 60, 2)} óra`}
               onPointerDown={(event) => {
                 if (event.button !== 0) return;
                 event.preventDefault();
@@ -396,22 +397,22 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
 
       {plan && start && endTimestamp && <div className="planner-simple-result">
         <section className="planner-source-panel">
-          <div className="planner-result-head"><div><p className="eyebrow">Forrásmegoszlás</p><h3>{formatClock(start.timestamp)}–{formatClock(endTimestamp)}</h3></div><strong>{plan.powerKw.toFixed(2)} <small>kW átlag</small></strong></div>
+          <div className="planner-result-head"><div><p className="eyebrow">Forrásmegoszlás</p><h3>{formatClock(start.timestamp)}–{formatClock(endTimestamp)}</h3></div><strong>{formatFixedNumber(plan.powerKw, 2)} <small>kW átlag</small></strong></div>
           <div className="planner-source-bar" aria-label="Az energia forrás szerinti megoszlása">
             {sourceRows.map((source) => <i key={source.key} className={source.key} style={{ width: `${sourceTotal ? source.value / sourceTotal * 100 : 0}%` }} />)}
           </div>
           <div className="planner-source-list">
-            {sourceRows.map((source) => <div key={source.key} className={source.key}><span>{source.label}</span><strong>{source.value.toFixed(2)} <small>kWh</small></strong><em>{sourceTotal ? (source.value / sourceTotal * 100).toFixed(0) : 0}%</em></div>)}
+            {sourceRows.map((source) => <div key={source.key} className={source.key}><span>{source.label}</span><strong>{formatFixedNumber(source.value, 2)} <small>kWh</small></strong><em>{formatFixedNumber(sourceTotal ? source.value / sourceTotal * 100 : 0, 0)}%</em></div>)}
           </div>
         </section>
 
         <section className="planner-battery-impact">
           <p className="eyebrow">Akkumulátorhatás</p>
           {plan.simulation.testBatteryKwh > .01 ? <>
-            <h3>Várhatóan {batteryDropPct.toFixed(1)} százalékponttal csökken.</h3>
-            <div className="planner-soc-change"><span>{socBeforeUse.toFixed(0)}%</span><i /><strong>{endSoc.toFixed(0)}%</strong></div>
+            <h3>Várhatóan {formatFixedNumber(batteryDropPct, 1)} százalékponttal csökken.</h3>
+            <div className="planner-soc-change"><span>{formatFixedNumber(socBeforeUse, 0)}%</span><i /><strong>{formatFixedNumber(endSoc, 0)}%</strong></div>
             <dl>
-              <div><dt>Az akkuból érkezik</dt><dd>{plan.simulation.testBatteryKwh.toFixed(2)} kWh</dd></div>
+              <div><dt>Az akkuból érkezik</dt><dd>{formatFixedNumber(plan.simulation.testBatteryKwh, 2)} kWh</dd></div>
               <div><dt>Visszatöltés várható</dt><dd>{plan.rechargeIndex !== undefined ? `${formatDay(dateKey(slots[plan.rechargeIndex].timestamp), forecast.days[slots[plan.rechargeIndex].dayOffset].label)}, ${formatClock(slots[plan.rechargeIndex].timestamp)}` : "72 órán belül nem látszik"}</dd></div>
             </dl>
           </> : <>
@@ -424,7 +425,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
       {!plan && <p className="planner-warning planner-no-slot">A kiválasztott napon már nincs elegendő idő a teljes használathoz. Válassz egy későbbi napot vagy rövidebb időtartamot.</p>}
 
       <details className="planner-battery-settings">
-        <summary><span>Számítási beállítások</span><b>{batterySettings.capacityKwh.toFixed(1)} kWh akku · {batterySettings.reservePct}% tartalék · {batterySettings.idleLossPctPerDay}%/nap veszteség</b></summary>
+        <summary><span>Számítási beállítások</span><b>{formatFixedNumber(batterySettings.capacityKwh, 1)} kWh akku · {formatNumber(batterySettings.reservePct, 1)}% tartalék · {formatNumber(batterySettings.idleLossPctPerDay, 1)}%/nap veszteség</b></summary>
         <div className="planner-battery-fields">
           <label>Háttérfogyasztás<span><input type="number" min="0" max="5" step="0.05" value={baseLoadKw} onChange={(event) => { setBaseLoadKw(Math.max(0, Number(event.target.value))); setManualStart(undefined); }} /> kW</span></label>
           <label>Akku kapacitása<span><input type="number" min="0.1" max="100" step="0.1" value={batterySettings.capacityKwh} onChange={(event) => setBatterySettings((current) => ({ ...current, capacityKwh: Math.max(.1, Number(event.target.value)) }))} /> kWh</span></label>
@@ -434,7 +435,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
           <label>Üresjárati veszteség<span><input type="number" min="0" max="20" step="0.1" value={batterySettings.idleLossPctPerDay} onChange={(event) => setBatterySettings((current) => ({ ...current, idleLossPctPerDay: Math.max(0, Number(event.target.value)) }))} /> %/nap</span></label>
           <label>Kezdő SOC élő adat nélkül<span><input type="number" min="0" max="100" step="1" value={batterySettings.fallbackSocPct} onChange={(event) => setBatterySettings((current) => ({ ...current, fallbackSocPct: Math.max(0, Math.min(100, Number(event.target.value))) }))} /> %</span></label>
         </div>
-        <p>A kezdő töltöttség: <strong>{startSocPct.toFixed(0)}%</strong> ({Number.isFinite(latestSoc) ? "élő Sungrow-adat" : "megadott tartalékérték"}).</p>
+        <p>A kezdő töltöttség: <strong>{formatFixedNumber(startSocPct, 0)}%</strong> ({Number.isFinite(latestSoc) ? "élő Sungrow-adat" : "megadott tartalékérték"}).</p>
       </details>
     </article>
   );

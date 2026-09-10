@@ -1,4 +1,5 @@
 import type { ChartPoint } from "../types";
+import { formatFixedNumber } from "../formatUtils";
 
 type Props = {
   data: ChartPoint[];
@@ -17,7 +18,7 @@ export function LineChart({ data, suffix, tone = "solar" }: Props) {
   const line = points.map((point, index) => `${index ? "L" : "M"}${point.x},${point.y}`).join(" ");
 
   return (
-    <div className={`chart chart--${tone}`} aria-label={`Grafikon, maximum ${maximum.toFixed(1)} ${suffix}`}>
+    <div className={`chart chart--${tone}`} aria-label={`Grafikon, maximum ${formatFixedNumber(maximum, 1)} ${suffix}`}>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img">
         <defs>
           <linearGradient id={`fill-${tone}`} x1="0" x2="0" y1="0" y2="1">

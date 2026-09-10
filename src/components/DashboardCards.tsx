@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { isValidClimateValues, type ClimateAggregation } from "../climateData";
 import { isCurrentPeriod, periodLabel } from "../dateUtils";
-import { formatTime } from "../formatUtils";
+import { formatFixedNumber, formatNumber, formatTime } from "../formatUtils";
 import type { ClimatePoint, DashboardData, PeriodKey, SolarData } from "../types";
 import { BackToTop } from "./BackToTop";
 import { ClimateChart } from "./ClimateChart";
@@ -31,10 +31,10 @@ function solarStatusText(status: SolarData["status"]) {
 }
 
 function SolarCard({ data, batterySoc, loading, onRefresh }: Pick<Props, "data" | "batterySoc" | "loading" | "onRefresh">) {
-  const batteryLabel = Number.isFinite(batterySoc) ? batterySoc!.toFixed(0) : "—";
+  const batteryLabel = Number.isFinite(batterySoc) ? formatFixedNumber(batterySoc!, 0) : "—";
   const batteryLevel = Math.max(0, Math.min(100, batterySoc ?? 0));
-  const batteryTemperature = Number.isFinite(data.solar.batteryTemperatureC) ? `${data.solar.batteryTemperatureC!.toFixed(1)} °C` : "—";
-  const batteryVoltage = Number.isFinite(data.solar.batteryVoltageV) ? `${data.solar.batteryVoltageV!.toFixed(1)} V` : "—";
+  const batteryTemperature = Number.isFinite(data.solar.batteryTemperatureC) ? `${formatFixedNumber(data.solar.batteryTemperatureC!, 1)} °C` : "—";
+  const batteryVoltage = Number.isFinite(data.solar.batteryVoltageV) ? `${formatFixedNumber(data.solar.batteryVoltageV!, 1)} V` : "—";
 
   return (
     <article className="card solar-card" id="napelem">
@@ -55,8 +55,8 @@ function SolarCard({ data, batterySoc, loading, onRefresh }: Pick<Props, "data" 
           <p>pillanatnyi teljesítmény</p>
         </div>
         <div className="energy-flow">
-          <div><span>Otthon fogyasztása</span><strong>{data.solar.houseLoadKw.toFixed(2)} kW</strong></div>
-          <div><span>{data.solar.gridPowerKw < 0 ? "Hálózatba táplálva" : "Hálózatból véve"}</span><strong>{Math.abs(data.solar.gridPowerKw).toFixed(2)} kW</strong></div>
+          <div><span>Otthon fogyasztása</span><strong>{formatFixedNumber(data.solar.houseLoadKw, 2)} kW</strong></div>
+          <div><span>{data.solar.gridPowerKw < 0 ? "Hálózatba táplálva" : "Hálózatból véve"}</span><strong>{formatFixedNumber(Math.abs(data.solar.gridPowerKw), 2)} kW</strong></div>
         </div>
       </div>
       <div className="battery-status-panel" aria-label={`Akkumulátor töltöttsége: ${Number.isFinite(batterySoc) ? `${batteryLabel} százalék` : "nincs adat"}`}>
@@ -72,9 +72,9 @@ function SolarCard({ data, batterySoc, loading, onRefresh }: Pick<Props, "data" 
         <span className="battery-shape" aria-hidden="true"><i style={{ width: `${batteryLevel}%` }} /></span>
       </div>
       <div className="solar-stats">
-        <div><span>Termelés ma</span><strong>{data.solar.todayKwh.toFixed(1)} <small>kWh</small></strong></div>
+        <div><span>Termelés ma</span><strong>{formatFixedNumber(data.solar.todayKwh, 1)} <small>kWh</small></strong></div>
         <div><span>Ebben a hónapban</span><strong>{data.solar.monthKwh.toLocaleString("hu-HU")} <small>kWh</small></strong></div>
-        <div><span>Összes termelés</span><strong>{data.solar.lifetimeMwh.toFixed(1)} <small>MWh</small></strong></div>
+        <div><span>Összes termelés</span><strong>{formatFixedNumber(data.solar.lifetimeMwh, 1)} <small>MWh</small></strong></div>
       </div>
     </article>
   );
@@ -118,13 +118,13 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
         <span className={`comfort-badge section-header__tools ${comfortable ? "" : "comfort-badge--alert"}`}>{comfortable ? "Kellemes" : "Ellenőrizendő"}</span>
       </div>
       <div className="climate-reading">
-        <div className="temperature"><strong>{activeDevice.temperatureC.toFixed(1)}°</strong><span>C</span></div>
+        <div className="temperature"><strong>{formatFixedNumber(activeDevice.temperatureC, 1)}°</strong><span>C</span></div>
         <div className="humidity-reading">
           <svg className="humidity-drop" viewBox="0 0 34 44" aria-hidden="true">
             <path className="humidity-drop__body" d="M17 2.8C14.7 8.5 5.2 18.7 5.2 27.1c0 7.2 5.1 12.2 11.8 12.2s11.8-5 11.8-12.2C28.8 18.7 19.3 8.5 17 2.8Z" />
             <path className="humidity-drop__glint" d="M11.1 28.5c.5 3.1 2.5 5.1 5.3 5.7" />
           </svg>
-          <div><strong>{activeDevice.humidityPct}%</strong><span>pára</span></div>
+          <div><strong>{formatNumber(activeDevice.humidityPct, 1)}%</strong><span>pára</span></div>
         </div>
       </div>
       {closestWeatherTwin && <div className="weather-twins">
@@ -133,7 +133,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
           {closestWeatherTwin.locative}.
           {tooltipWeatherTwins.length > 0 && <span className="weather-twins__tooltip" id="weather-twins-tooltip" role="tooltip">
             <strong>Hasonló időjárás most</strong>
-            {tooltipWeatherTwins.map((place, index) => <span className={index === 0 ? "is-primary" : undefined} key={`${place.city}-${place.country}`}><b>{place.city}</b><small>{place.country} · {place.temperatureC.toFixed(1)} °C · {place.humidityPct.toFixed(0)}%</small></span>)}
+            {tooltipWeatherTwins.map((place, index) => <span className={index === 0 ? "is-primary" : undefined} key={`${place.city}-${place.country}`}><b>{place.city}</b><small>{place.country} · {formatFixedNumber(place.temperatureC, 1)} °C · {formatFixedNumber(place.humidityPct, 0)}%</small></span>)}
           </span>}
         </button>
       </div>}
@@ -163,7 +163,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
           <div className="device-row" key={device.id}>
             <span className="device-icon"><i /><i /></span>
             <div><strong>{device.room}</strong><span>{device.name} · {formatTime(device.updatedAt)}</span></div>
-            <div className="device-row__values"><strong>{device.temperatureC.toFixed(1)}°</strong><span>{device.humidityPct}% · {device.batteryPct}% akku</span></div>
+            <div className="device-row__values"><strong>{formatFixedNumber(device.temperatureC, 1)}°</strong><span>{formatNumber(device.humidityPct, 1)}% · {formatNumber(device.batteryPct, 1)}% akku</span></div>
           </div>
         ))}
       </div>

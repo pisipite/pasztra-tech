@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { smoothPath } from "./chartUtils";
 import { BackToTop } from "./components/BackToTop";
+import { formatFixedNumber } from "./formatUtils";
 import type { DashboardData, SolarForecastPoint } from "./types";
 
 type Props = { data: DashboardData };
@@ -59,11 +60,11 @@ export function SolarForecast({ data }: Props) {
       </div>
 
       <div className="forecast-summary">
-        <div><span>Várható termelés</span><strong>{selectedDay.expectedKwh.toFixed(1)} <small>kWh</small></strong></div>
+        <div><span>Várható termelés</span><strong>{formatFixedNumber(selectedDay.expectedKwh, 1)} <small>kWh</small></strong></div>
         <div><span>Legjobb fogyasztási időszak</span><strong>{selectedDay.bestWindow}</strong></div>
-        <div><span>Nappali felhőzet</span><strong>{averageCloud.toFixed(0)}<small>%</small></strong></div>
-        <div><span>Csapadék esélye</span><strong>{rainChance.toFixed(0)}<small>%</small></strong></div>
-        <div><span>Csúcsbesugárzás</span><strong>{peakIrradiance.toFixed(0)} <small>W/m²</small></strong></div>
+        <div><span>Nappali felhőzet</span><strong>{formatFixedNumber(averageCloud, 0)}<small>%</small></strong></div>
+        <div><span>Csapadék esélye</span><strong>{formatFixedNumber(rainChance, 0)}<small>%</small></strong></div>
+        <div><span>Csúcsbesugárzás</span><strong>{formatFixedNumber(peakIrradiance, 0)} <small>W/m²</small></strong></div>
       </div>
 
       <div className="forecast-legend">
@@ -72,9 +73,9 @@ export function SolarForecast({ data }: Props) {
       </div>
 
       <div className="forecast-chart" onMouseLeave={() => setHovered(null)}>
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${selectedDay.label}: ${selectedDay.expectedKwh.toFixed(1)} kilowattóra várható termelés`}>
+        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${selectedDay.label}: ${formatFixedNumber(selectedDay.expectedKwh, 1)} kilowattóra várható termelés`}>
           <defs><linearGradient id="forecast-area" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#d8902f" stopOpacity=".22" /><stop offset="100%" stopColor="#d8902f" stopOpacity=".02" /></linearGradient></defs>
-          {gridValues.map((value) => <g key={value}><line className="forecast-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="forecast-axis-label" x={margin.left - 10} y={y(value) + 4} textAnchor="end">{value.toFixed(1)}</text></g>)}
+          {gridValues.map((value) => <g key={value}><line className="forecast-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="forecast-axis-label" x={margin.left - 10} y={y(value) + 4} textAnchor="end">{formatFixedNumber(value, 1)}</text></g>)}
           <text className="forecast-axis-title" x={margin.left} y={14}>Teljesítmény (kW)</text>
           <path d={`${smoothPath(expectedCoords)} L${expectedCoords.at(-1)?.x},${y(0)} L${expectedCoords[0]?.x},${y(0)} Z`} fill="url(#forecast-area)" />
           <path className="forecast-line forecast-line--expected" d={smoothPath(expectedCoords)} />
@@ -85,7 +86,7 @@ export function SolarForecast({ data }: Props) {
           </g>)}
           {active && <><line className="forecast-hover" x1={x(active.label)} x2={x(active.label)} y1={margin.top} y2={margin.top + plotHeight} /><circle cx={x(active.label)} cy={y(active.expectedPowerKw)} r="4" className="forecast-marker" /></>}
         </svg>
-        {active && <div className="forecast-tooltip"><strong>{active.label}</strong><span>Várható <b>{active.expectedPowerKw.toFixed(2)} kW</b></span><span>Besugárzás <b>{active.irradianceWm2.toFixed(0)} W/m²</b></span><span>Felhőzet <b>{active.cloudCoverPct.toFixed(0)}%</b></span><span>Csapadék <b>{active.precipitationProbabilityPct.toFixed(0)}%</b></span></div>}
+        {active && <div className="forecast-tooltip"><strong>{active.label}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{formatFixedNumber(active.precipitationProbabilityPct, 0)}%</b></span></div>}
       </div>
       <p className="forecast-note">Az előrejelzés időjárási modellből készült becslés; a helyi hegyoldal árnyékolása eltérést okozhat.</p>
     </article>
