@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseEntsoeGeneration, parseEntsoeLoad } from "../scripts/entsoe-energy-mix.mjs";
+import { parseEntsoeGeneration, parseEntsoeGenerationUnits, parseEntsoeLoad } from "../scripts/entsoe-energy-mix.mjs";
 
 const period = (values) => `<Period>
   <timeInterval><start>2026-09-09T10:00Z</start><end>2026-09-09T11:00Z</end></timeInterval>
@@ -24,6 +24,19 @@ test("ENTSO-E termelési XML-ből órás átlagot és megújuló arányt készí
 test("ENTSO-E terhelési XML-ből órás átlagot készít", () => {
   const xml = `<GL_MarketDocument><TimeSeries>${period([3000, 3200, 3400, 3600])}</TimeSeries></GL_MarketDocument>`;
   assert.equal(parseEntsoeLoad(xml).get("2026-09-09T10:00:00.000Z"), 3300);
+});
+
+test("ENTSO-E erőművi XML-ből térképes napi összesítést készít", () => {
+  const xml = `<GL_MarketDocument><TimeSeries>
+    <MktPSRType><psrType>B14</psrType><PowerSystemResources><mRID>unit-5</mRID><name>Kozloduy NPP Unit 5</name></PowerSystemResources></MktPSRType>
+    ${period([1000, 1100, 1200, 1300])}
+  </TimeSeries></GL_MarketDocument>`;
+  const [plant] = parseEntsoeGenerationUnits(xml);
+  assert.equal(plant.id, "kozloduy");
+  assert.equal(plant.days[0].energyMwh, 1150);
+  assert.equal(plant.days[0].averageMw, 1150);
+  assert.equal(plant.days[0].peakMw, 1300);
+  assert.equal(plant.days[0].hourlyMw[13], 1150);
 });
 
 test("az egyórás hiányt interpolálja, a valódi nulla értéket megtartja", () => {

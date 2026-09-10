@@ -69,6 +69,26 @@ export interface BulgariaEnergyMixPoint {
   renewableSharePct: number;
 }
 
+export type BulgariaPowerPlantType = "nuclear" | "coal" | "gas" | "hydro" | "solar" | "wind" | "other";
+
+export interface BulgariaPowerPlantDay {
+  date: string;
+  energyMwh: number;
+  averageMw: number;
+  peakMw: number;
+  hourlyMw: number[];
+}
+
+export interface BulgariaPowerPlant {
+  id: string;
+  name: string;
+  type: BulgariaPowerPlantType;
+  latitude: number;
+  longitude: number;
+  capacityMw?: number;
+  days: BulgariaPowerPlantDay[];
+}
+
 export interface BulgariaEnergyMixData {
   source: "live" | "demo";
   updatedAt: string;
@@ -80,6 +100,10 @@ export interface BulgariaEnergyMixData {
   sourceUrl: string;
   sourceName?: string;
   points: BulgariaEnergyMixPoint[];
+  plants?: BulgariaPowerPlant[];
+  plantsUpdatedAt?: string;
+  plantDataFrom?: string;
+  plantDataUntil?: string;
   household?: {
     hourly: EnergyChartPoint[];
     daily: EnergyChartPoint[];

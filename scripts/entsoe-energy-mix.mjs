@@ -28,6 +28,37 @@ const psrGroups = {
 const renewablePsrTypes = new Set(["B01", "B09", "B10", "B11", "B12", "B13", "B15", "B16", "B18", "B19"]);
 const mixKeys = ["nuclear", "coal", "gas", "hydro", "solar", "wind", "other"];
 
+const bulgariaPlantCatalog = [
+  { id: "kozloduy", name: "Kozloduj Atomerőmű", type: "nuclear", latitude: 43.746, longitude: 23.77, capacityMw: 2080, matches: [/kozlod/i, /npp\s*[56]\b/i] },
+  { id: "maritsa-east-2", name: "Marica Iztok 2", type: "coal", latitude: 42.255, longitude: 26.132, capacityMw: 1620, matches: [/mar(?:i|it)sa.*(?:east|iztok).*2/i, /tpp\s*2\b/i] },
+  { id: "aes-galabovo", name: "AES Galabovo", type: "coal", latitude: 42.162, longitude: 25.886, capacityMw: 670, matches: [/aes.*galabovo/i, /mar(?:i|it)sa.*(?:east|iztok).*1/i] },
+  { id: "maritsa-east-3", name: "Marica Iztok 3", type: "coal", latitude: 42.147, longitude: 26.016, capacityMw: 908, matches: [/contourglobal/i, /mar(?:i|it)sa.*(?:east|iztok).*3/i] },
+  { id: "chaira", name: "Chaira Szivattyús Erőmű", type: "hydro", latitude: 42.006, longitude: 23.805, capacityMw: 864, matches: [/chaira/i] },
+  { id: "belmeken", name: "Belmeken Vízerőmű", type: "hydro", latitude: 42.165, longitude: 23.805, capacityMw: 375, matches: [/belmeken/i] },
+  { id: "sestrimo", name: "Sestrimo Vízerőmű", type: "hydro", latitude: 42.117, longitude: 23.85, capacityMw: 240, matches: [/sestrimo/i] },
+  { id: "kardzhali", name: "Kardzsali Vízerőmű", type: "hydro", latitude: 41.638, longitude: 25.365, capacityMw: 108, matches: [/kardzhali/i, /kardjali/i] },
+  { id: "studen-kladenets", name: "Studen Kladenets Vízerőmű", type: "hydro", latitude: 41.62, longitude: 25.61, capacityMw: 60, matches: [/studen.*kladen/i] },
+  { id: "bobov-dol", name: "Bobov Dol Hőerőmű", type: "coal", latitude: 42.307, longitude: 23.025, capacityMw: 630, matches: [/bobov.*dol/i] },
+  { id: "varna", name: "Várnai Hőerőmű", type: "gas", latitude: 43.198, longitude: 27.695, capacityMw: 1260, matches: [/varna/i] },
+];
+
+function plantForResource(name) {
+  return bulgariaPlantCatalog.find((plant) => plant.matches.some((expression) => expression.test(name)));
+}
+
+function sofiaDateParts(timestamp) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Sofia",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(timestamp));
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return { date: `${value.year}-${value.month}-${value.day}`, hour: Number(value.hour) };
+}
+
 function xmlBlocks(xml, localName) {
   const escaped = localName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const expression = new RegExp(`<(?:(?:[\\w-]+):)?${escaped}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/(?:(?:[\\w-]+):)?${escaped}\\s*>`, "gi");
@@ -63,6 +94,7 @@ function seriesValues(xml) {
       values.push({
         timestamp: new Date(start.getTime() + (position - 1) * stepMinutes * 60_000).toISOString(),
         value: Math.max(0, quantity),
+        resolutionMinutes: stepMinutes,
       });
     }
   }
@@ -160,6 +192,61 @@ export function parseEntsoeLoad(xml) {
   return averageHourly(samples.values());
 }
 
+export function parseEntsoeGenerationUnits(xml) {
+  const error = acknowledgementError(xml);
+  if (error) throw new Error(`ENTSO-E: ${error}`);
+
+  const plantSamples = new Map();
+  for (const timeSeries of xmlBlocks(xml, "TimeSeries")) {
+    const psrType = xmlText(timeSeries, "psrType");
+    const type = psrGroups[psrType];
+    if (!type) continue;
+    const resource = xmlBlocks(timeSeries, "PowerSystemResources")[0] ?? "";
+    const resourceName = xmlText(timeSeries, "registeredResource.name") || xmlText(resource, "name") || xmlText(timeSeries, "name");
+    const resourceId = xmlText(timeSeries, "registeredResource.mRID") || xmlText(resource, "mRID");
+    const plant = plantForResource(`${resourceName} ${resourceId}`);
+    if (!plant) continue;
+    const samples = plantSamples.get(plant.id) ?? { plant, values: new Map() };
+    for (const sample of seriesValues(timeSeries)) {
+      const current = samples.values.get(sample.timestamp) ?? { powerMw: 0, resolutionMinutes: sample.resolutionMinutes };
+      current.powerMw += sample.value;
+      current.resolutionMinutes = Math.max(current.resolutionMinutes, sample.resolutionMinutes);
+      samples.values.set(sample.timestamp, current);
+    }
+    plantSamples.set(plant.id, samples);
+  }
+
+  return [...plantSamples.values()].map(({ plant, values }) => {
+    const days = new Map();
+    for (const [timestamp, sample] of values) {
+      const { date, hour } = sofiaDateParts(timestamp);
+      const day = days.get(date) ?? { date, energyMwh: 0, observedHours: 0, peakMw: 0, hourlyEnergy: Array(24).fill(0), hourlyCoverage: Array(24).fill(0) };
+      const hours = sample.resolutionMinutes / 60;
+      day.energyMwh += sample.powerMw * hours;
+      day.observedHours += hours;
+      day.peakMw = Math.max(day.peakMw, sample.powerMw);
+      day.hourlyEnergy[hour] += sample.powerMw * hours;
+      day.hourlyCoverage[hour] += hours;
+      days.set(date, day);
+    }
+    return {
+      id: plant.id,
+      name: plant.name,
+      type: plant.type,
+      latitude: plant.latitude,
+      longitude: plant.longitude,
+      capacityMw: plant.capacityMw,
+      days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)).map((day) => ({
+        date: day.date,
+        energyMwh: Math.round(day.energyMwh * 10) / 10,
+        averageMw: Math.round(day.energyMwh / Math.max(day.observedHours, 1) * 10) / 10,
+        peakMw: Math.round(day.peakMw * 10) / 10,
+        hourlyMw: day.hourlyEnergy.map((energy, hour) => day.hourlyCoverage[hour] ? Math.round(energy / day.hourlyCoverage[hour] * 10) / 10 : 0),
+      })),
+    };
+  }).filter((plant) => plant.days.length);
+}
+
 function entsoeDate(value) {
   return value.toISOString().slice(0, 16).replace(/[-T:]/g, "");
 }
@@ -212,6 +299,17 @@ export async function fetchEntsoeBulgariaMix(token, start, end) {
     });
   }
   return points.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+}
+
+export async function fetchEntsoeBulgariaPlants(token, start, end) {
+  const xml = await requestEntsoe(token, {
+    documentType: "A73",
+    processType: "A16",
+    in_Domain: BULGARIA_BIDDING_ZONE,
+    periodStart: entsoeDate(start),
+    periodEnd: entsoeDate(end),
+  });
+  return parseEntsoeGenerationUnits(xml);
 }
 
 export const entsoeMetadata = {

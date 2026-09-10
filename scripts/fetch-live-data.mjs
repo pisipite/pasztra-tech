@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
-import { entsoeMetadata, fetchEntsoeBulgariaMix } from "./entsoe-energy-mix.mjs";
+import { entsoeMetadata, fetchEntsoeBulgariaMix, fetchEntsoeBulgariaPlants } from "./entsoe-energy-mix.mjs";
 import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -1347,6 +1347,83 @@ async function readBulgariaMixDocument() {
   }
 }
 
+function mergePlantHistory(storedPlants, batches, historyFloor) {
+  const plants = new Map((Array.isArray(storedPlants) ? storedPlants : []).map((plant) => [plant.id, {
+    ...plant,
+    days: Array.isArray(plant.days) ? plant.days.filter((day) => day?.date >= historyFloor) : [],
+  }]));
+  for (const batch of batches) {
+    for (const plant of batch) {
+      const current = plants.get(plant.id) ?? { ...plant, days: [] };
+      current.name = plant.name;
+      current.type = plant.type;
+      current.latitude = plant.latitude;
+      current.longitude = plant.longitude;
+      current.capacityMw = plant.capacityMw;
+      current.days = [...new Map([...current.days, ...plant.days]
+        .filter((day) => day?.date >= historyFloor)
+        .map((day) => [day.date, day])).values()].sort((a, b) => a.date.localeCompare(b.date));
+      plants.set(plant.id, current);
+    }
+  }
+  return [...plants.values()].filter((plant) => plant.days.length).sort((a, b) => a.name.localeCompare(b.name, "hu"));
+}
+
+async function updateEntsoePlantHistory(token, previous, historyFloor) {
+  const stored = Array.isArray(previous?.plants) ? previous.plants : [];
+  const lastAttempt = new Date(previous?.plantsUpdatedAt ?? 0).getTime();
+  if (Number.isFinite(lastAttempt) && now.getTime() - lastAttempt >= 0 && now.getTime() - lastAttempt < 5 * 3_600_000) {
+    return {
+      plants: stored,
+      plantsUpdatedAt: previous.plantsUpdatedAt,
+      plantDataFrom: previous.plantDataFrom,
+      plantDataUntil: previous.plantDataUntil,
+    };
+  }
+
+  const latestDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 6));
+  const requestedDays = [];
+  if (!stored.length) {
+    for (let offset = 30; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
+  } else {
+    for (let offset = 2; offset >= 0; offset -= 1) requestedDays.push(new Date(latestDay.getTime() - offset * 86_400_000));
+    const earliest = stored.flatMap((plant) => plant.days ?? []).map((day) => day.date).sort()[0];
+    const backfillEnd = earliest ? new Date(`${earliest}T00:00:00Z`) : latestDay;
+    for (let offset = 14; offset >= 1; offset -= 1) {
+      const day = new Date(backfillEnd.getTime() - offset * 86_400_000);
+      if (day >= historyFloor) requestedDays.push(day);
+    }
+  }
+
+  const uniqueDays = [...new Map(requestedDays
+    .filter((day) => day >= historyFloor && day <= latestDay)
+    .map((day) => [day.toISOString().slice(0, 10), day])).values()];
+  const batches = [];
+  let nextDay = 0;
+  await Promise.all(Array.from({ length: Math.min(3, uniqueDays.length) }, async () => {
+    while (nextDay < uniqueDays.length) {
+      const day = uniqueDays[nextDay];
+      nextDay += 1;
+      try {
+        batches.push(await fetchEntsoeBulgariaPlants(token, day, new Date(day.getTime() + 86_400_000)));
+      } catch (error) {
+        console.error(`ENTSO-E erőművi nap (${day.toISOString().slice(0, 10)}): ${error.message}`);
+      }
+    }
+  }));
+
+  const floorKey = historyFloor.toISOString().slice(0, 10);
+  const plants = mergePlantHistory(stored, batches, floorKey);
+  const dates = plants.flatMap((plant) => plant.days.map((day) => day.date)).sort();
+  console.log(`Bulgária erőművi térkép: ${plants.length} azonosított erőmű, ${dates.length ? `${dates[0]}–${dates.at(-1)}` : "nincs elérhető nap"}.`);
+  return {
+    plants,
+    plantsUpdatedAt: now.toISOString(),
+    plantDataFrom: dates[0],
+    plantDataUntil: dates.at(-1),
+  };
+}
+
 async function getEntsoeBulgariaEnergyMix(token) {
   const previous = await readBulgariaMixDocument();
   const isEntsoeHistory = String(previous?.sourceUrl ?? "").includes("entsoe.eu");
@@ -1410,6 +1487,7 @@ async function getEntsoeBulgariaEnergyMix(token) {
     .map((point) => [point.timestamp, point])).values()]
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
   if (!points.length) throw new Error("Az ENTSO-E nem adott vissza bolgár termelési és terhelési adatot.");
+  const plantHistory = await updateEntsoePlantHistory(token, previous, historyFloor);
   const result = {
     source: "live",
     updatedAt: now.toISOString(),
@@ -1420,6 +1498,7 @@ async function getEntsoeBulgariaEnergyMix(token) {
     ...entsoeMetadata,
     backfillComplete: backfillFloorReached || Boolean(previous?.backfillComplete),
     failedRanges,
+    ...plantHistory,
     points,
   };
   await mkdir(historyDir, { recursive: true });

@@ -1,4 +1,4 @@
-import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint } from "./types";
+import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType } from "./types";
 
 export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
   const now = new Date();
@@ -36,6 +36,38 @@ export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
     });
   }
 
+  const plantSeeds: Array<[string, string, BulgariaPowerPlantType, number, number, number, number]> = [
+    ["kozloduy", "Kozloduj Atomerőmű", "nuclear", 43.746, 23.77, 2080, .89],
+    ["maritsa-east-2", "Marica Iztok 2", "coal", 42.255, 26.132, 1620, .53],
+    ["aes-galabovo", "AES Galabovo", "coal", 42.162, 25.886, 670, .67],
+    ["maritsa-east-3", "Marica Iztok 3", "coal", 42.147, 26.016, 908, .56],
+    ["chaira", "Chaira Szivattyús Erőmű", "hydro", 42.006, 23.805, 864, .24],
+    ["belmeken", "Belmeken Vízerőmű", "hydro", 42.165, 23.805, 375, .38],
+    ["bobov-dol", "Bobov Dol Hőerőmű", "coal", 42.307, 23.025, 630, .31],
+    ["varna", "Várnai Hőerőmű", "gas", 43.198, 27.695, 1260, .12],
+  ];
+  const dayFormatter = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
+  const plants: BulgariaPowerPlant[] = plantSeeds.map(([id, name, type, latitude, longitude, capacityMw, factor], plantIndex) => ({
+    id,
+    name,
+    type,
+    latitude,
+    longitude,
+    capacityMw,
+    days: Array.from({ length: 31 }, (_, dayIndex) => {
+      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 36 + dayIndex);
+      const variation = .86 + Math.sin(dayIndex * .61 + plantIndex) * .11;
+      const averageMw = capacityMw * factor * variation;
+      return {
+        date: dayFormatter.format(date),
+        energyMwh: Math.round(averageMw * 24 * 10) / 10,
+        averageMw: Math.round(averageMw * 10) / 10,
+        peakMw: Math.round(Math.min(capacityMw, averageMw * 1.18) * 10) / 10,
+        hourlyMw: Array.from({ length: 24 }, (_, hour) => Math.round(Math.max(0, averageMw * (.94 + Math.sin((hour - 7) / 24 * Math.PI * 2) * .06)) * 10) / 10),
+      };
+    }),
+  }));
+
   return {
     source: "demo",
     updatedAt: now.toISOString(),
@@ -47,5 +79,9 @@ export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
     sourceUrl: "https://www.energy-charts.info/charts/power/chart.htm?c=BG&l=en",
     sourceName: "Energy-Charts.info",
     points,
+    plants,
+    plantsUpdatedAt: now.toISOString(),
+    plantDataFrom: plants[0]?.days[0]?.date,
+    plantDataUntil: plants[0]?.days.at(-1)?.date,
   };
 }

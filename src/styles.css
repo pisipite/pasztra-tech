@@ -200,6 +200,28 @@ html { scroll-behavior: smooth; }
   box-shadow: 0 0 0 4px rgba(160,90,71,.13);
 }
 .bulgaria-mix__freshness i.is-live { background: #418153; box-shadow: 0 0 0 4px rgba(65,129,83,.14); }
+.bulgaria-mix__map-toggle {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 5px 11px;
+  border: 2px solid var(--poster-deep);
+  border-radius: 3px 9px 4px 6px;
+  color: var(--poster-deep);
+  background: rgba(255,255,255,.22);
+  cursor: pointer;
+  font: 700 11px "Oswald", Impact, sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  transition: color .16s ease, background .16s ease, transform .16s ease;
+}
+.bulgaria-mix__map-toggle > span { font: 700 17px/1 "DM Mono", monospace; }
+.bulgaria-mix__map-toggle > i { font-style: normal; transition: transform .16s ease; }
+.bulgaria-mix__map-toggle:hover,
+.bulgaria-mix__map-toggle.is-open { color: var(--poster-paper-light); background: var(--poster-deep); }
+.bulgaria-mix__map-toggle.is-open > i { transform: rotate(180deg); }
 .bulgaria-mix__tabs { flex: 0 0 auto; }
 .bulgaria-mix__controls { display: flex; margin: 24px 0 12px; }
 .bulgaria-mix__controls .period-stepper { width: min(390px, 100%); background: rgba(255,255,255,.28); }
@@ -392,6 +414,78 @@ html { scroll-behavior: smooth; }
 .bulgaria-mix__credit { margin: 14px 3px 0; color: #7b725d; font-size: 10px; }
 .bulgaria-mix__credit a { color: var(--poster-deep); font-weight: 700; }
 
+#bulgaria-power-plant-map { animation: plant-map-reveal .22s ease-out both; }
+@keyframes plant-map-reveal {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.plant-map-panel {
+  overflow: hidden;
+  margin: 20px 0 24px;
+  border: 2px solid var(--poster-deep);
+  border-radius: 5px 20px 7px 14px;
+  color: var(--poster-paper-light);
+  background: #17322e;
+  box-shadow: 7px 8px 0 rgba(7,63,57,.13);
+}
+.plant-map-panel__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(241,223,180,.25);
+  background: var(--poster-deep);
+}
+.plant-map-panel__head p { margin: 0 0 4px; color: var(--poster-orange); }
+.plant-map-panel__head h3 { margin: 0; font: 700 27px/1 "Oswald", Impact, sans-serif; text-transform: uppercase; }
+.plant-map-panel__head > div:last-child { display: grid; gap: 3px; text-align: right; }
+.plant-map-panel__head strong { font: 700 14px "Oswald", Impact, sans-serif; }
+.plant-map-panel__head span { color: rgba(248,234,198,.65); font-size: 10px; }
+.plant-map-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(245px, .72fr); }
+.plant-map-stage { min-width: 0; background: #203a36; }
+.plant-map-stage > svg { display: block; width: 100%; min-height: 440px; }
+.plant-map-country { fill: #315149; stroke: #eddfb9; stroke-width: 3; stroke-linejoin: round; }
+.plant-map-relief { fill: none; stroke: rgba(241,223,180,.18); stroke-width: 17; stroke-linecap: round; }
+.plant-map-caption { fill: rgba(248,234,198,.62); font: 10px "DM Mono", monospace; }
+.plant-map-marker { cursor: pointer; outline: none; }
+.plant-map-marker__halo { fill: rgba(248,234,198,.12); stroke: transparent; stroke-width: 2; transition: fill .15s ease, stroke .15s ease; }
+.plant-map-marker__body { stroke: #f8eac6; stroke-width: 2; transition: filter .15s ease, transform .15s ease; transform-box: fill-box; transform-origin: center; }
+.plant-map-marker text { fill: #fff3ce; paint-order: stroke; stroke: #203a36; stroke-width: 4px; stroke-linejoin: round; font: 700 11px "Oswald", Impact, sans-serif; pointer-events: none; }
+.plant-map-marker:hover .plant-map-marker__halo,
+.plant-map-marker:focus .plant-map-marker__halo,
+.plant-map-marker.is-active .plant-map-marker__halo { fill: rgba(248,234,198,.23); stroke: #f8eac6; }
+.plant-map-marker:hover .plant-map-marker__body,
+.plant-map-marker:focus .plant-map-marker__body,
+.plant-map-marker.is-active .plant-map-marker__body { filter: saturate(1.25) brightness(1.12); transform: scale(1.08); }
+.plant-map-detail {
+  display: flex;
+  min-width: 0;
+  padding: 28px 24px;
+  flex-direction: column;
+  background: #075147;
+}
+.plant-map-detail > p { margin: 0 0 5px; color: var(--poster-yellow); font: 600 11px "Oswald", Impact, sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+.plant-map-detail h4 { margin: 0 0 22px; font: 700 28px/1.05 "Oswald", Impact, sans-serif; text-transform: uppercase; }
+.plant-map-detail > strong { color: var(--poster-yellow); font: 700 38px/1 "Oswald", Impact, sans-serif; }
+.plant-map-detail > span { margin-top: 5px; color: rgba(248,234,198,.7); font-size: 10px; }
+.plant-map-detail__profile { margin: 25px 0 19px; }
+.plant-map-detail__profile > b { font: 600 10px "Oswald", Impact, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.plant-map-sparkline { display: block; width: 100%; height: 82px; margin-top: 8px; overflow: visible; }
+.plant-map-sparkline line { stroke: rgba(248,234,198,.24); stroke-dasharray: 3 5; }
+.plant-map-sparkline polyline { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.plant-map-detail dl { display: grid; gap: 9px; margin: auto 0 0; }
+.plant-map-detail dl div { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; border-top: 1px solid rgba(248,234,198,.18); }
+.plant-map-detail dt { color: rgba(248,234,198,.67); font-size: 10px; }
+.plant-map-detail dd { margin: 0; font: 700 11px "DM Mono", monospace; }
+.plant-map-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 13px 22px; border-top: 1px solid rgba(241,223,180,.18); background: #17322e; }
+.plant-map-legend span { display: inline-flex; align-items: center; gap: 6px; color: rgba(248,234,198,.82); font-size: 10px; }
+.plant-map-legend i { width: 9px; height: 9px; border: 1px solid rgba(248,234,198,.7); border-radius: 50%; }
+.plant-map-source { margin: 0; padding: 0 22px 14px; color: rgba(248,234,198,.47); background: #17322e; font-size: 9px; }
+.plant-map-empty { display: grid; min-height: 210px; place-content: center; gap: 6px; padding: 30px; text-align: center; }
+.plant-map-empty strong { font: 700 20px "Oswald", Impact, sans-serif; text-transform: uppercase; }
+.plant-map-empty span { color: rgba(248,234,198,.68); font-size: 11px; }
+
 @media (max-width: 900px) {
   .bulgaria-mix__head { display: grid; }
   .bulgaria-mix__tabs { justify-self: stretch; }
@@ -399,6 +493,8 @@ html { scroll-behavior: smooth; }
   .bulgaria-mix__now { min-height: 300px; border-right: 0; border-bottom: 1px solid rgba(241,223,180,.28); }
   .bulgaria-mix__donut { width: 170px; }
   .bulgaria-mix__home-grid { display: block; }
+  .plant-map-layout { grid-template-columns: 1fr; }
+  .plant-map-detail { min-height: 300px; border-top: 1px solid rgba(241,223,180,.25); }
 }
 
 @media (max-width: 640px) {
@@ -414,6 +510,13 @@ html { scroll-behavior: smooth; }
   .bulgaria-mix__legend { margin-left: 10px; }
   .bulgaria-mix__home { padding: 23px 16px 18px; }
   .bulgaria-mix__home-head { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .plant-map-panel__head { align-items: flex-start; flex-direction: column; gap: 9px; padding: 16px; }
+  .plant-map-panel__head > div:last-child { text-align: left; }
+  .plant-map-stage { overflow-x: auto; }
+  .plant-map-stage > svg { width: 700px; max-width: none; }
+  .plant-map-detail { padding: 23px 18px; }
+  .plant-map-legend,
+  .plant-map-source { padding-left: 16px; padding-right: 16px; }
 }
 
 /* Kézi felhőfrissítés — a publikus oldalról indítható GitHub Actions futás */

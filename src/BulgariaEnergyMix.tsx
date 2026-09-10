@@ -2,6 +2,7 @@ import { useMemo, useState, type MouseEvent } from "react";
 import { dateFromInput, dateInputValue, DAY_MS, isCurrentPeriod, periodLabel, timestampInPeriod } from "./dateUtils";
 import { batteryNetValue, gridNetValue } from "./energyData";
 import { BackToTop } from "./components/BackToTop";
+import { BulgariaPowerPlantMap } from "./BulgariaPowerPlantMap";
 import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, EnergyChartPoint, PeriodKey } from "./types";
 
 type MixSeriesKey = "nuclear" | "coal" | "gas" | "hydro" | "solar" | "wind" | "other" | "imports";
@@ -155,6 +156,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const [showConsumption, setShowConsumption] = useState(true);
   const [hovered, setHovered] = useState<number | null>(null);
   const [hoveredDonut, setHoveredDonut] = useState<MixSeriesKey | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
 
   const effectiveAnchor = useMemo(() => {
     if (period !== "day" || !isCurrentPeriod("day", anchor) || !data.points.length) return anchor;
@@ -264,6 +266,17 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
           <div className="section-kicker"><p className="eyebrow">Országos energia · Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
           <p className="bulgaria-mix__freshness"><i className={data.source === "live" ? "is-live" : ""} />{data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}</p>
+          <button
+            type="button"
+            className={`bulgaria-mix__map-toggle${mapOpen ? " is-open" : ""}`}
+            aria-expanded={mapOpen}
+            aria-controls="bulgaria-power-plant-map"
+            onClick={() => setMapOpen((current) => !current)}
+          >
+            <span aria-hidden="true">⌖</span>
+            Térkép
+            <i aria-hidden="true">⌄</i>
+          </button>
         </div>
         <div className="period-tabs bulgaria-mix__tabs section-header__tools" role="tablist" aria-label="Bulgária energiamix időszaka">
           {periods.map((item) => <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setAnchor(new Date()); }}>{item.label}</button>)}
@@ -279,6 +292,18 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
       </div>
 
       {period === "custom" && <div className="custom-range bulgaria-mix__custom"><label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => setCustomStart(event.target.value)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => setCustomEnd(event.target.value)} /></label></div>}
+
+      {mapOpen && <div id="bulgaria-power-plant-map">
+        <BulgariaPowerPlantMap
+          plants={data.plants ?? []}
+          period={period}
+          anchor={effectiveAnchor}
+          customStart={customStart}
+          customEnd={customEnd}
+          dataFrom={data.plantDataFrom}
+          dataUntil={data.plantDataUntil}
+        />
+      </div>}
 
       <div className="bulgaria-mix__main">
         <section className="bulgaria-mix__now" aria-label="A kiválasztott időszak összesített energiamixe">
