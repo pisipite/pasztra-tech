@@ -32,6 +32,7 @@ const series: { key: MixSeriesKey; label: string; color: string; renewable?: boo
 
 const mixKeys = series.map((item) => item.key);
 const generationKeys = series.filter((item) => item.key !== "imports").map((item) => item.key);
+const loadColor = "#073f39";
 const compactNumber = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
 const hourFormatter = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
 const dayFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric" });
@@ -151,6 +152,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const [customStart, setCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
   const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()));
   const [hiddenSeries, setHiddenSeries] = useState<Set<MixSeriesKey>>(() => new Set());
+  const [showConsumption, setShowConsumption] = useState(true);
   const [hovered, setHovered] = useState<number | null>(null);
   const [hoveredDonut, setHoveredDonut] = useState<MixSeriesKey | null>(null);
 
@@ -203,7 +205,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
     upper.forEach((value, index) => { stacks[index] = value; });
     return { ...item, lower, upper };
   });
-  const observedMax = Math.max(1, ...stacks);
+  const observedMax = Math.max(1, ...stacks, ...(showConsumption ? points.map((point) => point.load) : []));
   const upper = Math.max(1000, Math.ceil(observedMax / 1000) * 1000);
   const powerUnit: "MW" | "GW" = upper >= 1000 ? "GW" : "MW";
   const powerDivisor = powerUnit === "GW" ? 1000 : 1;
@@ -311,15 +313,16 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
                   const lowerPoints = item.lower.map((value, index) => ({ value, index })).reverse().map(({ value, index }) => `${x(index)},${y(value)}`);
                   return <polygon key={item.key} points={[...upperPoints, ...lowerPoints].join(" ")} fill={item.color} opacity=".9" />;
                 })}
+                {showConsumption && <polyline className="mix-load-line" points={points.map((point, index) => `${x(index)},${y(point.load)}`).join(" ")} />}
                 {period === "day"
                   ? dayTicks.map((hour) => <text key={hour} className="mix-axis" x={margin.left + hour / 24 * plotWidth} y={height - 14} textAnchor={hour === 0 ? "start" : hour === 24 ? "end" : "middle"}>{String(hour).padStart(2, "0")}:00</text>)
                   : points.map((point, index) => (index % tickStep === 0 || index === points.length - 1) && <text key={point.timestamp} className="mix-axis" x={x(index)} y={height - 14} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{axisLabel(point, period, customStart, customEnd)}</text>)}
                 {hovered !== null && <line className="mix-hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={height - margin.bottom} />}
               </svg>
-              {active && <div className="bulgaria-mix__tooltip"><strong>{fullTimeFormatter.format(new Date(active.timestamp))}</strong>{visibleSeries.map((item) => <span key={item.key}><i style={{ background: item.color }} />{item.label}<b>{formatPower(active[item.key], powerUnit)}</b></span>)}</div>}
+              {active && <div className="bulgaria-mix__tooltip"><strong>{fullTimeFormatter.format(new Date(active.timestamp))}</strong>{visibleSeries.map((item) => <span key={item.key}><i style={{ background: item.color }} />{item.label}<b>{formatPower(active[item.key], powerUnit)}</b></span>)}{showConsumption && <span><i className="mix-legend-line" style={{ borderColor: loadColor }} />Fogyasztás<b>{formatPower(active.load, powerUnit)}</b></span>}</div>}
             </> : <div className="bulgaria-mix__empty">Erre az időszakra még nincs energiamix-adat.</div>}
           </div>
-          <div className="bulgaria-mix__legend" aria-label="Kapcsolható energiaforrások">{availableSeries.map((item) => <button type="button" key={item.key} className={hiddenSeries.has(item.key) ? "is-hidden" : ""} aria-pressed={!hiddenSeries.has(item.key)} onClick={() => setHiddenSeries((current) => { const next = new Set(current); if (next.has(item.key)) next.delete(item.key); else next.add(item.key); return next; })}><i style={{ background: item.color }} />{item.label}</button>)}</div>
+          <div className="bulgaria-mix__legend" aria-label="Kapcsolható energiaforrások">{availableSeries.map((item) => <button type="button" key={item.key} className={hiddenSeries.has(item.key) ? "is-hidden" : ""} aria-pressed={!hiddenSeries.has(item.key)} onClick={() => setHiddenSeries((current) => { const next = new Set(current); if (next.has(item.key)) next.delete(item.key); else next.add(item.key); return next; })}><i style={{ background: item.color }} />{item.label}</button>)}<button type="button" className={showConsumption ? "" : "is-hidden"} aria-pressed={showConsumption} onClick={() => setShowConsumption((current) => !current)}><i className="mix-legend-line" style={{ borderColor: loadColor }} />Fogyasztás</button></div>
         </section>
       </div>
 
