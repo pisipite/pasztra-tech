@@ -115,7 +115,9 @@ function householdSummary(points: EnergyChartPoint[], powerValues: boolean) {
 }
 
 function formatPower(value: number, unit: "MW" | "GW") {
-  return `${compactNumber.format(unit === "GW" ? value / 1000 : value)} ${unit}`;
+  const scaled = unit === "GW" ? value / 1000 : value;
+  const maximumFractionDigits = unit === "MW" || Math.abs(scaled) >= 1 ? 1 : Math.abs(scaled) >= .1 ? 2 : 3;
+  return `${new Intl.NumberFormat("hu-HU", { maximumFractionDigits }).format(scaled)} ${unit}`;
 }
 
 function formatEnergyMwh(value: number) {
