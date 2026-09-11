@@ -63,11 +63,15 @@ const sofiaParts = new Intl.DateTimeFormat("en-CA", {
 });
 
 export function reconcileNuclearPlant(plants, mixPoints) {
+  const existingNuclear = plants.find((plant) => plant.id === "kozloduy");
+  const availableDates = new Set(existingNuclear?.days?.map((day) => day.date) ?? []);
+  if (!availableDates.size) return plants;
   const grouped = new Map();
   for (const point of mixPoints) {
     if (!Number.isFinite(point?.nuclear) || !(point.nuclear > 0)) continue;
     const parts = Object.fromEntries(sofiaParts.formatToParts(new Date(point.timestamp)).map((part) => [part.type, part.value]));
     const date = `${parts.year}-${parts.month}-${parts.day}`;
+    if (!availableDates.has(date)) continue;
     const hour = Number(parts.hour);
     const day = grouped.get(date) ?? { date, sums: Array(24).fill(0), counts: Array(24).fill(0) };
     day.sums[hour] += point.nuclear;
@@ -90,6 +94,7 @@ export function reconcileNuclearPlant(plants, mixPoints) {
     }];
   }).sort((a, b) => a.date.localeCompare(b.date));
   const nuclear = {
+    ...existingNuclear,
     id: "kozloduy",
     name: "Kozloduj Atomerőmű",
     type: "nuclear",
@@ -98,6 +103,6 @@ export function reconcileNuclearPlant(plants, mixPoints) {
     capacityMw: 2080,
     days,
   };
-  return [...plants.filter((plant) => plant.id !== nuclear.id), ...(days.length ? [nuclear] : [])]
+  return [...plants.filter((plant) => plant.id !== nuclear.id), ...(days.length ? [nuclear] : [existingNuclear])]
     .sort((a, b) => a.name.localeCompare(b.name, "hu"));
 }

@@ -440,6 +440,10 @@ html { scroll-behavior: smooth; }
 .plant-map-panel__head strong { font: 700 14px "Oswald", Impact, sans-serif; }
 .plant-map-panel__head span { color: rgba(248,234,198,.65); font-size: 10px; }
 .plant-map-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(245px, .72fr); }
+.plant-map-coverage { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px 18px; padding: 12px 22px; color: rgba(248,234,198,.72); background: #17322e; font-size: 11px; }
+.plant-map-coverage strong { color: var(--poster-yellow); font: 700 16px "DM Mono", monospace; }
+.plant-map-coverage > i { grid-column: 1 / -1; overflow: hidden; height: 5px; border-radius: 5px; background: rgba(248,234,198,.12); }
+.plant-map-coverage > i > b { display: block; height: 100%; border-radius: inherit; background: var(--poster-yellow); }
 .plant-map-stage { min-width: 0; background: #203a36; }
 .plant-map-stage > svg { display: block; width: 100%; min-height: 440px; }
 .plant-map-country { fill: #315149; stroke: #eddfb9; stroke-width: 3; stroke-linejoin: round; }

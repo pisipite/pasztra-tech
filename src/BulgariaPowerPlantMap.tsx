@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { periodLabel, timestampInPeriod } from "./dateUtils";
 import { formatFixedNumber, formatNumber } from "./formatUtils";
-import type { BulgariaPowerPlant, BulgariaPowerPlantType, PeriodKey } from "./types";
+import type { BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType, PeriodKey } from "./types";
 
 type Props = {
   plants: BulgariaPowerPlant[];
+  nationalPoints: BulgariaEnergyMixPoint[];
+  resolutionMinutes: number;
   period: PeriodKey;
   anchor: Date;
   customStart: string;
@@ -43,6 +45,12 @@ const labels: Record<BulgariaPowerPlantType, string> = {
 
 function plantDateTimestamp(date: string) {
   return new Date(`${date}T12:00:00+03:00`).toISOString();
+}
+
+const sofiaDateFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit" });
+
+function sofiaDateKey(timestamp: string) {
+  return sofiaDateFormatter.format(new Date(timestamp));
 }
 
 function aggregatePlants(plants: BulgariaPowerPlant[], period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
@@ -86,7 +94,7 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
   return <svg className="plant-map-sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="A kiválasztott erőmű napi termelési profilja"><line x1="0" x2={width} y1={height - 5} y2={height - 5} /><polyline points={points} style={{ stroke: color }} /></svg>;
 }
 
-export function BulgariaPowerPlantMap({ plants, period, anchor, customStart, customEnd, dataFrom, dataUntil }: Props) {
+export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinutes, period, anchor, customStart, customEnd, dataFrom, dataUntil }: Props) {
   const latestAnchor = useMemo(() => dataUntil ? new Date(`${dataUntil}T12:00:00+03:00`) : anchor, [dataUntil, anchor]);
   const selected = useMemo(() => aggregatePlants(plants, period, anchor, customStart, customEnd), [plants, period, anchor, customStart, customEnd]);
   const showingLatestAvailable = period === "day" && !selected.length && Boolean(dataUntil);
@@ -99,6 +107,16 @@ export function BulgariaPowerPlantMap({ plants, period, anchor, customStart, cus
   const maximumEnergy = Math.max(1, ...visiblePlants.map((plant) => plant.energyMwh));
   const shownPeriod = showingLatestAvailable ? periodLabel("day", latestAnchor, customStart, customEnd) : periodLabel(period, anchor, customStart, customEnd);
   const availableTypes = [...new Set(visiblePlants.map((plant) => plant.type))];
+  const coveragePeriod = showingLatestAvailable ? "day" : period;
+  const coverageAnchor = showingLatestAvailable ? latestAnchor : anchor;
+  const coveredDates = useMemo(() => new Set(plants.flatMap((plant) => plant.days
+    .filter((day) => timestampInPeriod(plantDateTimestamp(day.date), coveragePeriod, coverageAnchor, customStart, customEnd))
+    .map((day) => day.date))), [plants, coveragePeriod, coverageAnchor, customStart, customEnd]);
+  const nationalEnergyMwh = useMemo(() => nationalPoints
+    .filter((point) => coveredDates.has(sofiaDateKey(point.timestamp)))
+    .reduce((sum, point) => sum + (point.nuclear + point.coal + point.gas + point.hydro + point.solar + point.wind + point.other) * resolutionMinutes / 60, 0), [nationalPoints, coveredDates, resolutionMinutes]);
+  const mappedEnergyMwh = visiblePlants.reduce((sum, plant) => sum + plant.energyMwh, 0);
+  const coveragePct = nationalEnergyMwh > 0 ? Math.max(0, Math.min(100, mappedEnergyMwh / nationalEnergyMwh * 100)) : 0;
 
   return (
     <section className="plant-map-panel" aria-labelledby="plant-map-title">
@@ -107,6 +125,7 @@ export function BulgariaPowerPlantMap({ plants, period, anchor, customStart, cus
         <div><strong>{shownPeriod}</strong><span>{showingLatestAvailable ? "A legfrissebb elérhető nap · D+5" : "A kiválasztott időszak"}</span></div>
       </div>
       {visiblePlants.length ? <>
+        {coveragePct > 0 && <div className="plant-map-coverage"><span>Az országos termelés erőműhöz rendelt része</span><strong>{formatNumber(coveragePct, 1)}%</strong><i><b style={{ width: `${coveragePct}%` }} /></i></div>}
         <div className="plant-map-layout">
           <div className="plant-map-stage">
             <svg viewBox="0 0 760 440" role="img" aria-label="Bulgária térképe; a körök területe az erőművek termelésével arányos">

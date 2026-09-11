@@ -1349,7 +1349,7 @@ async function readBulgariaMixDocument() {
 }
 
 async function updateEntsoePlantHistory(token, previous, historyFloor) {
-  const plantHistoryVersion = 5;
+  const plantHistoryVersion = 6;
   const stored = previous?.plantHistoryVersion === plantHistoryVersion && Array.isArray(previous?.plants) ? previous.plants : [];
   const lastAttempt = new Date(previous?.plantsUpdatedAt ?? 0).getTime();
   if (previous?.plantHistoryVersion === plantHistoryVersion && Number.isFinite(lastAttempt) && now.getTime() - lastAttempt >= 0 && now.getTime() - lastAttempt < 5 * 3_600_000) {
@@ -1478,7 +1478,6 @@ async function getEntsoeBulgariaEnergyMix(token) {
   if (!points.length) throw new Error("Az ENTSO-E nem adott vissza bolgár termelési és terhelési adatot.");
   const plantHistory = await updateEntsoePlantHistory(token, previous, historyFloor);
   const plants = reconcileNuclearPlant(plantHistory.plants, points);
-  const plantDates = plants.flatMap((plant) => plant.days.map((day) => day.date)).sort();
   const result = {
     source: "live",
     updatedAt: now.toISOString(),
@@ -1491,8 +1490,6 @@ async function getEntsoeBulgariaEnergyMix(token) {
     failedRanges,
     ...plantHistory,
     plants,
-    plantDataFrom: plantDates[0],
-    plantDataUntil: plantDates.at(-1),
     points,
   };
   await mkdir(historyDir, { recursive: true });

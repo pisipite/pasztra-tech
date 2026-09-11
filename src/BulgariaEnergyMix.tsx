@@ -294,6 +294,8 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
       {mapOpen && <div id="bulgaria-power-plant-map">
         <BulgariaPowerPlantMap
           plants={data.plants ?? []}
+          nationalPoints={data.points}
+          resolutionMinutes={data.resolutionMinutes}
           period={period}
           anchor={effectiveAnchor}
           customStart={customStart}

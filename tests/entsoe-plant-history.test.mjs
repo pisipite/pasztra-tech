@@ -32,7 +32,8 @@ test("a helyi napra kért részleges termelést nem dobja el", () => {
 
 test("Kozloduj napi profilját a teljes országos nukleáris sorral egyezteti", () => {
   const points = Array.from({ length: 24 }, (_, hour) => ({ timestamp: `2026-08-18T${String(hour).padStart(2, "0")}:00:00+03:00`, nuclear: 1900 + hour }));
-  const result = reconcileNuclearPlant([], points).find((item) => item.id === "kozloduy");
+  const existing = plant({ date: "2026-08-18", energyMwh: 1, hourlyMw: Array(24).fill(0), hourlyCoverage: Array(24).fill(1), observedHours: 24 });
+  const result = reconcileNuclearPlant([existing], points).find((item) => item.id === "kozloduy");
   assert.equal(result.days[0].observedHours, 24);
   assert.equal(result.days[0].energyMwh, 45876);
   assert.equal(result.days[0].hourlyMw[0], 1900);
