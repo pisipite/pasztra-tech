@@ -103,7 +103,8 @@ export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinute
     [showingLatestAvailable, plants, latestAnchor, customStart, customEnd, selected],
   );
   const [selectedId, setSelectedId] = useState<string>();
-  const active = visiblePlants.find((plant) => plant.id === selectedId) ?? visiblePlants[0];
+  const active = visiblePlants.find((plant) => plant.id === selectedId);
+  const togglePlant = (plantId: string) => setSelectedId((currentId) => currentId === plantId ? undefined : plantId);
   const maximumEnergy = Math.max(1, ...visiblePlants.map((plant) => plant.energyMwh));
   const shownPeriod = showingLatestAvailable ? periodLabel("day", latestAnchor, customStart, customEnd) : periodLabel(period, anchor, customStart, customEnd);
   const availableTypes = [...new Set(visiblePlants.map((plant) => plant.type))];
@@ -136,7 +137,7 @@ export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinute
                 const x = mapX(plant.longitude);
                 const y = mapY(plant.latitude);
                 const isActive = active?.id === plant.id;
-                return <g key={plant.id} className={`plant-map-marker${isActive ? " is-active" : ""}`} role="button" tabIndex={0} aria-label={`${plant.name}: ${formatEnergy(plant.energyMwh)}`} onClick={() => setSelectedId(plant.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedId(plant.id); } }}>
+                return <g key={plant.id} className={`plant-map-marker${isActive ? " is-active" : ""}`} role="button" tabIndex={0} aria-pressed={isActive} aria-label={`${plant.name}: ${formatEnergy(plant.energyMwh)}; ${isActive ? "kijelölés megszüntetése" : "kijelölés"}`} onClick={() => togglePlant(plant.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); togglePlant(plant.id); } }}>
                   <circle className="plant-map-marker__halo" cx={x} cy={y} r={radius + 5} />
                   <circle className="plant-map-marker__body" cx={x} cy={y} r={radius} style={{ fill: colors[plant.type] }} />
                   <text x={x + radius + 8} y={y + 4}>{plant.name}</text>
@@ -145,7 +146,7 @@ export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinute
               <text className="plant-map-caption" x="22" y="424">A kör területe az időszak termelésével arányos</text>
             </svg>
           </div>
-          {active && <aside className="plant-map-detail" aria-live="polite">
+          {active ? <aside className="plant-map-detail" aria-live="polite">
             <p>{labels[active.type]}</p>
             <h4>{active.name}</h4>
             <strong>{formatEnergy(active.energyMwh)}</strong>
@@ -157,6 +158,10 @@ export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinute
               {Number.isFinite(active.capacityMw) && <div><dt>Beépített kapacitás</dt><dd>{formatFixedNumber(active.capacityMw!, 0)} MW</dd></div>}
               <div><dt>Lefedett napok</dt><dd>{active.dayCount}</dd></div>
             </dl>
+          </aside> : <aside className="plant-map-detail plant-map-detail--empty" aria-live="polite">
+            <p>Erőmű adatai</p>
+            <strong>Válassz egy erőművet</strong>
+            <span>A térképen egy körre kattintva megjelennek a részletek.</span>
           </aside>}
         </div>
         <div className="plant-map-legend" aria-label="Erőműtípusok jelmagyarázata">{availableTypes.map((type) => <span key={type}><i style={{ background: colors[type] }} />{labels[type]}</span>)}</div>
