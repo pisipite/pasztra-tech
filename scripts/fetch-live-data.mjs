@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { entsoeMetadata, fetchEntsoeBulgariaMix, fetchEntsoeBulgariaPlants } from "./entsoe-energy-mix.mjs";
 import { mergePlantHistory, reconcileNuclearPlant } from "./entsoe-plant-history.mjs";
 import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
+import { normalizeGoveeTemperature, repairClimateHistory } from "./govee-temperature.mjs";
 
 const execFileAsync = promisify(execFile);
 const outputDir = resolve("public/data");
@@ -101,7 +102,7 @@ async function updateClimateHistory(govee) {
       .map((item) => [item.timestamp, item]),
   );
   if (isValidClimateSample(sample)) byTimestamp.set(sample.timestamp, sample);
-  const history = [...byTimestamp.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  const history = repairClimateHistory([...byTimestamp.values()].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp)));
 
   await Promise.all([mkdir(historyDir, { recursive: true }), mkdir(outputDir, { recursive: true })]);
   const serialized = `${JSON.stringify(history, null, 2)}\n`;
@@ -983,9 +984,8 @@ async function getGovee() {
   const capabilities = stateBody.payload?.capabilities ?? [];
   const state = (instance) => capabilities.find((item) => item.instance === instance)?.state?.value;
   const temperatureCapability = device.capabilities?.find((item) => item.instance === "sensorTemperature");
-  const declaredUnit = JSON.stringify(temperatureCapability?.parameters?.unit ?? "").toLowerCase();
-  let temperatureC = numberValue(state("sensorTemperature"));
-  if (declaredUnit.includes("fahrenheit") || temperatureC > 60) temperatureC = (temperatureC - 32) * 5 / 9;
+  const declaredUnit = temperatureCapability?.parameters?.unit ?? "";
+  const temperatureC = normalizeGoveeTemperature(numberValue(state("sensorTemperature"), Number.NaN), declaredUnit);
   const humidityPct = numberValue(state("sensorHumidity"));
   const battery = capabilities.find((item) => /battery/i.test(item.instance ?? ""));
 
