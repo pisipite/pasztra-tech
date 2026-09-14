@@ -4,6 +4,7 @@ import { DashboardCards } from "./components/DashboardCards";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { BulgariaEnergyMix } from "./BulgariaEnergyMix";
 import { climatePointsForPeriod, isValidClimateValues, type ClimateAggregation } from "./climateData";
+import { repairClimateHistory } from "../scripts/govee-temperature.mjs";
 import { ConsumptionPlanner } from "./ConsumptionPlanner";
 import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
@@ -74,7 +75,11 @@ function App() {
       url.searchParams.set("updated", String(Date.now()));
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setData(await response.json() as DashboardData);
+      const nextData = await response.json() as DashboardData;
+      if (Array.isArray(nextData.govee?.chart)) {
+        nextData.govee.chart = repairClimateHistory(nextData.govee.chart);
+      }
+      setData(nextData);
       setError("");
     } catch {
       setError("Az élő adatforrás most nem érhető el. Az utolsó ismert adatok láthatók.");
@@ -98,14 +103,14 @@ function App() {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const history = await response.json() as DashboardData["govee"]["chart"];
       if (!Array.isArray(history)) throw new Error("Érvénytelen klímaelőzmény.");
-      setClimateHistory(history);
+      setClimateHistory(repairClimateHistory(history));
     } catch {
       try {
         const selectedDate = dateInputValue(currentAnchor);
         const requestedRange = currentPeriod === "day" && selectedDate !== dateInputValue(new Date()) ? `day-${selectedDate}` : currentRange;
         const endpoint = currentSettings.endpoint.replace("{range}", requestedRange);
         const response = await fetch(new URL(endpoint, window.location.href), { cache: "no-store" });
-        if (response.ok) setClimateHistory((await response.json() as DashboardData).govee.chart);
+        if (response.ok) setClimateHistory(repairClimateHistory((await response.json() as DashboardData).govee.chart));
       } catch { /* keep the last known climate history */ }
     } finally {
       setClimateLoading(false);

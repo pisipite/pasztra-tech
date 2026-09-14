@@ -25,3 +25,8 @@ test("egy valódi hőmérséklet-változást nem konvertál Fahrenheitből", () 
   const history = [{ temperature: 34 }, { temperature: 42 }];
   assert.deepEqual(repairClimateHistory(history), history);
 });
+
+test("a napi adatsor elejét a későbbi helyes mintához visszafelé is javítja", () => {
+  const day = [58.1, 55.94, 54.68, 57.38, 59.9, 17.1].map((temperature) => ({ temperature }));
+  assert.deepEqual(repairClimateHistory(day).map((point) => point.temperature), [14.5, 13.3, 12.6, 14.1, 15.5, 17.1]);
+});
