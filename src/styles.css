@@ -1072,13 +1072,6 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .energy-flow { border-left: 1px solid rgba(255,255,255,.12); padding-left: 25px; display: grid; gap: 18px; }
 .energy-flow div { display: grid; gap: 3px; }.energy-flow span { color: #94a09a; font-size: 11px; }.energy-flow strong { font-family: "DM Mono", monospace; font-size: 17px; font-weight: 500; }
 .solar-chart-wrap, .climate-chart-wrap { border-top: 1px solid rgba(255,255,255,.1); padding-top: 24px; }
-.section-title { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 10px; font-size: 11px; color: #8f9993; }
-.section-title strong { color: inherit; font-weight: 600; }
-.chart { height: 180px; color: var(--solar); position: relative; }
-.chart svg { position: absolute; inset: 0 0 24px; width: 100%; height: calc(100% - 24px); overflow: visible; }
-.chart__line { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.chart__area { color: inherit; }
-.chart__labels { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; color: #728079; font-family: "DM Mono", monospace; font-size: 8px; }
 .solar-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(255,255,255,.1); margin: 20px calc(clamp(24px, 3vw, 38px) * -1) calc(clamp(24px, 3vw, 38px) * -1); }
 .solar-stats > div { background: #16231f; padding: 23px clamp(20px, 2.5vw, 34px); display: grid; gap: 8px; }
 .solar-stats span { color: #89948e; font-size: 10px; }.solar-stats strong { font-family: "DM Mono", monospace; font-size: 20px; font-weight: 500; }.solar-stats small { color: #8d9892; font-size: 9px; }

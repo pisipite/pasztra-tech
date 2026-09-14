@@ -4,6 +4,7 @@ import { batteryNetValue, gridNetValue } from "./energyData";
 import { BackToTop } from "./components/BackToTop";
 import { BulgariaPowerPlantMap } from "./BulgariaPowerPlantMap";
 import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, EnergyChartPoint, PeriodKey } from "./types";
+import { usePeriodSelection } from "./usePeriodSelection";
 
 type MixSeriesKey = "nuclear" | "coal" | "gas" | "hydro" | "solar" | "wind" | "other" | "imports";
 
@@ -148,10 +149,8 @@ function axisLabel(point: BulgariaEnergyMixPoint, period: PeriodKey, customStart
 }
 
 export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
-  const [period, setPeriod] = useState<PeriodKey>("day");
-  const [anchor, setAnchor] = useState(() => new Date());
-  const [customStart, setCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
-  const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()));
+  const selection = usePeriodSelection();
+  const { period, anchor, customStart, customEnd } = selection;
   const [hiddenSeries, setHiddenSeries] = useState<Set<MixSeriesKey>>(() => new Set());
   const [showConsumption, setShowConsumption] = useState(true);
   const [hovered, setHovered] = useState<number | null>(null);
@@ -231,25 +230,6 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
     return { ...definition, value: supplyTotal ? home.grid * item.value / supplyTotal : 0 };
   });
 
-  const stepPeriod = (direction: -1 | 1) => {
-    if (period === "custom") {
-      const start = dateFromInput(customStart);
-      const end = dateFromInput(customEnd);
-      const span = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
-      start.setDate(start.getDate() + direction * span);
-      end.setDate(end.getDate() + direction * span);
-      setCustomStart(dateInputValue(start));
-      setCustomEnd(dateInputValue(end));
-      return;
-    }
-    const next = new Date(effectiveAnchor);
-    if (period === "day") next.setDate(next.getDate() + direction);
-    if (period === "week") next.setDate(next.getDate() + direction * 7);
-    if (period === "month") next.setMonth(next.getMonth() + direction);
-    if (period === "year") next.setFullYear(next.getFullYear() + direction);
-    setAnchor(next);
-  };
-
   const onChartMove = (event: MouseEvent<HTMLDivElement>) => {
     if (!points.length) return;
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -280,14 +260,14 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
         </div>
         <div className="period-control-stack section-header__tools">
           <div className="period-tabs bulgaria-mix__tabs" role="tablist" aria-label="Bulgária energiamix időszaka">
-            {periods.map((item) => <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setAnchor(new Date()); }}>{item.label}</button>)}
+            {periods.map((item) => <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => selection.selectPeriod(item.key)}>{item.label}</button>)}
           </div>
           <div className="period-stepper">
-            <button onClick={() => stepPeriod(-1)} aria-label="Előző energiamix-időszak">←</button>
+            <button onClick={() => selection.step(-1, effectiveAnchor)} aria-label="Előző energiamix-időszak">←</button>
             <strong>{periodLabel(period, effectiveAnchor, customStart, customEnd)}</strong>
-            <button onClick={() => stepPeriod(1)} disabled={period !== "custom" && isCurrentPeriod(period, effectiveAnchor)} aria-label="Következő energiamix-időszak">→</button>
+            <button onClick={() => selection.step(1, effectiveAnchor)} disabled={period !== "custom" && isCurrentPeriod(period, effectiveAnchor)} aria-label="Következő energiamix-időszak">→</button>
           </div>
-          {period === "custom" && <div className="custom-range period-control-stack__custom"><label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => setCustomStart(event.target.value)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => setCustomEnd(event.target.value)} /></label></div>}
+          {period === "custom" && <div className="custom-range period-control-stack__custom"><label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => selection.setCustomRange(event.target.value, customEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => selection.setCustomRange(customStart, event.target.value)} /></label></div>}
         </div>
       </div>
 

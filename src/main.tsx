@@ -6,7 +6,8 @@ import { BulgariaEnergyMix } from "./BulgariaEnergyMix";
 import { climatePointsForPeriod, isValidClimateValues, type ClimateAggregation } from "./climateData";
 import { repairClimateHistory } from "../scripts/govee-temperature.mjs";
 import { ConsumptionPlanner } from "./ConsumptionPlanner";
-import { dateFromInput, dateInputValue, DAY_MS, rangeForPeriod } from "./dateUtils";
+import { dashboardUrl, dataFileUrl, fetchFreshJson } from "./dashboardApi";
+import { rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
@@ -16,6 +17,7 @@ import { dispatchDashboardRefresh, waitForFreshDashboard } from "./githubRefresh
 import { SolarForecast } from "./SolarForecast";
 import { SunHorizon } from "./SunHorizon";
 import type { BulgariaEnergyMixData, DashboardData, DataConnection, PeriodKey } from "./types";
+import { usePeriodSelection } from "./usePeriodSelection";
 import "./styles.css";
 
 const connectionStaleMs = 45 * 60 * 1000;
@@ -37,15 +39,21 @@ function connectionIsFresh(connection: DataConnection | undefined, fallbackConne
   return connected && Number.isFinite(age) && age >= -5 * 60_000 && age <= connectionStaleMs;
 }
 
+function startPolling(load: () => void, refreshSeconds: number) {
+  const seconds = Number.isFinite(refreshSeconds) ? Math.max(60, refreshSeconds) : 300;
+  const initial = window.setTimeout(load, 0);
+  const timer = window.setInterval(load, seconds * 1000);
+  return () => {
+    window.clearTimeout(initial);
+    window.clearInterval(timer);
+  };
+}
+
 function App() {
-  const [period, setPeriod] = useState<PeriodKey>("day");
-  const [anchor, setAnchor] = useState(() => new Date());
-  const [customStart, setCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
-  const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()));
-  const [climatePeriod, setClimatePeriod] = useState<PeriodKey>("day");
-  const [climateAnchor, setClimateAnchor] = useState(() => new Date());
-  const [climateCustomStart, setClimateCustomStart] = useState(() => dateInputValue(new Date(Date.now() - 6 * DAY_MS)));
-  const [climateCustomEnd, setClimateCustomEnd] = useState(() => dateInputValue(new Date()));
+  const energySelection = usePeriodSelection();
+  const { period, anchor, customStart, customEnd } = energySelection;
+  const climateSelection = usePeriodSelection();
+  const { period: climatePeriod, anchor: climateAnchor, customStart: climateCustomStart, customEnd: climateCustomEnd } = climateSelection;
   const [climateAggregation, setClimateAggregation] = useState<ClimateAggregation>("average");
   const [climateHistory, setClimateHistory] = useState(() => makeDemoData("today").govee.chart);
   const [climateLoading, setClimateLoading] = useState(false);
@@ -68,23 +76,8 @@ function App() {
     }
     setLoading(true);
     try {
-      const selectedDate = dateInputValue(currentAnchor);
-      const requestedRange = currentPeriod === "day" && selectedDate !== dateInputValue(new Date())
-        ? `day-${selectedDate}`
-        : currentRange;
-      const endpoint = currentSettings.endpoint.replace("{range}", requestedRange);
-      const url = new URL(endpoint, window.location.href);
-      url.searchParams.set("range", currentRange);
-      url.searchParams.set("period", currentPeriod);
-      url.searchParams.set("date", dateInputValue(currentAnchor));
-      if (currentPeriod === "custom" && from && to) {
-        url.searchParams.set("from", from);
-        url.searchParams.set("to", to);
-      }
-      url.searchParams.set("updated", String(Date.now()));
-      const response = await fetch(url, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      setData(withRepairedClimate(await response.json() as DashboardData));
+      const dashboard = await fetchFreshJson<DashboardData>(dashboardUrl(currentSettings.endpoint, currentPeriod, currentAnchor, from, to));
+      setData(withRepairedClimate(dashboard));
       setError("");
     } catch {
       setError("Az élő adatforrás most nem érhető el. Az utolsó ismert adatok láthatók.");
@@ -101,21 +94,13 @@ function App() {
     }
     setClimateLoading(true);
     try {
-      const dashboardUrl = new URL(currentSettings.endpoint.replace("{range}", "today"), window.location.href);
-      const historyUrl = new URL("govee-history.json", dashboardUrl);
-      historyUrl.searchParams.set("updated", String(Date.now()));
-      const response = await fetch(historyUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const history = await response.json() as DashboardData["govee"]["chart"];
+      const history = await fetchFreshJson<DashboardData["govee"]["chart"]>(dataFileUrl(currentSettings.endpoint, "govee-history.json"));
       if (!Array.isArray(history)) throw new Error("Érvénytelen klímaelőzmény.");
       setClimateHistory(repairClimateHistory(history));
     } catch {
       try {
-        const selectedDate = dateInputValue(currentAnchor);
-        const requestedRange = currentPeriod === "day" && selectedDate !== dateInputValue(new Date()) ? `day-${selectedDate}` : currentRange;
-        const endpoint = currentSettings.endpoint.replace("{range}", requestedRange);
-        const response = await fetch(new URL(endpoint, window.location.href), { cache: "no-store" });
-        if (response.ok) setClimateHistory(repairClimateHistory((await response.json() as DashboardData).govee.chart));
+        const dashboard = await fetchFreshJson<DashboardData>(dashboardUrl(currentSettings.endpoint, currentPeriod, currentAnchor, from, to));
+        if (Array.isArray(dashboard.govee?.chart)) setClimateHistory(repairClimateHistory(dashboard.govee.chart));
       } catch { /* keep the last known climate history */ }
     } finally {
       setClimateLoading(false);
@@ -128,12 +113,7 @@ function App() {
       return;
     }
     try {
-      const dashboardUrl = new URL(currentSettings.endpoint.replace("{range}", "today"), window.location.href);
-      const mixUrl = new URL("bulgaria-energy-mix.json", dashboardUrl);
-      mixUrl.searchParams.set("updated", String(Date.now()));
-      const response = await fetch(mixUrl, { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const next = await response.json() as BulgariaEnergyMixData;
+      const next = await fetchFreshJson<BulgariaEnergyMixData>(dataFileUrl(currentSettings.endpoint, "bulgaria-energy-mix.json"));
       if (!Array.isArray(next.points)) throw new Error("Érvénytelen energiamix-adat.");
       setBulgariaMix(next);
     } catch {
@@ -141,32 +121,14 @@ function App() {
     }
   }, []);
 
-  useEffect(() => {
-    const initial = window.setTimeout(() => void loadData(period, settings, anchor, customStart, customEnd), 0);
-    const timer = window.setInterval(() => void loadData(period, settings, anchor, customStart, customEnd), Math.min(settings.refreshSeconds, 300) * 1000);
-    return () => {
-      window.clearTimeout(initial);
-      window.clearInterval(timer);
-    };
-  }, [period, anchor, customStart, customEnd, settings, loadData]);
+  useEffect(() => startPolling(() => void loadData(period, settings, anchor, customStart, customEnd), settings.refreshSeconds),
+    [period, anchor, customStart, customEnd, settings, loadData]);
 
-  useEffect(() => {
-    const initial = window.setTimeout(() => void loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd), 0);
-    const timer = window.setInterval(() => void loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd), Math.min(settings.refreshSeconds, 300) * 1000);
-    return () => {
-      window.clearTimeout(initial);
-      window.clearInterval(timer);
-    };
-  }, [climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, settings, loadClimateHistory]);
+  useEffect(() => startPolling(() => void loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd), settings.refreshSeconds),
+    [climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, settings, loadClimateHistory]);
 
-  useEffect(() => {
-    const initial = window.setTimeout(() => void loadBulgariaMix(settings), 0);
-    const timer = window.setInterval(() => void loadBulgariaMix(settings), Math.min(settings.refreshSeconds, 300) * 1000);
-    return () => {
-      window.clearTimeout(initial);
-      window.clearInterval(timer);
-    };
-  }, [settings, loadBulgariaMix]);
+  useEffect(() => startPolling(() => void loadBulgariaMix(settings), settings.refreshSeconds),
+    [settings, loadBulgariaMix]);
 
   useEffect(() => {
     const syncClock = () => setClock(Date.now());
@@ -194,7 +156,6 @@ function App() {
   const saveSettings = (next: DashboardSettings) => {
     storeSettings(next);
     setSettings(next);
-    void loadData(period, next, anchor, customStart, customEnd);
     setSettingsOpen(false);
   };
 
@@ -244,10 +205,13 @@ function App() {
     if (manualRefreshState === "starting" || manualRefreshState === "waiting") return;
     const dataAge = clock - new Date(data.updatedAt).getTime();
     if (!Number.isFinite(dataAge) || dataAge < recoveryAfterMs) return;
-    const lastAttempt = Number(localStorage.getItem(recoveryAttemptKey));
-    if (lastAttempt > 0 && clock >= lastAttempt && clock - lastAttempt < recoveryCooldownMs) return;
-    localStorage.setItem(recoveryAttemptKey, String(clock));
-    void triggerManualRefresh();
+    const timer = window.setTimeout(() => {
+      const lastAttempt = Number(localStorage.getItem(recoveryAttemptKey));
+      if (lastAttempt > 0 && clock >= lastAttempt && clock - lastAttempt < recoveryCooldownMs) return;
+      localStorage.setItem(recoveryAttemptKey, String(clock));
+      void triggerManualRefresh();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [clock, data.updatedAt, settings.live, settings.endpoint, settings.githubToken, manualRefreshState, triggerManualRefresh]);
 
   const manualRefreshBusy = manualRefreshState === "starting" || manualRefreshState === "waiting";
@@ -258,44 +222,6 @@ function App() {
       : manualRefreshState === "success"
         ? "Frissítve"
         : "Adatok frissítése";
-
-  const stepPeriod = (direction: -1 | 1) => {
-    if (period === "custom") {
-      const start = dateFromInput(customStart);
-      const end = dateFromInput(customEnd);
-      const span = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
-      start.setDate(start.getDate() + direction * span);
-      end.setDate(end.getDate() + direction * span);
-      setCustomStart(dateInputValue(start));
-      setCustomEnd(dateInputValue(end));
-      return;
-    }
-    const next = new Date(anchor);
-    if (period === "day") next.setDate(next.getDate() + direction);
-    if (period === "week") next.setDate(next.getDate() + direction * 7);
-    if (period === "month") next.setMonth(next.getMonth() + direction);
-    if (period === "year") next.setFullYear(next.getFullYear() + direction);
-    setAnchor(next);
-  };
-
-  const stepClimatePeriod = (direction: -1 | 1) => {
-    if (climatePeriod === "custom") {
-      const start = dateFromInput(climateCustomStart);
-      const end = dateFromInput(climateCustomEnd);
-      const span = Math.max(1, Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1);
-      start.setDate(start.getDate() + direction * span);
-      end.setDate(end.getDate() + direction * span);
-      setClimateCustomStart(dateInputValue(start));
-      setClimateCustomEnd(dateInputValue(end));
-      return;
-    }
-    const next = new Date(climateAnchor);
-    if (climatePeriod === "day") next.setDate(next.getDate() + direction);
-    if (climatePeriod === "week") next.setDate(next.getDate() + direction * 7);
-    if (climatePeriod === "month") next.setMonth(next.getMonth() + direction);
-    if (climatePeriod === "year") next.setFullYear(next.getFullYear() + direction);
-    setClimateAnchor(next);
-  };
 
   return (
     <div className="app-shell">
@@ -348,9 +274,9 @@ function App() {
           anchor={anchor}
           customStart={customStart}
           customEnd={customEnd}
-          onPeriodChange={(next) => { setPeriod(next); setAnchor(new Date()); }}
-          onStep={stepPeriod}
-          onCustomChange={(start, end) => { setCustomStart(start); setCustomEnd(end); }}
+          onPeriodChange={energySelection.selectPeriod}
+          onStep={energySelection.step}
+          onCustomChange={energySelection.setCustomRange}
         />
 
         <BulgariaEnergyMix data={bulgariaMix} householdFallback={data.solar.energyChart} />
@@ -370,9 +296,9 @@ function App() {
           climateCustomEnd={climateCustomEnd}
           climateAggregation={climateAggregation}
           climateLoading={climateLoading}
-          onClimatePeriodChange={(next) => { setClimatePeriod(next); setClimateAnchor(new Date()); }}
-          onClimateStep={stepClimatePeriod}
-          onClimateCustomChange={(start, end) => { setClimateCustomStart(start); setClimateCustomEnd(end); }}
+          onClimatePeriodChange={climateSelection.selectPeriod}
+          onClimateStep={climateSelection.step}
+          onClimateCustomChange={climateSelection.setCustomRange}
           onClimateAggregationChange={setClimateAggregation}
           batterySoc={batterySoc}
           loading={loading}
