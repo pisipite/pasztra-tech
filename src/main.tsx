@@ -19,7 +19,16 @@ import type { BulgariaEnergyMixData, DashboardData, DataConnection, PeriodKey } 
 import "./styles.css";
 
 const connectionStaleMs = 45 * 60 * 1000;
+const recoveryAfterMs = 40 * 60 * 1000;
+const recoveryCooldownMs = 50 * 60 * 1000;
+const recoveryAttemptKey = "solar-home-auto-recovery-at";
 type ManualRefreshState = "idle" | "starting" | "waiting" | "success" | "error";
+
+function withRepairedClimate(dashboard: DashboardData): DashboardData {
+  return Array.isArray(dashboard.govee?.chart)
+    ? { ...dashboard, govee: { ...dashboard.govee, chart: repairClimateHistory(dashboard.govee.chart) } }
+    : dashboard;
+}
 
 function connectionIsFresh(connection: DataConnection | undefined, fallbackConnected: boolean, fallbackUpdatedAt: string, clock: number) {
   const connected = connection?.connected ?? fallbackConnected;
@@ -75,11 +84,7 @@ function App() {
       url.searchParams.set("updated", String(Date.now()));
       const response = await fetch(url, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const nextData = await response.json() as DashboardData;
-      if (Array.isArray(nextData.govee?.chart)) {
-        nextData.govee.chart = repairClimateHistory(nextData.govee.chart);
-      }
-      setData(nextData);
+      setData(withRepairedClimate(await response.json() as DashboardData));
       setError("");
     } catch {
       setError("Az élő adatforrás most nem érhető el. Az utolsó ismert adatok láthatók.");
@@ -164,8 +169,13 @@ function App() {
   }, [settings, loadBulgariaMix]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setClock(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
+    const syncClock = () => setClock(Date.now());
+    const timer = window.setInterval(syncClock, 60_000);
+    document.addEventListener("visibilitychange", syncClock);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", syncClock);
+    };
   }, []);
 
   const climateSeries = useMemo(
@@ -210,7 +220,7 @@ function App() {
       setManualRefreshState("waiting");
       setManualRefreshMessage("Az adatok gyűjtése és az oldal frissítése folyamatban van. Ez általában 1–2 perc.");
       const freshData = await waitForFreshDashboard(settings.endpoint, data.updatedAt, (progress) => setManualRefreshState(progress));
-      setData(freshData);
+      setData(withRepairedClimate(freshData));
       await Promise.all([
         loadData(period, settings, anchor, customStart, customEnd),
         loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
@@ -228,6 +238,17 @@ function App() {
       setManualRefreshMessage(refreshError instanceof Error ? refreshError.message : "A frissítés nem sikerült.");
     }
   }, [manualRefreshState, settings, data.updatedAt, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory, loadBulgariaMix]);
+
+  useEffect(() => {
+    if (document.visibilityState !== "visible" || !settings.live || !settings.endpoint || !settings.githubToken) return;
+    if (manualRefreshState === "starting" || manualRefreshState === "waiting") return;
+    const dataAge = clock - new Date(data.updatedAt).getTime();
+    if (!Number.isFinite(dataAge) || dataAge < recoveryAfterMs) return;
+    const lastAttempt = Number(localStorage.getItem(recoveryAttemptKey));
+    if (lastAttempt > 0 && clock >= lastAttempt && clock - lastAttempt < recoveryCooldownMs) return;
+    localStorage.setItem(recoveryAttemptKey, String(clock));
+    void triggerManualRefresh();
+  }, [clock, data.updatedAt, settings.live, settings.endpoint, settings.githubToken, manualRefreshState, triggerManualRefresh]);
 
   const manualRefreshBusy = manualRefreshState === "starting" || manualRefreshState === "waiting";
   const manualRefreshLabel = manualRefreshState === "starting"

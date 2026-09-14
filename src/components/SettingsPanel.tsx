@@ -25,12 +25,13 @@ export function SettingsPanel({ settings, onClose, onSave }: Props) {
           <input type="url" placeholder="https://api.sajatdomain.hu/dashboard" value={draft.endpoint} onChange={(event) => setDraft({ ...draft, endpoint: event.target.value })} />
         </label>
         <label className="field">
-          <span>Automatikus frissítés</span>
+          <span>Megjelenített adatok újraolvasása</span>
           <select value={draft.refreshSeconds} onChange={(event) => setDraft({ ...draft, refreshSeconds: Number(event.target.value) })}>
             <option value={60}>1 percenként</option>
             <option value={300}>5 percenként</option>
             <option value={900}>15 percenként</option>
           </select>
+          <small>Ha a GitHub ütemezése késik, a nyitott oldal a mentett frissítési tokennel automatikusan elindítja az adatgyűjtést.</small>
         </label>
         <label className="field">
           <span>GitHub frissítési token</span>
