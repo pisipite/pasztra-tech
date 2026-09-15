@@ -449,7 +449,11 @@ html { scroll-behavior: smooth; }
 .plant-map-country { fill: #315149; stroke: #eddfb9; stroke-width: 3; stroke-linejoin: round; }
 .plant-map-relief { fill: none; stroke: rgba(241,223,180,.18); stroke-width: 17; stroke-linecap: round; }
 .plant-map-caption { fill: rgba(248,234,198,.62); font: 10px "DM Mono", monospace; }
-.plant-map-marker { cursor: pointer; outline: none; }
+.plant-map-marker { cursor: pointer; outline: none; transition: opacity .15s ease; }
+.plant-map-marker.is-idle { opacity: .32; }
+.plant-map-marker.is-idle:hover,
+.plant-map-marker.is-idle:focus,
+.plant-map-marker.is-idle.is-active { opacity: .9; }
 .plant-map-marker__halo { fill: rgba(248,234,198,.12); stroke: transparent; stroke-width: 2; transition: fill .15s ease, stroke .15s ease; }
 .plant-map-marker__body { stroke: #f8eac6; stroke-width: 2; transition: filter .15s ease, transform .15s ease; transform-box: fill-box; transform-origin: center; }
 .plant-map-marker text { fill: #fff3ce; paint-order: stroke; stroke: #203a36; stroke-width: 4px; stroke-linejoin: round; font: 700 11px "Oswald", Impact, sans-serif; pointer-events: none; }
@@ -498,6 +502,9 @@ html { scroll-behavior: smooth; }
 .plant-map-ranking__list button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; padding: 8px 5px; border: 0; color: var(--poster-paper-light); background: transparent; text-align: left; cursor: pointer; }
 .plant-map-ranking__list button:hover,
 .plant-map-ranking__list button:focus-visible { background: rgba(248,234,198,.09); outline: 1px solid rgba(248,234,198,.34); outline-offset: -1px; }
+.plant-map-ranking__list button.is-idle { opacity: .42; }
+.plant-map-ranking__list button.is-idle:hover,
+.plant-map-ranking__list button.is-idle:focus-visible { opacity: .82; }
 .plant-map-ranking__list button > span { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; font: 600 11px "Oswald", Impact, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
 .plant-map-ranking__list button > span > i { width: 8px; height: 8px; flex: 0 0 auto; border: 1px solid rgba(248,234,198,.75); border-radius: 50%; }
 .plant-map-ranking__list button > strong { font: 700 10px "DM Mono", monospace; }

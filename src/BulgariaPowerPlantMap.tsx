@@ -24,6 +24,10 @@ type PlantSummary = Omit<BulgariaPowerPlant, "days"> & {
 };
 
 const mapBounds = { minLongitude: 22.32, maxLongitude: 28.63, minLatitude: 41.22, maxLatitude: 44.23 };
+// The country outline occupies this rectangle inside the 760 × 440 viewBox.
+// Projecting into the outline instead of the whole canvas keeps the markers
+// geographically aligned with the stylised border.
+const mapPlot = { left: 136, right: 684, top: 41, bottom: 395 };
 const colors: Record<BulgariaPowerPlantType, string> = {
   nuclear: "#d16b35",
   coal: "#777057",
@@ -74,11 +78,11 @@ function aggregatePlants(plants: BulgariaPowerPlant[], period: PeriodKey, anchor
 }
 
 function mapX(longitude: number) {
-  return 38 + (longitude - mapBounds.minLongitude) / (mapBounds.maxLongitude - mapBounds.minLongitude) * 684;
+  return mapPlot.left + (longitude - mapBounds.minLongitude) / (mapBounds.maxLongitude - mapBounds.minLongitude) * (mapPlot.right - mapPlot.left);
 }
 
 function mapY(latitude: number) {
-  return 32 + (mapBounds.maxLatitude - latitude) / (mapBounds.maxLatitude - mapBounds.minLatitude) * 376;
+  return mapPlot.top + (mapBounds.maxLatitude - latitude) / (mapBounds.maxLatitude - mapBounds.minLatitude) * (mapPlot.bottom - mapPlot.top);
 }
 
 function formatEnergy(value: number) {
@@ -108,7 +112,7 @@ function PlantRanking({ plants, onSelect }: { plants: PlantSummary[]; onSelect: 
     <div className="plant-map-ranking__list" aria-label="Erőművek termelési rangsora">
       {ranked.map((plant) => {
         const width = plant.energyMwh > 0 ? Math.max(1.5, plant.energyMwh / maximum * 100) : 0;
-        return <button key={plant.id} type="button" onClick={() => onSelect(plant.id)} aria-label={`${plant.name}: ${formatEnergy(plant.energyMwh)}; részletek megnyitása`}>
+        return <button key={plant.id} className={plant.energyMwh > 0 ? undefined : "is-idle"} type="button" onClick={() => onSelect(plant.id)} aria-label={`${plant.name}: ${formatEnergy(plant.energyMwh)}; részletek megnyitása`}>
           <span><i style={{ background: colors[plant.type] }} />{plant.name}</span>
           <strong>{formatEnergy(plant.energyMwh)}</strong>
           <b aria-hidden="true"><i style={{ width: `${width}%`, background: colors[plant.type] }} /></b>
@@ -162,7 +166,7 @@ export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinute
                 const x = mapX(plant.longitude);
                 const y = mapY(plant.latitude);
                 const isActive = active?.id === plant.id;
-                return <g key={plant.id} className={`plant-map-marker${isActive ? " is-active" : ""}`} role="button" tabIndex={0} aria-pressed={isActive} aria-label={`${plant.name}: ${formatEnergy(plant.energyMwh)}; ${isActive ? "kijelölés megszüntetése" : "kijelölés"}`} onClick={() => togglePlant(plant.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); togglePlant(plant.id); } }}>
+                return <g key={plant.id} className={`plant-map-marker${plant.energyMwh > 0 ? "" : " is-idle"}${isActive ? " is-active" : ""}`} role="button" tabIndex={0} aria-pressed={isActive} aria-label={`${plant.name}: ${formatEnergy(plant.energyMwh)}; ${isActive ? "kijelölés megszüntetése" : "kijelölés"}`} onClick={() => togglePlant(plant.id)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); togglePlant(plant.id); } }}>
                   <circle className="plant-map-marker__halo" cx={x} cy={y} r={radius + 5} />
                   <circle className="plant-map-marker__body" cx={x} cy={y} r={radius} style={{ fill: colors[plant.type] }} />
                   <text x={x + radius + 8} y={y + 4}>{plant.name}</text>
