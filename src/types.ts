@@ -113,6 +113,43 @@ export interface BulgariaEnergyMixData {
   };
 }
 
+export type EnergyNewsCategory = "solar" | "energy" | "renewables";
+
+export interface EnergyNewsSource {
+  id: string;
+  name: string;
+  url: string;
+}
+
+export interface EnergyNewsItem {
+  id: string;
+  sourceId: string;
+  sourceName: string;
+  sourceUrl: string;
+  url: string;
+  publishedAt: string;
+  title: string;
+  summary: string;
+  category: EnergyNewsCategory;
+  important: boolean;
+  importance?: number;
+  kind: "news" | "outage";
+  language: "bg";
+}
+
+export interface EnergyNewsData {
+  source: "live" | "demo";
+  updatedAt: string;
+  items: EnergyNewsItem[];
+  sources: EnergyNewsSource[];
+  outage?: {
+    configured: boolean;
+    checkedAt: string;
+    alert: boolean;
+    sourceUrl: string;
+  };
+}
+
 export interface SolarData {
   status: "online" | "offline" | "warning";
   currentPowerKw: number;

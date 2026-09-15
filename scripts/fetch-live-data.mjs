@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import { entsoeMetadata, fetchEntsoeBulgariaMix, fetchEntsoeBulgariaPlants } from "./entsoe-energy-mix.mjs";
 import { mergePlantHistory, reconcileNuclearPlant } from "./entsoe-plant-history.mjs";
 import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
+import { fetchEnergyNews } from "./energy-news.mjs";
 import { normalizeGoveeTemperature, repairClimateHistory } from "./govee-temperature.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -1519,17 +1520,18 @@ async function optionalSource(name, fetcher) {
   }
 }
 
-const [sungrow, govee, forecast, bulgariaMix] = await Promise.all([
+const [sungrow, govee, forecast, bulgariaMix, energyNews] = await Promise.all([
   optionalSource("Sungrow", getSungrow),
   optionalSource("Govee", getGovee),
   optionalSource("Előrejelzés", getSolarForecast),
   optionalSource("Bulgária energiamix", getBulgariaEnergyMix),
+  optionalSource("Bolgár energiahírek", () => fetchEnergyNews(now)),
 ]);
 const weatherTwins = govee?.devices[0]
   ? await optionalSource("Időjárási ikervárosok", () => getWeatherTwins(govee.devices[0].temperatureC, govee.devices[0].humidityPct))
   : null;
 
-if (!sungrow && !govee && !forecast && !bulgariaMix) {
+if (!sungrow && !govee && !forecast && !bulgariaMix && !energyNews) {
   console.log("Nincsenek beállítva élő adatforrások; a bemutató mód marad aktív.");
   process.exit(0);
 }
@@ -1580,6 +1582,10 @@ if (bulgariaMix) {
   await writeFile(resolve(outputDir, "bulgaria-energy-mix.json"), `${JSON.stringify(energyMixOutput)}\n`, "utf8");
 }
 
+if (energyNews) {
+  await writeFile(resolve(outputDir, "energy-news.json"), `${JSON.stringify(energyNews, null, 2)}\n`, "utf8");
+}
+
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");
-const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo", bulgariaMix && (bulgariaMix.sourceName ?? "energiamix")].filter(Boolean);
+const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo", bulgariaMix && (bulgariaMix.sourceName ?? "energiamix"), energyNews && "bolgár sajtó"].filter(Boolean);
 console.log(`Élő dashboard-adatok elkészítve (${activeSources.join(" + ")}).`);

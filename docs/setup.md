@@ -18,8 +18,12 @@ A **Settings → Secrets and variables → Actions → Secrets** részen hozd l�
 | `ENTSOE_SECURITY_TOKEN` | ENTSO-E Transparency Platform Web API Security Token |
 | `SOLAR_LATITUDE` | A rendszer pontos földrajzi szélessége az időjárási előrejelzéshez |
 | `SOLAR_LONGITUDE` | A rendszer pontos földrajzi hosszúsága az időjárási előrejelzéshez |
+| `ERM_ZAPAD_ITN` | Nem kötelező: 12 jegyű ügyfélszám a személyre szabott tervezettáramszünet-figyeléshez |
+| `ERM_ZAPAD_POD` | Nem kötelező: 16 jegyű mérési pont azonosító; ha ezt megadod, ezt használja az ITN helyett |
 
 A Govee API-kulcsot a Govee Home alkalmazásban lehet igényelni. A kulcsot soha ne írd fájlba vagy commitba.
+
+Az ERM Zapad-azonosítók közül elég az egyiket megadni. Ezek sem kerülnek a publikus adatfájlba: az oldal csak akkor kap riasztási kártyát, ha a szolgáltató valóban tervezett kimaradást jelez.
 
 ## 3. Nem titkos változók
 

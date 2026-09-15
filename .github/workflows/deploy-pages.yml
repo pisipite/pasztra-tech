@@ -63,6 +63,8 @@ jobs:
           SOLAR_TILT_DEG: ${{ vars.SOLAR_TILT_DEG }}
           SOLAR_AZIMUTH_DEG: ${{ vars.SOLAR_AZIMUTH_DEG }}
           SOLAR_PERFORMANCE_RATIO: ${{ vars.SOLAR_PERFORMANCE_RATIO }}
+          ERM_ZAPAD_ITN: ${{ secrets.ERM_ZAPAD_ITN }}
+          ERM_ZAPAD_POD: ${{ secrets.ERM_ZAPAD_POD }}
           SUNGROW_DAY_HISTORY_DAYS: 31
         run: bash scripts/fetch-live-data.sh
       - run: pnpm install --frozen-lockfile

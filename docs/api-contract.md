@@ -4,7 +4,7 @@ A GitHub Pages statikus, nyilvános tárhely. Sungrow- és Govee API-kulcsot ez�
 
 ## Beállítás
 
-A `scripts/fetch-live-data.mjs` négy statikus adatfájlt készít: `dashboard-today.json`, `dashboard-7d.json`, `dashboard-30d.json` és `dashboard-year.json`. Sikeres élő lekéréskor a build ideiglenesen élő módra állítja a `config.js` fájlt. Ugyanez egy saját külső végponttal a felületen, a jobb felső menüből is beállítható.
+A `scripts/fetch-live-data.mjs` elkészíti a négy dashboard-fájlt (`dashboard-today.json`, `dashboard-7d.json`, `dashboard-30d.json`, `dashboard-year.json`) és a különálló kiegészítő adatfájlokat, köztük az `energy-news.json` hírfolyamot. Sikeres élő lekéréskor a build ideiglenesen élő módra állítja a `config.js` fájlt. Ugyanez egy saját külső végponttal a felületen, a jobb felső menüből is beállítható.
 
 A dashboard például így kéri le a napi adatot:
 

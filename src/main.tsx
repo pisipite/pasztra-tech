@@ -11,12 +11,14 @@ import { rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
 import { EnergyAnalytics } from "./EnergyAnalytics";
+import { EnergyNews } from "./EnergyNews";
 import { makeDemoBulgariaEnergyMix } from "./energyMixData";
 import { formatHeadingDate, formatTime } from "./formatUtils";
 import { dispatchDashboardRefresh, waitForFreshDashboard } from "./githubRefresh";
+import { makeDemoEnergyNews } from "./newsData";
 import { SolarForecast } from "./SolarForecast";
 import { SunHorizon } from "./SunHorizon";
-import type { BulgariaEnergyMixData, DashboardData, DataConnection, PeriodKey } from "./types";
+import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, PeriodKey } from "./types";
 import { usePeriodSelection } from "./usePeriodSelection";
 import "./styles.css";
 
@@ -60,6 +62,7 @@ function App() {
   const [settings, setSettings] = useState<DashboardSettings>(getInitialSettings);
   const [data, setData] = useState(() => makeDemoData("today"));
   const [bulgariaMix, setBulgariaMix] = useState(makeDemoBulgariaEnergyMix);
+  const [energyNews, setEnergyNews] = useState(makeDemoEnergyNews);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -121,6 +124,20 @@ function App() {
     }
   }, []);
 
+  const loadEnergyNews = useCallback(async (currentSettings: DashboardSettings) => {
+    if (!currentSettings.live || !currentSettings.endpoint) {
+      setEnergyNews(makeDemoEnergyNews());
+      return;
+    }
+    try {
+      const next = await fetchFreshJson<EnergyNewsData>(dataFileUrl(currentSettings.endpoint, "energy-news.json"));
+      if (!Array.isArray(next.items) || !Array.isArray(next.sources)) throw new Error("Érvénytelen híradat.");
+      setEnergyNews(next);
+    } catch {
+      // Keep the last known news while one or more source feeds are unavailable.
+    }
+  }, []);
+
   useEffect(() => startPolling(() => void loadData(period, settings, anchor, customStart, customEnd), settings.refreshSeconds),
     [period, anchor, customStart, customEnd, settings, loadData]);
 
@@ -129,6 +146,9 @@ function App() {
 
   useEffect(() => startPolling(() => void loadBulgariaMix(settings), settings.refreshSeconds),
     [settings, loadBulgariaMix]);
+
+  useEffect(() => startPolling(() => void loadEnergyNews(settings), settings.refreshSeconds),
+    [settings, loadEnergyNews]);
 
   useEffect(() => {
     const syncClock = () => setClock(Date.now());
@@ -186,6 +206,7 @@ function App() {
         loadData(period, settings, anchor, customStart, customEnd),
         loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
         loadBulgariaMix(settings),
+        loadEnergyNews(settings),
       ]);
       setClock(Date.now());
       setManualRefreshState("success");
@@ -198,7 +219,7 @@ function App() {
       setManualRefreshState("error");
       setManualRefreshMessage(refreshError instanceof Error ? refreshError.message : "A frissítés nem sikerült.");
     }
-  }, [manualRefreshState, settings, data.updatedAt, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory, loadBulgariaMix]);
+  }, [manualRefreshState, settings, data.updatedAt, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory, loadBulgariaMix, loadEnergyNews]);
 
   useEffect(() => {
     if (document.visibilityState !== "visible" || !settings.live || !settings.endpoint || !settings.githubToken) return;
@@ -246,6 +267,7 @@ function App() {
         <div className="section-nav__track">
           <a href="#energia">Energiafolyam</a>
           <a href="#energiamix">Országos energia · Bulgária</a>
+          <a href="#hirek">Hírek</a>
           <a href="#elojelzes">Előrejelzés</a>
           <a href="#fogyasztasi-proba">Interaktív próba</a>
           <a href="#napallas">Napállás</a>
@@ -280,6 +302,8 @@ function App() {
         />
 
         <BulgariaEnergyMix data={bulgariaMix} householdFallback={data.solar.energyChart} />
+
+        <EnergyNews data={energyNews} />
 
         <SolarForecast data={data} />
 
