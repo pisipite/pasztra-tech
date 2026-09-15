@@ -482,6 +482,28 @@ html { scroll-behavior: smooth; }
 .plant-map-detail dl div { display: flex; justify-content: space-between; gap: 12px; padding-top: 8px; border-top: 1px solid rgba(248,234,198,.18); }
 .plant-map-detail dt { color: rgba(248,234,198,.67); font-size: 10px; }
 .plant-map-detail dd { margin: 0; font: 700 11px "DM Mono", monospace; }
+.plant-map-ranking {
+  display: flex;
+  min-width: 0;
+  max-height: 440px;
+  padding: 24px 18px 18px;
+  flex-direction: column;
+  background: #075147;
+}
+.plant-map-ranking__head { display: grid; gap: 3px; padding: 0 5px 15px; }
+.plant-map-ranking__head p { margin: 0; color: var(--poster-yellow); font: 600 11px "Oswald", Impact, sans-serif; letter-spacing: .09em; text-transform: uppercase; }
+.plant-map-ranking__head strong { font: 700 22px/1.1 "Oswald", Impact, sans-serif; text-transform: uppercase; }
+.plant-map-ranking__head span { color: rgba(248,234,198,.67); font-size: 10px; }
+.plant-map-ranking__list { display: grid; gap: 4px; min-height: 0; overflow-y: auto; scrollbar-color: rgba(248,234,198,.35) transparent; }
+.plant-map-ranking__list button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px; padding: 8px 5px; border: 0; color: var(--poster-paper-light); background: transparent; text-align: left; cursor: pointer; }
+.plant-map-ranking__list button:hover,
+.plant-map-ranking__list button:focus-visible { background: rgba(248,234,198,.09); outline: 1px solid rgba(248,234,198,.34); outline-offset: -1px; }
+.plant-map-ranking__list button > span { display: flex; min-width: 0; align-items: center; gap: 6px; overflow: hidden; font: 600 11px "Oswald", Impact, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.plant-map-ranking__list button > span > i { width: 8px; height: 8px; flex: 0 0 auto; border: 1px solid rgba(248,234,198,.75); border-radius: 50%; }
+.plant-map-ranking__list button > strong { font: 700 10px "DM Mono", monospace; }
+.plant-map-ranking__list button > b { grid-column: 1 / -1; overflow: hidden; height: 7px; border-radius: 1px 4px 1px 3px; background: rgba(248,234,198,.12); }
+.plant-map-ranking__list button > b > i { display: block; height: 100%; min-width: 0; border-radius: inherit; }
+.plant-map-ranking > small { padding: 12px 5px 0; color: rgba(248,234,198,.56); font-size: 9px; line-height: 1.4; }
 .plant-map-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 13px 22px; border-top: 1px solid rgba(241,223,180,.18); background: #17322e; }
 .plant-map-legend span { display: inline-flex; align-items: center; gap: 6px; color: rgba(248,234,198,.82); font-size: 10px; }
 .plant-map-legend i { width: 9px; height: 9px; border: 1px solid rgba(248,234,198,.7); border-radius: 50%; }
@@ -498,7 +520,8 @@ html { scroll-behavior: smooth; }
   .bulgaria-mix__donut { width: 170px; }
   .bulgaria-mix__home-grid { display: block; }
   .plant-map-layout { grid-template-columns: 1fr; }
-  .plant-map-detail { min-height: 300px; border-top: 1px solid rgba(241,223,180,.25); }
+  .plant-map-detail,
+  .plant-map-ranking { min-height: 300px; max-height: none; border-top: 1px solid rgba(241,223,180,.25); }
 }
 
 @media (max-width: 640px) {
@@ -518,7 +541,8 @@ html { scroll-behavior: smooth; }
   .plant-map-panel__head > div:last-child { text-align: left; }
   .plant-map-stage { overflow-x: auto; }
   .plant-map-stage > svg { width: 700px; max-width: none; }
-  .plant-map-detail { padding: 23px 18px; }
+  .plant-map-detail,
+  .plant-map-ranking { padding: 23px 18px; }
   .plant-map-legend,
   .plant-map-source { padding-left: 16px; padding-right: 16px; }
 }

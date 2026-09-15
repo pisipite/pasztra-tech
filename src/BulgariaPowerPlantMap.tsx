@@ -69,7 +69,7 @@ function aggregatePlants(plants: BulgariaPowerPlant[], period: PeriodKey, anchor
       hourlyMw,
       dayCount: days.length,
     };
-    return summary.energyMwh > 0 ? [summary] : [];
+    return [summary];
   });
 }
 
@@ -92,6 +92,31 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
   const maximum = Math.max(1, ...values);
   const points = values.map((value, index) => `${index / Math.max(values.length - 1, 1) * width},${height - value / maximum * (height - 10) - 5}`).join(" ");
   return <svg className="plant-map-sparkline" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="A kiválasztott erőmű napi termelési profilja"><line x1="0" x2={width} y1={height - 5} y2={height - 5} /><polyline points={points} style={{ stroke: color }} /></svg>;
+}
+
+function PlantRanking({ plants, onSelect }: { plants: PlantSummary[]; onSelect: (plantId: string) => void }) {
+  const ranked = [...plants].sort((a, b) => b.energyMwh - a.energyMwh || a.name.localeCompare(b.name, "hu"));
+  const maximum = Math.max(1, ...ranked.map((plant) => plant.energyMwh));
+  const producingCount = ranked.filter((plant) => plant.energyMwh > 0).length;
+
+  return <aside className="plant-map-ranking" aria-live="polite">
+    <div className="plant-map-ranking__head">
+      <p>Erőművi termelés</p>
+      <strong>{ranked.length} jelentett erőmű</strong>
+      <span>{producingCount} termelt az időszakban</span>
+    </div>
+    <div className="plant-map-ranking__list" aria-label="Erőművek termelési rangsora">
+      {ranked.map((plant) => {
+        const width = plant.energyMwh > 0 ? Math.max(1.5, plant.energyMwh / maximum * 100) : 0;
+        return <button key={plant.id} type="button" onClick={() => onSelect(plant.id)} aria-label={`${plant.name}: ${formatEnergy(plant.energyMwh)}; részletek megnyitása`}>
+          <span><i style={{ background: colors[plant.type] }} />{plant.name}</span>
+          <strong>{formatEnergy(plant.energyMwh)}</strong>
+          <b aria-hidden="true"><i style={{ width: `${width}%`, background: colors[plant.type] }} /></b>
+        </button>;
+      })}
+    </div>
+    <small>Az oszlop hossza az időszak termelésével arányos. Kattints egy erőműre a részletekért.</small>
+  </aside>;
 }
 
 export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinutes, period, anchor, customStart, customEnd, dataFrom, dataUntil }: Props) {
@@ -158,11 +183,7 @@ export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinute
               {Number.isFinite(active.capacityMw) && <div><dt>Beépített kapacitás</dt><dd>{formatFixedNumber(active.capacityMw!, 0)} MW</dd></div>}
               <div><dt>Lefedett napok</dt><dd>{active.dayCount}</dd></div>
             </dl>
-          </aside> : <aside className="plant-map-detail plant-map-detail--empty" aria-live="polite">
-            <p>Erőmű adatai</p>
-            <strong>Válassz egy erőművet</strong>
-            <span>A térképen egy körre kattintva megjelennek a részletek.</span>
-          </aside>}
+          </aside> : <PlantRanking plants={visiblePlants} onSelect={togglePlant} />}
         </div>
         <div className="plant-map-legend" aria-label="Erőműtípusok jelmagyarázata">{availableTypes.map((type) => <span key={type}><i style={{ background: colors[type] }} />{labels[type]}</span>)}</div>
       </> : <div className="plant-map-empty"><strong>Erre az időszakra még nincs erőművenkénti adat.</strong><span>Az ENTSO-E a legalább 100 MW-os termelőegységek adatait öt nappal később teszi közzé.</span></div>}
