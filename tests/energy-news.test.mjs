@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseNewsFeed } from "../scripts/energy-news.mjs";
+import { parseEconomicCategory, parseNewsFeed } from "../scripts/energy-news.mjs";
 
 const source = { id: "test", name: "Teszt", homeUrl: "https://example.com", url: "https://example.com/feed" };
 
@@ -37,4 +37,13 @@ test("parseNewsFeed accepts Atom links and renewable stories", () => {
   const [item] = parseNewsFeed(xml, source);
   assert.equal(item.url, "https://example.com/wind");
   assert.equal(item.category, "renewables");
+});
+
+test("parseEconomicCategory reads cards and ignores unrelated recommendations", () => {
+  const html = `<article><a class="article__title-href" href="/grid">Електроенергийна мрежа в България</a><time datetime="2026-09-15 09:26">15.9.2026</time><p class="article__short-text">Нова енергийна връзка.</p></article>
+    <article><a class="article__title-href" href="/sport">Спортна новина</a><time datetime="2026-09-15 10:00">15.9.2026</time><p class="article__short-text">Резултати от мача.</p></article>`;
+  const items = parseEconomicCategory(html, source);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].url, "https://example.com/grid");
+  assert.equal(items[0].category, "energy");
 });

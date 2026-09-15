@@ -1,5 +1,5 @@
 const feeds = [
-  { id: "economic", name: "Economic.bg", url: "https://www.economic.bg/rss/all.xml", homeUrl: "https://www.economic.bg/" },
+  { id: "economic", name: "Economic.bg", url: "https://www.economic.bg/rss/all.xml", categoryUrl: "https://www.economic.bg/bg/a/category/energetika", homeUrl: "https://www.economic.bg/" },
   { id: "3e-news", name: "3eNews", url: "https://www.3e-news.net/rss/all.xml", homeUrl: "https://www.3e-news.net/" },
   { id: "energynews", name: "EnergyNews.bg", url: "https://energynews.bg/feed/", homeUrl: "https://energynews.bg/" },
   { id: "energymedia", name: "EnergyMedia", url: "https://energymedia.info/feed/", homeUrl: "https://energymedia.info/" },
@@ -113,6 +113,40 @@ export function parseNewsFeed(xml, source) {
   });
 }
 
+export function parseEconomicCategory(html, source) {
+  const blocks = [...html.matchAll(/<article\b[^>]*>([\s\S]*?)<\/article>/gi)].map((match) => match[1]);
+  return blocks.flatMap((block) => {
+    const titleLink = block.match(/<a\b([^>]*class=["'][^"']*article__title-href[^"']*["'][^>]*)>([\s\S]*?)<\/a>/i);
+    const href = titleLink?.[1].match(/href=["']([^"']+)["']/i)?.[1];
+    const title = cleanText(titleLink?.[2] ?? titleLink?.[1].match(/title=["']([^"']+)["']/i)?.[1] ?? "");
+    const date = block.match(/<time\b[^>]*datetime=["']([^"']+)["']/i)?.[1];
+    const summary = trimSummary(block.match(/<p\b[^>]*class=["'][^"']*article__short-text[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? "");
+    if (!title || !href || !date) return [];
+    const publishedAt = new Date(`${date.trim().replace(" ", "T")}:00+03:00`);
+    if (!Number.isFinite(publishedAt.getTime())) return [];
+    const url = new URL(decodeXml(href), source.homeUrl).href;
+    const text = `${title} ${summary}`;
+    if (!energyPattern.test(text)) return [];
+    const category = categoryFor(text);
+    const importance = importanceFor(text, category);
+    return [{
+      id: stableId(source.id, url, title),
+      sourceId: source.id,
+      sourceName: source.name,
+      sourceUrl: source.homeUrl,
+      url,
+      publishedAt: publishedAt.toISOString(),
+      title,
+      summary: summary || title,
+      category,
+      important: importance >= 4,
+      importance,
+      kind: "news",
+      language: "bg",
+    }];
+  });
+}
+
 async function fetchText(url, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -125,7 +159,14 @@ async function fetchText(url, options = {}) {
 
 async function fetchFeed(source) {
   const xml = await fetchText(source.url, { headers: { accept: "application/rss+xml, application/xml, text/xml" } });
-  return parseNewsFeed(xml, source);
+  const rssItems = parseNewsFeed(xml, source);
+  if (!source.categoryUrl) return rssItems;
+  try {
+    const html = await fetchText(source.categoryUrl, { headers: { accept: "text/html" } });
+    return [...rssItems, ...parseEconomicCategory(html, source)];
+  } catch {
+    return rssItems;
+  }
 }
 
 function outageQuery() {
@@ -190,11 +231,15 @@ export async function fetchEnergyNews(now = new Date()) {
     .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
   const successfulFeeds = feeds.filter((_source, index) => feedResults[index]?.status === "fulfilled");
   if (!successfulFeeds.length && !outage.items.length) throw new Error("Egyik híradatforrás sem volt elérhető.");
+  const availableSourceIds = new Set(items.map((item) => item.sourceId));
   return {
     source: "live",
     updatedAt: now.toISOString(),
     items,
-    sources: [...feeds.map(({ id, name, homeUrl }) => ({ id, name, url: homeUrl })), ermSource],
+    sources: [
+      ...feeds.filter((source) => availableSourceIds.has(source.id)).map(({ id, name, homeUrl }) => ({ id, name, url: homeUrl })),
+      ...(availableSourceIds.has(ermSource.id) ? [ermSource] : []),
+    ],
     outage: {
       configured: outage.configured,
       checkedAt: outage.checkedAt,
