@@ -8,6 +8,10 @@ export function makeDemoEnergyNews(): EnergyNewsData {
     { id: "3e-news", name: "3eNews", url: "https://www.3e-news.net/", faviconUrl: "https://www.3e-news.net/favicon.ico", status: "online" as const, checkedAt, itemCount: 1 },
     { id: "energynews", name: "EnergyNews.bg", url: "https://energynews.bg/", faviconUrl: "https://energynews.bg/favicon.ico", status: "offline" as const, checkedAt, itemCount: 0 },
     { id: "energymedia", name: "EnergyMedia", url: "https://energymedia.info/", faviconUrl: "https://energymedia.info/favicon.ico", status: "online" as const, checkedAt, itemCount: 1 },
+    { id: "capital", name: "Capital.bg", url: "https://www.capital.bg/", faviconUrl: "https://www.capital.bg/favicon.ico", status: "online" as const, checkedAt, itemCount: 0 },
+    { id: "dnevnik", name: "Dnevnik.bg", url: "https://www.dnevnik.bg/", faviconUrl: "https://www.dnevnik.bg/favicon.ico", status: "online" as const, checkedAt, itemCount: 0 },
+    { id: "mediapool", name: "Mediapool.bg", url: "https://www.mediapool.bg/", faviconUrl: "https://www.mediapool.bg/favicon.ico", status: "online" as const, checkedAt, itemCount: 0 },
+    { id: "erm-zapad", name: "ERM Zapad", url: "https://ermzapad.bg/bg/za-klienta/prekusvania/", faviconUrl: "https://ermzapad.bg/favicon.ico", status: "setup-required" as const, checkedAt, itemCount: 0 },
   ];
   const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 3_600_000).toISOString();
   const demo: Omit<EnergyNewsItem, "id" | "sourceUrl" | "kind" | "language">[] = [

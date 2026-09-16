@@ -35,9 +35,15 @@ function firstTag(block, names) {
   return "";
 }
 
-function itemLink(block) {
+function itemLink(block, baseUrl) {
   const atomLink = block.match(/<link\b[^>]*href=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1];
-  return decodeXml(atomLink || firstTag(block, ["link", "guid"]));
+  const value = decodeXml(atomLink || firstTag(block, ["link", "guid"]));
+  if (!value) return "";
+  try {
+    return new URL(value, baseUrl).href;
+  } catch {
+    return "";
+  }
 }
 
 function trimSummary(value, maxLength = 260) {
@@ -75,7 +81,7 @@ export function parseNewsFeed(xml, source) {
   const blocks = [...xml.matchAll(/<(?:item|entry)\b[^>]*>([\s\S]*?)<\/(?:item|entry)>/gi)].map((match) => match[1]);
   return blocks.flatMap((block) => {
     const title = firstTag(block, ["title"]);
-    const link = itemLink(block);
+    const link = itemLink(block, source.homeUrl);
     const rawSummary = firstTag(block, ["content:encoded", "description", "summary", "content"]);
     const summary = trimSummary(rawSummary);
     const text = `${title} ${summary}`;
@@ -224,15 +230,26 @@ export async function fetchEnergyNews(now = new Date()) {
     source: "live",
     updatedAt: now.toISOString(),
     items,
-    sources: NEWS_FEEDS.map(({ id, name, homeUrl, faviconUrl }, index) => ({
-      id,
-      name,
-      url: homeUrl,
-      faviconUrl,
-      status: feedResults[index]?.status === "fulfilled" ? "online" : "offline",
-      checkedAt: now.toISOString(),
-      itemCount: items.filter((item) => item.sourceId === id).length,
-    })),
+    sources: [
+      ...NEWS_FEEDS.map(({ id, name, homeUrl, faviconUrl }, index) => ({
+        id,
+        name,
+        url: homeUrl,
+        faviconUrl,
+        status: feedResults[index]?.status === "fulfilled" ? "online" : "offline",
+        checkedAt: now.toISOString(),
+        itemCount: items.filter((item) => item.sourceId === id).length,
+      })),
+      {
+        id: ERM_ZAPAD_SOURCE.id,
+        name: ERM_ZAPAD_SOURCE.name,
+        url: ERM_ZAPAD_SOURCE.homeUrl,
+        faviconUrl: ERM_ZAPAD_SOURCE.faviconUrl,
+        status: outageResult?.status !== "fulfilled" ? "offline" : outage.configured ? "online" : "setup-required",
+        checkedAt: outage.checkedAt,
+        itemCount: outage.items.length,
+      },
+    ],
     outage: {
       configured: outage.configured,
       checkedAt: outage.checkedAt,

@@ -125,6 +125,7 @@
 }
 .energy-news-source small i { width: 6px; height: 6px; border-radius: 50%; background: var(--poster-coral); }
 .energy-news-source small.is-online i { background: #418153; }
+.energy-news-source small.is-setup i { background: var(--poster-yellow); }
 .energy-news-outage {
   display: grid;
   grid-template-columns: auto 1fr auto;

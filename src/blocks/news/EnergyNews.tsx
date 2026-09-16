@@ -17,12 +17,19 @@ function newsDate(value: string) {
   return new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value));
 }
 
+function sourceStatusSymbol(source: EnergyNewsSource) {
+  if (source.status === "online") return "●";
+  if (source.status === "setup-required") return "◇";
+  return "○";
+}
+
 function FilterButton({ id, label, description, active, onClick }: { id: string; label: string; description: string; active: boolean; onClick: () => void }) {
   const tooltipId = `${id}-description`;
   return <button type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-describedby={tooltipId} onClick={onClick}><span>{label}</span><span className="energy-news-filter-help" role="tooltip" id={tooltipId}>{description}</span></button>;
 }
 
 function NewsCard({ item, source, lead }: { item: EnergyNewsItem; source?: EnergyNewsSource; lead: boolean }) {
+  const translated = Boolean(item.titleHu && item.summaryHu);
   return (
     <article className={`energy-news-card category-${item.category}${lead ? " is-lead" : ""}${item.kind === "outage" ? " is-outage" : ""}`}>
       <div className="energy-news-card__meta">
@@ -36,9 +43,10 @@ function NewsCard({ item, source, lead }: { item: EnergyNewsItem; source?: Energ
       <div className="energy-news-card__labels">
         <span>{NEWS_CATEGORY_LABELS[item.category]}</span>
         {item.important && <i>{item.kind === "outage" ? "Értesítés" : "Neked fontos"}</i>}
+        {translated && <i>DeepL-fordítás</i>}
       </div>
-      <h3><a href={item.url} target="_blank" rel="noreferrer">{item.title}</a></h3>
-      <p>{item.summary}</p>
+      <h3><a href={item.url} target="_blank" rel="noreferrer" lang={translated ? "hu" : "bg"}>{item.titleHu ?? item.title}</a></h3>
+      <p lang={translated ? "hu" : "bg"}>{item.summaryHu ?? item.summary}</p>
       <a className="energy-news-card__link" href={item.url} target="_blank" rel="noreferrer">Cikk megnyitása <span aria-hidden="true">↗</span></a>
     </article>
   );
@@ -58,7 +66,12 @@ export function EnergyNews({ data }: { data: EnergyNewsData }) {
   )), [data.items, view, category, effectiveSourceId]);
   const selectedSource = effectiveSourceId === "all" ? undefined : sourceById.get(effectiveSourceId);
   const onlineSourceCount = data.sources.filter((source) => source.status === "online").length;
-  const sourceHealthy = selectedSource ? selectedSource.status === "online" : onlineSourceCount === data.sources.length;
+  const setupSourceCount = data.sources.filter((source) => source.status === "setup-required").length;
+  const monitoredSourceCount = data.sources.length - setupSourceCount;
+  const sourceHealthy = selectedSource ? selectedSource.status === "online" : onlineSourceCount === monitoredSourceCount;
+  const sourceStatusLabel = selectedSource
+    ? selectedSource.status === "online" ? "kapcsolat rendben" : selectedSource.status === "offline" ? "nem elérhető" : "beállítás szükséges"
+    : `${onlineSourceCount}/${monitoredSourceCount} hírforrás elérhető${setupSourceCount ? " · ERM beállítandó" : ""}`;
   const visibleItems = items.slice(0, visibleCount);
   const remainingCount = Math.max(0, items.length - visibleItems.length);
 
@@ -102,10 +115,10 @@ export function EnergyNews({ data }: { data: EnergyNewsData }) {
         <label className="energy-news-source">
           <span>Forrás</span>
           <select value={effectiveSourceId} onChange={(event) => selectSource(event.target.value)}>
-            <option value="all">{onlineSourceCount === data.sources.length ? "●" : "◐"} Minden forrás</option>
-            {data.sources.map((item) => <option key={item.id} value={item.id}>{item.status === "online" ? "●" : "○"} {item.name}</option>)}
+            <option value="all">{sourceHealthy ? "●" : "◐"} Minden forrás</option>
+            {data.sources.map((item) => <option key={item.id} value={item.id}>{sourceStatusSymbol(item)} {item.name}</option>)}
           </select>
-          <small className={sourceHealthy ? "is-online" : "is-offline"}><i />{selectedSource ? (sourceHealthy ? "kapcsolat rendben" : "nem elérhető") : `${onlineSourceCount}/${data.sources.length} forrás elérhető`}</small>
+          <small className={selectedSource?.status === "setup-required" ? "is-setup" : sourceHealthy ? "is-online" : "is-offline"}><i />{sourceStatusLabel}</small>
         </label>
       </div>
 
@@ -113,10 +126,10 @@ export function EnergyNews({ data }: { data: EnergyNewsData }) {
 
       {items.length > 0
         ? <><div className="energy-news-grid">{visibleItems.map((item, index) => <NewsCard item={item} source={sourceById.get(item.sourceId)} lead={index === 0} key={item.id} />)}</div>{remainingCount > 0 && <button type="button" className="energy-news-load-more" onClick={() => setVisibleCount((current) => current + NEWS_LOAD_STEP)}>Továbbiak betöltése <span>+{Math.min(NEWS_LOAD_STEP, remainingCount)}</span></button>}</>
-        : <div className="energy-news-empty"><strong>Nincs találat ebben a nézetben.</strong><span>Válassz másik kategóriát vagy forrást.</span></div>}
+        : <div className="energy-news-empty"><strong>{selectedSource?.status === "setup-required" ? "Az ERM Zapad még nincs beállítva." : "Nincs találat ebben a nézetben."}</strong><span>{selectedSource?.status === "setup-required" ? "A helyi tervezett áramszünetekhez add meg az ITN- vagy POD-azonosítót a GitHub titkai között." : "Válassz másik kategóriát vagy forrást."}</span></div>}
 
       <footer className="energy-news__foot">
-        <span>A címek és ajánlók eredeti bolgár nyelven jelennek meg.</span>
+        <span>{data.translation?.status === "translated" ? "A magyar címeket és ajánlókat a DeepL automatikusan fordította; a hivatkozás az eredeti cikket nyitja meg." : "A címek és ajánlók eredeti bolgár nyelven jelennek meg."}</span>
         <a href={data.outage?.sourceUrl ?? "https://ermzapad.bg/bg/za-klienta/prekusvania/"} target="_blank" rel="noreferrer">ERM Zapad áramszünetek ↗</a>
       </footer>
     </section>

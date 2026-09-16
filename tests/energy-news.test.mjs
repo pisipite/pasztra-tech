@@ -39,6 +39,17 @@ test("parseNewsFeed accepts Atom links and renewable stories", () => {
   assert.equal(item.category, "renewables");
 });
 
+test("parseNewsFeed resolves relative article links against the source domain", () => {
+  const xml = `<rss><channel><item>
+    <title>Електроенергийна мрежа в България</title>
+    <link>/bg/a/view/72518/energien-pazar</link>
+    <pubDate>Tue, 15 Sep 2026 12:00:00 +0300</pubDate>
+    <description>Нова енергийна връзка.</description>
+  </item></channel></rss>`;
+  const [item] = parseNewsFeed(xml, { ...source, homeUrl: "https://www.3e-news.net/" });
+  assert.equal(item.url, "https://www.3e-news.net/bg/a/view/72518/energien-pazar");
+});
+
 test("parseEconomicCategory reads cards and ignores unrelated recommendations", () => {
   const html = `<article><a class="article__title-href" href="/grid">Електроенергийна мрежа в България</a><time datetime="2026-09-15 09:26">15.9.2026</time><p class="article__short-text">Нова енергийна връзка.</p></article>
     <article><a class="article__title-href" href="/sport">Спортна новина</a><time datetime="2026-09-15 10:00">15.9.2026</time><p class="article__short-text">Резултати от мача.</p></article>`;

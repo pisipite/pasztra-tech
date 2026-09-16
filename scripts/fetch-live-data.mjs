@@ -8,6 +8,7 @@ import { DATA_SOURCE_ENDPOINTS } from "./data-sources/endpoints.mjs";
 import { mergePlantHistory, reconcileNuclearPlant } from "./entsoe-plant-history.mjs";
 import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
 import { fetchEnergyNews } from "./energy-news.mjs";
+import { addHungarianNewsTranslations } from "./news-translation.mjs";
 import { normalizeGoveeTemperature, repairClimateHistory } from "./govee-temperature.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -1526,7 +1527,7 @@ const [sungrow, govee, forecast, bulgariaMix, energyNews] = await Promise.all([
   optionalSource("Govee", getGovee),
   optionalSource("Előrejelzés", getSolarForecast),
   optionalSource("Bulgária energiamix", getBulgariaEnergyMix),
-  optionalSource("Bolgár energiahírek", () => fetchEnergyNews(now)),
+  optionalSource("Bolgár energiahírek", async () => addHungarianNewsTranslations(await fetchEnergyNews(now))),
 ]);
 const weatherTwins = govee?.devices[0]
   ? await optionalSource("Időjárási ikervárosok", () => getWeatherTwins(govee.devices[0].temperatureC, govee.devices[0].humidityPct))

@@ -31,6 +31,27 @@ export const NEWS_FEEDS = Object.freeze([
     homeUrl: "https://energymedia.info/",
     faviconUrl: "https://energymedia.info/favicon.ico",
   },
+  {
+    id: "capital",
+    name: "Capital.bg",
+    feedUrl: "https://www.capital.bg/rss/",
+    homeUrl: "https://www.capital.bg/",
+    faviconUrl: "https://www.capital.bg/favicon.ico",
+  },
+  {
+    id: "dnevnik",
+    name: "Dnevnik.bg",
+    feedUrl: "https://www.dnevnik.bg/rss/",
+    homeUrl: "https://www.dnevnik.bg/",
+    faviconUrl: "https://www.dnevnik.bg/favicon.ico",
+  },
+  {
+    id: "mediapool",
+    name: "Mediapool.bg",
+    feedUrl: "https://www.mediapool.bg/rss",
+    homeUrl: "https://www.mediapool.bg/",
+    faviconUrl: "https://www.mediapool.bg/favicon.ico",
+  },
 ]);
 
 export const ERM_ZAPAD_SOURCE = Object.freeze({

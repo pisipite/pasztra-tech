@@ -120,7 +120,7 @@ export interface EnergyNewsSource {
   name: string;
   url: string;
   faviconUrl: string;
-  status: "online" | "offline";
+  status: "online" | "offline" | "setup-required";
   checkedAt: string;
   itemCount: number;
 }
@@ -134,6 +134,8 @@ export interface EnergyNewsItem {
   publishedAt: string;
   title: string;
   summary: string;
+  titleHu?: string;
+  summaryHu?: string;
   category: EnergyNewsCategory;
   important: boolean;
   importance?: number;
@@ -151,6 +153,11 @@ export interface EnergyNewsData {
     checkedAt: string;
     alert: boolean;
     sourceUrl: string;
+  };
+  translation?: {
+    provider: string;
+    status: "not-configured" | "translated" | "error";
+    translatedCount?: number;
   };
 }
 
