@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import { smoothPath } from "./chartUtils";
-import { isCurrentPeriod, periodLabel, timestampInPeriod } from "./dateUtils";
-import { batteryChargeValue, batteryDischargeValue, batteryNetValue, gridFeedInValue, gridNetValue, gridPurchaseValue, mergeEnergyAndClimate } from "./energyData";
-import { formatFixedNumber } from "./formatUtils";
-import type { DashboardData, EnergyChartPoint, PeriodKey } from "./types";
-import { BackToTop } from "./components/BackToTop";
+import { smoothPath } from "../../chartUtils";
+import { isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
+import { batteryChargeValue, batteryDischargeValue, batteryNetValue, gridFeedInValue, gridNetValue, gridPurchaseValue, mergeEnergyAndClimate } from "../../energyData";
+import { formatFixedNumber } from "../../formatUtils";
+import type { DashboardData, EnergyChartPoint, PeriodKey } from "../../types";
+import { BackToTop } from "../../components/BackToTop";
 
 type Props = {
   data: DashboardData;

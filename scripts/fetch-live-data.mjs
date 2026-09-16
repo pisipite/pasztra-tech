@@ -4,6 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { promisify } from "node:util";
 import { entsoeMetadata, fetchEntsoeBulgariaMix, fetchEntsoeBulgariaPlants } from "./entsoe-energy-mix.mjs";
+import { DATA_SOURCE_ENDPOINTS } from "./data-sources/endpoints.mjs";
 import { mergePlantHistory, reconcileNuclearPlant } from "./entsoe-plant-history.mjs";
 import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
 import { fetchEnergyNews } from "./energy-news.mjs";
@@ -534,7 +535,7 @@ function sungrowEnvironment() {
   return {
     ...process.env,
     GOSUNGROW_QUIET: "true",
-    GOSUNGROW_HOST: process.env.SUNGROW_HOST || "https://gateway.isolarcloud.eu",
+    GOSUNGROW_HOST: process.env.SUNGROW_HOST || DATA_SOURCE_ENDPOINTS.sungrow.defaultHost,
     GOSUNGROW_APPKEY: process.env.SUNGROW_APPKEY || "B0455FBE7AA0328DB57B59AA729F05D8",
     GOSUNGROW_USER: process.env.SUNGROW_USER,
     GOSUNGROW_PASSWORD: process.env.SUNGROW_PASSWORD,
@@ -916,7 +917,7 @@ async function getSolarForecast() {
   const tiltDeg = forecastSetting("SOLAR_TILT_DEG", 27);
   const azimuthDeg = forecastSetting("SOLAR_AZIMUTH_DEG", 12);
   const performanceRatio = forecastSetting("SOLAR_PERFORMANCE_RATIO", .82);
-  const url = new URL("https://api.open-meteo.com/v1/forecast");
+  const url = new URL(DATA_SOURCE_ENDPOINTS.openMeteo.forecastApi);
   url.searchParams.set("latitude", String(latitude));
   url.searchParams.set("longitude", String(longitude));
   url.searchParams.set("hourly", "global_tilted_irradiance,cloud_cover,precipitation_probability");
@@ -966,7 +967,7 @@ async function getGovee() {
   const apiKey = process.env.GOVEE_API_KEY;
   if (!apiKey) return null;
   const headers = { "Content-Type": "application/json", "Govee-API-Key": apiKey };
-  const devicesResponse = await fetch("https://openapi.api.govee.com/router/api/v1/user/devices", { headers });
+  const devicesResponse = await fetch(DATA_SOURCE_ENDPOINTS.govee.devicesApi, { headers });
   if (!devicesResponse.ok) throw new Error(`Govee eszközlista: HTTP ${devicesResponse.status}`);
   const devicesBody = await devicesResponse.json();
   const devices = devicesBody.data ?? devicesBody.payload ?? [];
@@ -975,7 +976,7 @@ async function getGovee() {
     ?? devices.find((item) => item.capabilities?.some((capability) => capability.instance === "sensorTemperature"));
   if (!device) throw new Error("Nem található hőmérsékletet mérő Govee eszköz.");
 
-  const stateResponse = await fetch("https://openapi.api.govee.com/router/api/v1/device/state", {
+  const stateResponse = await fetch(DATA_SOURCE_ENDPOINTS.govee.stateApi, {
     method: "POST",
     headers,
     body: JSON.stringify({ requestId: randomUUID(), payload: { sku: device.sku, device: device.device } }),
@@ -1197,7 +1198,7 @@ async function getWeatherTwins(temperatureC, humidityPct) {
   for (let index = 0; index < weatherTwinCities.length; index += 60) cityBatches.push(weatherTwinCities.slice(index, index + 60));
   const locations = [];
   for (const cities of cityBatches) {
-    const url = new URL("https://api.open-meteo.com/v1/forecast");
+    const url = new URL(DATA_SOURCE_ENDPOINTS.openMeteo.forecastApi);
     url.searchParams.set("latitude", cities.map((city) => city[3]).join(","));
     url.searchParams.set("longitude", cities.map((city) => city[4]).join(","));
     url.searchParams.set("current", "temperature_2m,relative_humidity_2m");
@@ -1309,7 +1310,7 @@ async function getEnergyChartsBulgariaMix() {
     : new Date(now.getFullYear() - 1, now.getMonth(), now.getDate() - 7, 12);
   const dateParam = (value) => `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
   const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12);
-  const url = new URL("https://api.energy-charts.info/v2/public_power");
+  const url = new URL(DATA_SOURCE_ENDPOINTS.energyCharts.api);
   url.searchParams.set("country", "bg");
   url.searchParams.set("start", dateParam(start));
   url.searchParams.set("end", dateParam(tomorrow));
@@ -1331,7 +1332,7 @@ async function getEnergyChartsBulgariaMix() {
     unit: "MW",
     resolutionMinutes: numberValue(body.interval_minutes, 60),
     license: body.license ?? "CC BY 4.0, attribution: energy-charts.info",
-    sourceUrl: "https://www.energy-charts.info/charts/power/chart.htm?c=BG&l=en",
+    sourceUrl: DATA_SOURCE_ENDPOINTS.energyCharts.website,
     sourceName: "Energy-Charts.info",
     points,
   };

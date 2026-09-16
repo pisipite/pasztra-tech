@@ -1,7 +1,7 @@
 import { useState, type MouseEvent } from "react";
-import { smoothPath } from "../chartUtils";
-import { formatFixedNumber } from "../formatUtils";
-import type { ClimatePoint, PeriodKey } from "../types";
+import { smoothPath } from "../../chartUtils";
+import { formatFixedNumber } from "../../formatUtils";
+import type { ClimatePoint, PeriodKey } from "../../types";
 
 type Props = {
   data: ClimatePoint[];

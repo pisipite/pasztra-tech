@@ -119,6 +119,10 @@ export interface EnergyNewsSource {
   id: string;
   name: string;
   url: string;
+  faviconUrl: string;
+  status: "online" | "offline";
+  checkedAt: string;
+  itemCount: number;
 }
 
 export interface EnergyNewsItem {

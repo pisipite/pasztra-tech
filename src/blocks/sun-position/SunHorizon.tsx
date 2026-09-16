@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BackToTop } from "./components/BackToTop";
+import { BackToTop } from "../../components/BackToTop";
 
 const latitude = 42.12836849354413;
 const longitude = 23.223018914073588;

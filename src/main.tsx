@@ -1,23 +1,27 @@
 import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { DashboardCards } from "./components/DashboardCards";
 import { SettingsPanel } from "./components/SettingsPanel";
-import { BulgariaEnergyMix } from "./BulgariaEnergyMix";
+import {
+  BulgariaEnergyMix,
+  ConsumptionPlanner,
+  DashboardCards,
+  EnergyAnalytics,
+  EnergyNews,
+  makeDemoBulgariaEnergyMix,
+  makeDemoEnergyNews,
+  SolarForecast,
+  SunHorizon,
+} from "./blocks";
 import { climatePointsForPeriod, isValidClimateValues, type ClimateAggregation } from "./climateData";
+import { PAGE_BLOCKS } from "./config/pageBlocks";
+import { DATA_FILES } from "./config/dataFiles";
 import { repairClimateHistory } from "../scripts/govee-temperature.mjs";
-import { ConsumptionPlanner } from "./ConsumptionPlanner";
 import { dashboardUrl, dataFileUrl, fetchFreshJson } from "./dashboardApi";
 import { rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
-import { EnergyAnalytics } from "./EnergyAnalytics";
-import { EnergyNews } from "./EnergyNews";
-import { makeDemoBulgariaEnergyMix } from "./energyMixData";
 import { formatHeadingDate, formatTime } from "./formatUtils";
 import { dispatchDashboardRefresh, waitForFreshDashboard } from "./githubRefresh";
-import { makeDemoEnergyNews } from "./newsData";
-import { SolarForecast } from "./SolarForecast";
-import { SunHorizon } from "./SunHorizon";
 import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, PeriodKey } from "./types";
 import { usePeriodSelection } from "./usePeriodSelection";
 import "./styles.css";
@@ -97,7 +101,7 @@ function App() {
     }
     setClimateLoading(true);
     try {
-      const history = await fetchFreshJson<DashboardData["govee"]["chart"]>(dataFileUrl(currentSettings.endpoint, "govee-history.json"));
+      const history = await fetchFreshJson<DashboardData["govee"]["chart"]>(dataFileUrl(currentSettings.endpoint, DATA_FILES.climateHistory));
       if (!Array.isArray(history)) throw new Error("Érvénytelen klímaelőzmény.");
       setClimateHistory(repairClimateHistory(history));
     } catch {
@@ -116,7 +120,7 @@ function App() {
       return;
     }
     try {
-      const next = await fetchFreshJson<BulgariaEnergyMixData>(dataFileUrl(currentSettings.endpoint, "bulgaria-energy-mix.json"));
+      const next = await fetchFreshJson<BulgariaEnergyMixData>(dataFileUrl(currentSettings.endpoint, DATA_FILES.bulgariaEnergyMix));
       if (!Array.isArray(next.points)) throw new Error("Érvénytelen energiamix-adat.");
       setBulgariaMix(next);
     } catch {
@@ -130,7 +134,7 @@ function App() {
       return;
     }
     try {
-      const next = await fetchFreshJson<EnergyNewsData>(dataFileUrl(currentSettings.endpoint, "energy-news.json"));
+      const next = await fetchFreshJson<EnergyNewsData>(dataFileUrl(currentSettings.endpoint, DATA_FILES.energyNews));
       if (!Array.isArray(next.items) || !Array.isArray(next.sources)) throw new Error("Érvénytelen híradat.");
       setEnergyNews(next);
     } catch {
@@ -265,14 +269,7 @@ function App() {
 
       <nav className="section-nav" aria-label="Ugrás az oldal szakaszaihoz">
         <div className="section-nav__track">
-          <a href="#energia">Energiafolyam</a>
-          <a href="#energiamix">Országos energia · Bulgária</a>
-          <a href="#hirek">Hírek</a>
-          <a href="#elojelzes">Előrejelzés</a>
-          <a href="#fogyasztasi-proba">Interaktív próba</a>
-          <a href="#napallas">Napállás</a>
-          <a href="#napelem">Termelés</a>
-          <a href="#klima">Hőmérséklet</a>
+          {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id}>{block.navigationLabel}</a>)}
         </div>
       </nav>
 

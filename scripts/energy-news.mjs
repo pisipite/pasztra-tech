@@ -1,15 +1,4 @@
-const feeds = [
-  { id: "economic", name: "Economic.bg", url: "https://www.economic.bg/rss/all.xml", categoryUrl: "https://www.economic.bg/bg/a/category/energetika", homeUrl: "https://www.economic.bg/" },
-  { id: "3e-news", name: "3eNews", url: "https://www.3e-news.net/rss/all.xml", homeUrl: "https://www.3e-news.net/" },
-  { id: "energynews", name: "EnergyNews.bg", url: "https://energynews.bg/feed/", homeUrl: "https://energynews.bg/" },
-  { id: "energymedia", name: "EnergyMedia", url: "https://energymedia.info/feed/", homeUrl: "https://energymedia.info/" },
-];
-
-const ermSource = {
-  id: "erm-zapad",
-  name: "ERM Zapad",
-  url: "https://ermzapad.bg/bg/za-klienta/prekusvania/",
-};
+import { ERM_ZAPAD_SOURCE, NEWS_FEEDS } from "./data-sources/news-sources.mjs";
 
 const solarPattern = /фотоволта|солар|слънчев(?:а|и|ата|ите)?\s+(?:енерг|панел|централ)|photovolta|solar/i;
 const renewablePattern = /възобнов|\bВЕИ\b|зелена\s+енерг|вятър|ветро|водноелектр|хидроенерг|батери|съхранение\s+на\s+енерг|renewable/i;
@@ -158,7 +147,7 @@ async function fetchText(url, options = {}) {
 }
 
 async function fetchFeed(source) {
-  const xml = await fetchText(source.url, { headers: { accept: "application/rss+xml, application/xml, text/xml" } });
+  const xml = await fetchText(source.feedUrl, { headers: { accept: "application/rss+xml, application/xml, text/xml" } });
   const rssItems = parseNewsFeed(xml, source);
   if (!source.categoryUrl) return rssItems;
   try {
@@ -179,8 +168,8 @@ function outageQuery() {
 
 async function fetchErmZapad(now) {
   const query = outageQuery();
-  if (!query) return { items: [], configured: false, checkedAt: now.toISOString(), sourceUrl: ermSource.url };
-  const html = await fetchText("https://info.ermzapad.bg/webint/vok/avplan.php", {
+  if (!query) return { items: [], configured: false, checkedAt: now.toISOString(), sourceUrl: ERM_ZAPAD_SOURCE.homeUrl };
+  const html = await fetchText(ERM_ZAPAD_SOURCE.queryUrl, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams(query),
@@ -191,13 +180,13 @@ async function fetchErmZapad(now) {
   return {
     configured: true,
     checkedAt: now.toISOString(),
-    sourceUrl: ermSource.url,
+    sourceUrl: ERM_ZAPAD_SOURCE.homeUrl,
     items: hasOutage ? [{
       id: `erm-zapad-${now.toISOString().slice(0, 10)}`,
-      sourceId: ermSource.id,
-      sourceName: ermSource.name,
-      sourceUrl: ermSource.url,
-      url: ermSource.url,
+      sourceId: ERM_ZAPAD_SOURCE.id,
+      sourceName: ERM_ZAPAD_SOURCE.name,
+      sourceUrl: ERM_ZAPAD_SOURCE.homeUrl,
+      url: ERM_ZAPAD_SOURCE.homeUrl,
       publishedAt: now.toISOString(),
       title: "Tervezett áramszünet érintheti az otthont",
       summary: trimSummary(text, 300),
@@ -211,13 +200,13 @@ async function fetchErmZapad(now) {
 }
 
 export async function fetchEnergyNews(now = new Date()) {
-  const settled = await Promise.allSettled([...feeds.map(fetchFeed), fetchErmZapad(now)]);
-  const feedResults = settled.slice(0, feeds.length);
+  const settled = await Promise.allSettled([...NEWS_FEEDS.map(fetchFeed), fetchErmZapad(now)]);
+  const feedResults = settled.slice(0, NEWS_FEEDS.length);
   const outageResult = settled.at(-1);
   const news = feedResults.flatMap((result) => result.status === "fulfilled" ? result.value : []);
   const outage = outageResult?.status === "fulfilled"
     ? outageResult.value
-    : { items: [], configured: Boolean(outageQuery()), checkedAt: now.toISOString(), sourceUrl: ermSource.url };
+    : { items: [], configured: Boolean(outageQuery()), checkedAt: now.toISOString(), sourceUrl: ERM_ZAPAD_SOURCE.homeUrl };
   const seen = new Set();
   const items = [...outage.items, ...news]
     .sort((a, b) => b.importance - a.importance || Date.parse(b.publishedAt) - Date.parse(a.publishedAt))
@@ -229,17 +218,21 @@ export async function fetchEnergyNews(now = new Date()) {
     })
     .slice(0, 30)
     .sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
-  const successfulFeeds = feeds.filter((_source, index) => feedResults[index]?.status === "fulfilled");
+  const successfulFeeds = NEWS_FEEDS.filter((_source, index) => feedResults[index]?.status === "fulfilled");
   if (!successfulFeeds.length && !outage.items.length) throw new Error("Egyik híradatforrás sem volt elérhető.");
-  const availableSourceIds = new Set(items.map((item) => item.sourceId));
   return {
     source: "live",
     updatedAt: now.toISOString(),
     items,
-    sources: [
-      ...feeds.filter((source) => availableSourceIds.has(source.id)).map(({ id, name, homeUrl }) => ({ id, name, url: homeUrl })),
-      ...(availableSourceIds.has(ermSource.id) ? [ermSource] : []),
-    ],
+    sources: NEWS_FEEDS.map(({ id, name, homeUrl, faviconUrl }, index) => ({
+      id,
+      name,
+      url: homeUrl,
+      faviconUrl,
+      status: feedResults[index]?.status === "fulfilled" ? "online" : "offline",
+      checkedAt: now.toISOString(),
+      itemCount: items.filter((item) => item.sourceId === id).length,
+    })),
     outage: {
       configured: outage.configured,
       checkedAt: outage.checkedAt,
@@ -249,4 +242,4 @@ export async function fetchEnergyNews(now = new Date()) {
   };
 }
 
-export const energyNewsSources = [...feeds, ermSource];
+export const energyNewsSources = [...NEWS_FEEDS, ERM_ZAPAD_SOURCE];

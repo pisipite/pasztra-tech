@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { DashboardData, SolarForecast } from "./types";
-import { BackToTop } from "./components/BackToTop";
-import { formatFixedNumber, formatNumber } from "./formatUtils";
+import type { DashboardData, SolarForecast } from "../../types";
+import { BackToTop } from "../../components/BackToTop";
+import { formatFixedNumber, formatNumber } from "../../formatUtils";
 
 type DayOffset = 0 | 1 | 2;
 

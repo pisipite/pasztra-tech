@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import { periodLabel, timestampInPeriod } from "./dateUtils";
-import { formatFixedNumber, formatNumber } from "./formatUtils";
-import type { BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType, PeriodKey } from "./types";
+import { periodLabel, timestampInPeriod } from "../../dateUtils";
+import { formatFixedNumber, formatNumber } from "../../formatUtils";
+import type { BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType, PeriodKey } from "../../types";
 
 type Props = {
   plants: BulgariaPowerPlant[];

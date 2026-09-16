@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { smoothPath } from "./chartUtils";
-import { BackToTop } from "./components/BackToTop";
-import { formatFixedNumber } from "./formatUtils";
-import type { DashboardData, SolarForecastPoint } from "./types";
+import { smoothPath } from "../../chartUtils";
+import { BackToTop } from "../../components/BackToTop";
+import { formatFixedNumber } from "../../formatUtils";
+import type { DashboardData, SolarForecastPoint } from "../../types";
 
 type Props = { data: DashboardData };
 

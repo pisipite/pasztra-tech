@@ -1,4 +1,6 @@
-const ENTSOE_ENDPOINT = "https://web-api.tp.entsoe.eu/api";
+import { DATA_SOURCE_ENDPOINTS } from "./data-sources/endpoints.mjs";
+
+const ENTSOE_ENDPOINT = DATA_SOURCE_ENDPOINTS.entsoe.api;
 const BULGARIA_BIDDING_ZONE = "10YCA-BULGARIA-R";
 
 const psrGroups = {
@@ -331,6 +333,6 @@ export async function fetchEntsoeBulgariaPlants(token, start, end) {
 
 export const entsoeMetadata = {
   license: "ENTSO-E Transparency Platform Terms of Use",
-  sourceUrl: "https://transparency.entsoe.eu/",
+  sourceUrl: DATA_SOURCE_ENDPOINTS.entsoe.website,
   sourceName: "ENTSO-E Transparency Platform",
 };

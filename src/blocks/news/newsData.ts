@@ -1,15 +1,14 @@
-import type { EnergyNewsData, EnergyNewsItem } from "./types";
-
-const sources = [
-  { id: "economic", name: "Economic.bg", url: "https://www.economic.bg/" },
-  { id: "3e-news", name: "3eNews", url: "https://www.3e-news.net/" },
-  { id: "energynews", name: "EnergyNews.bg", url: "https://energynews.bg/" },
-  { id: "energymedia", name: "EnergyMedia", url: "https://energymedia.info/" },
-  { id: "erm-zapad", name: "ERM Zapad", url: "https://ermzapad.bg/bg/za-klienta/prekusvania/" },
-];
+import type { EnergyNewsData, EnergyNewsItem } from "../../types";
 
 export function makeDemoEnergyNews(): EnergyNewsData {
   const now = new Date();
+  const checkedAt = now.toISOString();
+  const sources = [
+    { id: "economic", name: "Economic.bg", url: "https://www.economic.bg/", faviconUrl: "https://www.economic.bg/favicon.ico", status: "online" as const, checkedAt, itemCount: 1 },
+    { id: "3e-news", name: "3eNews", url: "https://www.3e-news.net/", faviconUrl: "https://www.3e-news.net/favicon.ico", status: "online" as const, checkedAt, itemCount: 1 },
+    { id: "energynews", name: "EnergyNews.bg", url: "https://energynews.bg/", faviconUrl: "https://energynews.bg/favicon.ico", status: "offline" as const, checkedAt, itemCount: 0 },
+    { id: "energymedia", name: "EnergyMedia", url: "https://energymedia.info/", faviconUrl: "https://energymedia.info/favicon.ico", status: "online" as const, checkedAt, itemCount: 1 },
+  ];
   const hoursAgo = (hours: number) => new Date(now.getTime() - hours * 3_600_000).toISOString();
   const demo: Omit<EnergyNewsItem, "id" | "sourceUrl" | "kind" | "language">[] = [
     {
@@ -45,6 +44,6 @@ export function makeDemoEnergyNews(): EnergyNewsData {
       kind: "news",
       language: "bg",
     })),
-    outage: { configured: false, checkedAt: now.toISOString(), alert: false, sourceUrl: sources.at(-1)!.url },
+    outage: { configured: false, checkedAt, alert: false, sourceUrl: "https://ermzapad.bg/bg/za-klienta/prekusvania/" },
   };
 }

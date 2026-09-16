@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { isValidClimateValues, type ClimateAggregation } from "../climateData";
-import { isCurrentPeriod, periodLabel } from "../dateUtils";
-import { formatFixedNumber, formatNumber, formatTime } from "../formatUtils";
-import type { ClimatePoint, DashboardData, PeriodKey, SolarData } from "../types";
-import { BackToTop } from "./BackToTop";
+import { isValidClimateValues, type ClimateAggregation } from "../../climateData";
+import { isCurrentPeriod, periodLabel } from "../../dateUtils";
+import { formatFixedNumber, formatNumber, formatTime } from "../../formatUtils";
+import type { ClimatePoint, DashboardData, PeriodKey, SolarData } from "../../types";
+import { BackToTop } from "../../components/BackToTop";
 import { ClimateChart } from "./ClimateChart";
 
 type Props = {

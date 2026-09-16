@@ -1,4 +1,4 @@
-import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType } from "./types";
+import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType } from "../../types";
 
 export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
   const now = new Date();

@@ -1,10 +1,10 @@
 import { useMemo, useState, type MouseEvent } from "react";
-import { dateFromInput, dateInputValue, DAY_MS, isCurrentPeriod, periodLabel, timestampInPeriod } from "./dateUtils";
-import { batteryNetValue, gridNetValue } from "./energyData";
-import { BackToTop } from "./components/BackToTop";
+import { dateFromInput, dateInputValue, DAY_MS, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
+import { batteryNetValue, gridNetValue } from "../../energyData";
+import { BackToTop } from "../../components/BackToTop";
 import { BulgariaPowerPlantMap } from "./BulgariaPowerPlantMap";
-import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, EnergyChartPoint, PeriodKey } from "./types";
-import { usePeriodSelection } from "./usePeriodSelection";
+import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, EnergyChartPoint, PeriodKey } from "../../types";
+import { usePeriodSelection } from "../../usePeriodSelection";
 
 type MixSeriesKey = "nuclear" | "coal" | "gas" | "hydro" | "solar" | "wind" | "other" | "imports";
 
