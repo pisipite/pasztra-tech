@@ -19,8 +19,7 @@ export const DATA_SOURCE_ENDPOINTS = Object.freeze({
   sungrow: {
     defaultHost: "https://gateway.isolarcloud.eu",
   },
-  deepl: {
-    freeApi: "https://api-free.deepl.com/v2/translate",
-    proApi: "https://api.deepl.com/v2/translate",
+  googleTranslate: {
+    basicApi: "https://translation.googleapis.com/language/translate/v2",
   },
 });

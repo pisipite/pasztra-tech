@@ -40,14 +40,18 @@ test("a korábbi publikus fordítást API-hívás nélkül újrahasználja", asy
   assert.equal(result.items[0].titleHu, "Energetikai hír");
 });
 
-test("az új címeket és ajánlókat egy DeepL-kérésben fordítja le", async () => {
-  const fetcher = async (_url, options) => {
+test("az új címeket és ajánlókat egy Google-kérésben fordítja le", async () => {
+  const fetcher = async (url, options) => {
+    assert.equal(new URL(url).searchParams.get("key"), "secret");
     const request = JSON.parse(options.body);
-    assert.deepEqual(request.text, [data.items[0].title, data.items[0].summary]);
-    assert.equal(request.target_lang, "HU");
-    return new Response(JSON.stringify({ translations: [{ text: "Energetikai hír" }, { text: "Új villamosenergia-hálózat." }] }), { status: 200 });
+    assert.deepEqual(request.q, [data.items[0].title, data.items[0].summary]);
+    assert.equal(request.source, "bg");
+    assert.equal(request.target, "hu");
+    assert.equal(request.format, "text");
+    return new Response(JSON.stringify({ data: { translations: [{ translatedText: "Energetikai hír &amp; elemzés" }, { translatedText: "Új villamosenergia-hálózat." }] } }), { status: 200 });
   };
   const result = await addHungarianNewsTranslations(data, { apiKey: "secret", historyUrl: "", endpoint: "https://example.com/translate", fetcher });
-  assert.equal(result.items[0].titleHu, "Energetikai hír");
+  assert.equal(result.items[0].titleHu, "Energetikai hír & elemzés");
   assert.equal(result.items[0].summaryHu, "Új villamosenergia-hálózat.");
+  assert.equal(result.translation.provider, "Google Cloud Translation");
 });

@@ -7,7 +7,7 @@ normalizáló kódtól.
   végpontok.
 - `news-sources.mjs`: bolgár sajtó RSS-forrásai, honlapjai és faviconjai,
   valamint az ERM Zapad szolgáltatói oldal.
-- A DeepL fordítási végpontjai az `endpoints.mjs` fájlban vannak; a fordító
+- A Google Cloud Translation fordítási végpontja az `endpoints.mjs` fájlban van; a fordító
   és annak publikus-hírfolyamos gyorsítótára a `news-translation.mjs` fájlban.
 
 Forráscsere esetén először csak a megfelelő bejegyzést módosítsd. A kimeneti
