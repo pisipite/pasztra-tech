@@ -43,7 +43,7 @@ function NewsCard({ item, source, lead }: { item: EnergyNewsItem; source?: Energ
       <div className="energy-news-card__labels">
         <span>{NEWS_CATEGORY_LABELS[item.category]}</span>
         {item.important && <i>{item.kind === "outage" ? "Értesítés" : "Neked fontos"}</i>}
-        {translated && <i>Google-fordítás</i>}
+        {translated && <i>Gemini-fordítás</i>}
       </div>
       <h3><a href={item.url} target="_blank" rel="noreferrer" lang={translated ? "hu" : "bg"}>{item.titleHu ?? item.title}</a></h3>
       <p lang={translated ? "hu" : "bg"}>{item.summaryHu ?? item.summary}</p>
@@ -129,7 +129,7 @@ export function EnergyNews({ data }: { data: EnergyNewsData }) {
         : <div className="energy-news-empty"><strong>{selectedSource?.status === "setup-required" ? "Az ERM Zapad még nincs beállítva." : "Nincs találat ebben a nézetben."}</strong><span>{selectedSource?.status === "setup-required" ? "A helyi tervezett áramszünetekhez add meg az ITN- vagy POD-azonosítót a GitHub titkai között." : "Válassz másik kategóriát vagy forrást."}</span></div>}
 
       <footer className="energy-news__foot">
-        <span>{data.translation?.status === "translated" ? "A magyar címeket és ajánlókat a Google Cloud Translation automatikusan fordította; a hivatkozás az eredeti cikket nyitja meg." : "A címek és ajánlók eredeti bolgár nyelven jelennek meg."}</span>
+        <span>{data.translation?.status === "translated" ? "A magyar címeket és ajánlókat a Google Gemini automatikusan fordította; a hivatkozás az eredeti cikket nyitja meg." : "A címek és ajánlók eredeti bolgár nyelven jelennek meg."}</span>
         <a href={data.outage?.sourceUrl ?? "https://ermzapad.bg/bg/za-klienta/prekusvania/"} target="_blank" rel="noreferrer">ERM Zapad áramszünetek ↗</a>
       </footer>
     </section>

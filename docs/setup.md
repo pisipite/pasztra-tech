@@ -20,13 +20,13 @@ A **Settings → Secrets and variables → Actions → Secrets** részen hozd l�
 | `SOLAR_LONGITUDE` | A rendszer pontos földrajzi hosszúsága az időjárási előrejelzéshez |
 | `ERM_ZAPAD_ITN` | Nem kötelező: 12 jegyű ügyfélszám a személyre szabott tervezettáramszünet-figyeléshez |
 | `ERM_ZAPAD_POD` | Nem kötelező: 16 jegyű mérési pont azonosító; ha ezt megadod, ezt használja az ITN helyett |
-| `GOOGLE_TRANSLATE_API_KEY` | Nem kötelező: Google Cloud Translation API-kulcs a bolgár hírcímek és ajánlók automatikus magyar fordításához |
+| `GEMINI_API_KEY` | Nem kötelező: Google AI Studio API-kulcs a bolgár hírcímek és ajánlók automatikus magyar fordításához |
 
 A Govee API-kulcsot a Govee Home alkalmazásban lehet igényelni. A kulcsot soha ne írd fájlba vagy commitba.
 
 Az ERM Zapad-azonosítók közül elég az egyiket megadni. Ezek sem kerülnek a publikus adatfájlba: az oldal csak akkor kap riasztási kártyát, ha a szolgáltató valóban tervezett kimaradást jelez.
 
-A Google API-kulcsot szintén kizárólag GitHub Secretként add meg. A Google Cloud projektben engedélyezd a **Cloud Translation API** szolgáltatást, majd az **APIs & Services → Credentials → Create credentials → API key** útvonalon készíts kulcsot. Az API-korlátozásnál csak a **Cloud Translation API** használatát engedélyezd; alkalmazáskorlátozást ne állíts be, mert a GitHub Actions futtatóinak IP-címe változik. A fordítás a GitHub Actions futása közben készül, a böngésző nem kapja meg a kulcsot. A rendszer az előző publikus hírfolyam fordításait újrahasználja, ezért csak az új cikkek fogyasztják a fordítási keretet. Kulcs nélkül az eredeti bolgár szöveg marad látható.
+A Gemini-kulcsot a **Google AI Studio → API Keys** oldalon készítsd el, és kizárólag GitHub Secretként add meg. Az ingyenes csomaghoz nem szükséges számlázási fiók. A fordítás a GitHub Actions futása közben készül, a böngésző nem kapja meg a kulcsot. A rendszer az előző publikus hírfolyam fordításait újrahasználja, ezért csak az új cikkek fogyasztják az ingyenes keretet. Kulcs nélkül vagy átmeneti API-hiba esetén az eredeti bolgár szöveg marad látható.
 
 ## 3. Nem titkos változók
 
