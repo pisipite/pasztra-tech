@@ -196,6 +196,27 @@
 .energy-news-card.is-lead > p { max-width: 720px; color: rgba(248,234,198,.75); }
 .energy-news-card__link { align-self: flex-start; margin-top: auto; color: var(--poster-deep); font: 700 10px "Oswald", Impact, sans-serif; letter-spacing: .06em; text-transform: uppercase; text-underline-offset: 3px; }
 .energy-news-card.is-lead .energy-news-card__link { color: var(--poster-yellow); }
+.energy-news-card__actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: auto; }
+.energy-news-card__actions .energy-news-card__link { margin-top: 0; }
+.energy-news-card__translate {
+  flex: 0 0 auto;
+  min-height: 31px;
+  padding: 5px 10px;
+  border: 1px solid currentColor;
+  border-radius: 7px 2px 6px 3px;
+  color: var(--poster-deep);
+  background: transparent;
+  cursor: pointer;
+  font: 700 9px "Oswald", Impact, sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.energy-news-card__translate:hover:not(:disabled) { color: var(--poster-paper-light); background: var(--poster-deep); }
+.energy-news-card.is-lead .energy-news-card__translate { color: var(--poster-yellow); }
+.energy-news-card.is-lead .energy-news-card__translate:hover:not(:disabled) { color: var(--poster-deep); background: var(--poster-yellow); }
+.energy-news-card__translate:disabled { cursor: wait; opacity: .5; }
+.energy-news-card__translation-error { display: block; margin-top: 9px; color: var(--poster-coral); font-size: 9px; line-height: 1.4; }
+.energy-news-card.is-lead .energy-news-card__translation-error { color: #f4aa94; }
 .energy-news-load-more {
   display: flex;
   align-items: center;

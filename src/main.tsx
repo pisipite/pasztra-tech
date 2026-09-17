@@ -21,8 +21,8 @@ import { rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
 import { formatHeadingDate, formatTime } from "./formatUtils";
-import { dispatchDashboardRefresh, waitForFreshDashboard } from "./githubRefresh";
-import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, PeriodKey } from "./types";
+import { dispatchDashboardRefresh, dispatchNewsTranslation, waitForFreshDashboard, waitForNewsTranslation } from "./githubRefresh";
+import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, EnergyNewsItem, PeriodKey } from "./types";
 import { usePeriodSelection } from "./usePeriodSelection";
 import "./styles.css";
 
@@ -183,6 +183,19 @@ function App() {
     setSettingsOpen(false);
   };
 
+  const translateNewsItem = useCallback(async (item: EnergyNewsItem) => {
+    if (!settings.githubToken) {
+      setSettingsOpen(true);
+      throw new Error("A fordításhoz add meg a GitHub frissítési tokent az Adatkapcsolat panelen.");
+    }
+    if (!settings.live || !settings.endpoint) {
+      throw new Error("A fordítás csak az élő hírfolyamban érhető el.");
+    }
+    await dispatchNewsTranslation(settings.githubToken, item.url);
+    const next = await waitForNewsTranslation(dataFileUrl(settings.endpoint, DATA_FILES.energyNews), item.url, energyNews.updatedAt);
+    setEnergyNews(next);
+  }, [settings, energyNews.updatedAt]);
+
   const triggerManualRefresh = useCallback(async () => {
     if (manualRefreshState === "starting" || manualRefreshState === "waiting") return;
     if (!settings.githubToken) {
@@ -300,7 +313,7 @@ function App() {
 
         <BulgariaEnergyMix data={bulgariaMix} householdFallback={data.solar.energyChart} />
 
-        <EnergyNews data={energyNews} />
+        <EnergyNews data={energyNews} onRequestTranslation={translateNewsItem} />
 
         <SolarForecast data={data} />
 

@@ -28,8 +28,20 @@ function FilterButton({ id, label, description, active, onClick }: { id: string;
   return <button type="button" className={active ? "is-active" : ""} aria-pressed={active} aria-describedby={tooltipId} onClick={onClick}><span>{label}</span><span className="energy-news-filter-help" role="tooltip" id={tooltipId}>{description}</span></button>;
 }
 
-function NewsCard({ item, source, lead }: { item: EnergyNewsItem; source?: EnergyNewsSource; lead: boolean }) {
-  const translated = Boolean(item.titleHu && item.summaryHu);
+type NewsCardProps = {
+  item: EnergyNewsItem;
+  source?: EnergyNewsSource;
+  lead: boolean;
+  showOriginal: boolean;
+  translationBusy: boolean;
+  translationDisabled: boolean;
+  translationError?: string;
+  onLanguageToggle: () => void;
+};
+
+function NewsCard({ item, source, lead, showOriginal, translationBusy, translationDisabled, translationError, onLanguageToggle }: NewsCardProps) {
+  const hasTranslation = Boolean(item.titleHu && item.summaryHu);
+  const showingHungarian = hasTranslation && !showOriginal;
   return (
     <article className={`energy-news-card category-${item.category}${lead ? " is-lead" : ""}${item.kind === "outage" ? " is-outage" : ""}`}>
       <div className="energy-news-card__meta">
@@ -43,20 +55,29 @@ function NewsCard({ item, source, lead }: { item: EnergyNewsItem; source?: Energ
       <div className="energy-news-card__labels">
         <span>{NEWS_CATEGORY_LABELS[item.category]}</span>
         {item.important && <i>{item.kind === "outage" ? "Értesítés" : "Neked fontos"}</i>}
-        {translated && <i>Gemini-fordítás</i>}
+        {hasTranslation && <i>{showingHungarian ? "Magyar fordítás" : "Eredeti bolgár"}</i>}
       </div>
-      <h3><a href={item.url} target="_blank" rel="noreferrer" lang={translated ? "hu" : "bg"}>{item.titleHu ?? item.title}</a></h3>
-      <p lang={translated ? "hu" : "bg"}>{item.summaryHu ?? item.summary}</p>
-      <a className="energy-news-card__link" href={item.url} target="_blank" rel="noreferrer">Cikk megnyitása <span aria-hidden="true">↗</span></a>
+      <h3><a href={item.url} target="_blank" rel="noreferrer" lang={showingHungarian ? "hu" : "bg"}>{showingHungarian ? item.titleHu : item.title}</a></h3>
+      <p lang={showingHungarian ? "hu" : "bg"}>{showingHungarian ? item.summaryHu : item.summary}</p>
+      <div className="energy-news-card__actions">
+        <a className="energy-news-card__link" href={item.url} target="_blank" rel="noreferrer">Cikk megnyitása <span aria-hidden="true">↗</span></a>
+        <button type="button" className="energy-news-card__translate" onClick={onLanguageToggle} disabled={translationDisabled} aria-pressed={showingHungarian}>
+          {translationBusy ? "Fordítás…" : showingHungarian ? "Eredeti" : "Magyarra"}
+        </button>
+      </div>
+      {translationError && <small className="energy-news-card__translation-error" role="status">{translationError}</small>}
     </article>
   );
 }
 
-export function EnergyNews({ data }: { data: EnergyNewsData }) {
+export function EnergyNews({ data, onRequestTranslation }: { data: EnergyNewsData; onRequestTranslation?: (item: EnergyNewsItem) => Promise<void> }) {
   const [view, setView] = useState<NewsView>("all");
   const [category, setCategory] = useState<CategoryFilter>("all");
   const [sourceId, setSourceId] = useState("all");
   const [visibleCount, setVisibleCount] = useState(INITIAL_NEWS_LIMIT);
+  const [originalItems, setOriginalItems] = useState<Set<string>>(() => new Set());
+  const [translationPendingId, setTranslationPendingId] = useState<string>();
+  const [translationErrors, setTranslationErrors] = useState<Record<string, string>>({});
   const sourceById = useMemo(() => new Map(data.sources.map((source) => [source.id, source])), [data.sources]);
   const effectiveSourceId = sourceId === "all" || sourceById.has(sourceId) ? sourceId : "all";
   const items = useMemo(() => data.items.filter((item) => (
@@ -88,6 +109,34 @@ export function EnergyNews({ data }: { data: EnergyNewsData }) {
   function selectSource(nextSourceId: string) {
     setSourceId(nextSourceId);
     setVisibleCount(INITIAL_NEWS_LIMIT);
+  }
+
+  async function toggleLanguage(item: EnergyNewsItem) {
+    const hasTranslation = Boolean(item.titleHu && item.summaryHu);
+    if (hasTranslation) {
+      setOriginalItems((current) => {
+        const next = new Set(current);
+        if (next.has(item.id)) next.delete(item.id);
+        else next.add(item.id);
+        return next;
+      });
+      return;
+    }
+    if (!onRequestTranslation || translationPendingId) return;
+    setTranslationPendingId(item.id);
+    setTranslationErrors((current) => ({ ...current, [item.id]: "" }));
+    try {
+      await onRequestTranslation(item);
+      setOriginalItems((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    } catch (error) {
+      setTranslationErrors((current) => ({ ...current, [item.id]: error instanceof Error ? error.message : "A fordítás nem sikerült." }));
+    } finally {
+      setTranslationPendingId(undefined);
+    }
   }
 
   return (
@@ -125,11 +174,11 @@ export function EnergyNews({ data }: { data: EnergyNewsData }) {
       {data.outage?.alert && <a className="energy-news-outage" href={data.outage.sourceUrl} target="_blank" rel="noreferrer"><strong>ERM Zapad értesítés</strong><span>A tervezett áramszünet részletei a szolgáltató oldalán ellenőrizhetők.</span><i aria-hidden="true">→</i></a>}
 
       {items.length > 0
-        ? <><div className="energy-news-grid">{visibleItems.map((item, index) => <NewsCard item={item} source={sourceById.get(item.sourceId)} lead={index === 0} key={item.id} />)}</div>{remainingCount > 0 && <button type="button" className="energy-news-load-more" onClick={() => setVisibleCount((current) => current + NEWS_LOAD_STEP)}>Továbbiak betöltése <span>+{Math.min(NEWS_LOAD_STEP, remainingCount)}</span></button>}</>
+        ? <><div className="energy-news-grid">{visibleItems.map((item, index) => <NewsCard item={item} source={sourceById.get(item.sourceId)} lead={index === 0} showOriginal={originalItems.has(item.id)} translationBusy={translationPendingId === item.id} translationDisabled={Boolean(translationPendingId && translationPendingId !== item.id) || (!item.titleHu && !onRequestTranslation)} translationError={translationErrors[item.id]} onLanguageToggle={() => void toggleLanguage(item)} key={item.id} />)}</div>{remainingCount > 0 && <button type="button" className="energy-news-load-more" onClick={() => setVisibleCount((current) => current + NEWS_LOAD_STEP)}>Továbbiak betöltése <span>+{Math.min(NEWS_LOAD_STEP, remainingCount)}</span></button>}</>
         : <div className="energy-news-empty"><strong>{selectedSource?.status === "setup-required" ? "Az ERM Zapad még nincs beállítva." : "Nincs találat ebben a nézetben."}</strong><span>{selectedSource?.status === "setup-required" ? "A helyi tervezett áramszünetekhez add meg az ITN- vagy POD-azonosítót a GitHub titkai között." : "Válassz másik kategóriát vagy forrást."}</span></div>}
 
       <footer className="energy-news__foot">
-        <span>{data.translation?.status === "translated" ? "A magyar címeket és ajánlókat a Google Gemini automatikusan fordította; a hivatkozás az eredeti cikket nyitja meg." : "A címek és ajánlók eredeti bolgár nyelven jelennek meg."}</span>
+        <span>A korábban lefordított hírek magyarul jelennek meg. A nyelv hírdobozonként váltható; a hivatkozás mindig az eredeti cikket nyitja meg.</span>
         <a href={data.outage?.sourceUrl ?? "https://ermzapad.bg/bg/za-klienta/prekusvania/"} target="_blank" rel="noreferrer">ERM Zapad áramszünetek ↗</a>
       </footer>
     </section>

@@ -28,6 +28,13 @@ test("API-kulcs nélkül megtartja az eredeti bolgár hírt", async () => {
   assert.equal(result.items[0].titleHu, undefined);
 });
 
+test("ütemezett frissítéskor nem fordít le automatikusan új cikket", async () => {
+  const fetcher = async () => { throw new Error("Nem szabad API-hívást indítani."); };
+  const result = await addHungarianNewsTranslations(data, { apiKey: "secret", historyUrl: "", fetcher });
+  assert.equal(result.translation.status, "manual");
+  assert.equal(result.items[0].titleHu, undefined);
+});
+
 test("a korábbi publikus fordítást API-hívás nélkül újrahasználja", async () => {
   let calls = 0;
   const fetcher = async () => {
@@ -36,7 +43,7 @@ test("a korábbi publikus fordítást API-hívás nélkül újrahasználja", asy
   };
   const result = await addHungarianNewsTranslations(data, { apiKey: "secret", historyUrl: "https://example.com/history.json", fetcher });
   assert.equal(calls, 1);
-  assert.equal(result.translation.status, "translated");
+  assert.equal(result.translation.status, "manual");
   assert.equal(result.items[0].titleHu, "Energetikai hír");
 });
 
@@ -49,7 +56,7 @@ test("az új címeket és ajánlókat egy strukturált Gemini-kérésben fordít
     assert.deepEqual(request.generationConfig.responseSchema, { type: "array", items: { type: "string" } });
     return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(["Energetikai hír", "Új villamosenergia-hálózat."]) }] } }] }), { status: 200 });
   };
-  const result = await addHungarianNewsTranslations(data, { apiKey: "secret", historyUrl: "", endpoint: "https://example.com/translate", fetcher });
+  const result = await addHungarianNewsTranslations(data, { apiKey: "secret", historyUrl: "", requestedUrl: data.items[0].url, endpoint: "https://example.com/translate", fetcher });
   assert.equal(result.items[0].titleHu, "Energetikai hír");
   assert.equal(result.items[0].summaryHu, "Új villamosenergia-hálózat.");
   assert.equal(result.translation.provider, "Google Gemini");

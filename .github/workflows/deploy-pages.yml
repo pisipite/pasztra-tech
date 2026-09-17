@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: "17,37,57 * * * *"
   workflow_dispatch:
+    inputs:
+      translate_news_url:
+        description: "Csak ezt a hírcikket fordítsa magyarra"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -66,6 +71,7 @@ jobs:
           ERM_ZAPAD_ITN: ${{ secrets.ERM_ZAPAD_ITN }}
           ERM_ZAPAD_POD: ${{ secrets.ERM_ZAPAD_POD }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NEWS_TRANSLATION_URL: ${{ inputs.translate_news_url }}
           ENERGY_NEWS_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/energy-news.json
           SUNGROW_DAY_HISTORY_DAYS: 31
         run: bash scripts/fetch-live-data.sh

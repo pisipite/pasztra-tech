@@ -156,7 +156,7 @@ export interface EnergyNewsData {
   };
   translation?: {
     provider: string;
-    status: "not-configured" | "translated" | "error";
+    status: "not-configured" | "manual" | "translated" | "error";
     translatedCount?: number;
     error?: string;
   };

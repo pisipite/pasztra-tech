@@ -82,33 +82,44 @@ async function translateTexts(texts, { apiKey, endpoint, fetcher }) {
 
 export async function addHungarianNewsTranslations(data, options = {}) {
   const apiKey = options.apiKey ?? process.env.GEMINI_API_KEY?.trim();
-  if (!apiKey) {
-    return { ...data, translation: { provider: providerName, status: "not-configured" } };
-  }
-
   const fetcher = options.fetcher ?? fetch;
   const historyUrl = options.historyUrl ?? process.env.ENERGY_NEWS_HISTORY_URL?.trim();
+  const requestedUrl = options.requestedUrl ?? process.env.NEWS_TRANSLATION_URL?.trim();
   const endpoint = options.endpoint
     ?? process.env.GEMINI_TRANSLATE_API_URL?.trim()
     ?? DATA_SOURCE_ENDPOINTS.gemini.translationApi;
   const cached = await previousTranslations(historyUrl, fetcher);
   const items = data.items.map((item) => ({ ...item, ...cached.get(articleKey(item)) }));
-  const pending = items.filter((item) => !item.titleHu || !item.summaryHu);
-  if (!pending.length) {
-    return { ...data, items, translation: { provider: providerName, status: "translated", translatedCount: items.length } };
+  const translatedCount = items.filter((item) => item.titleHu && item.summaryHu).length;
+
+  if (!apiKey) {
+    return { ...data, items, translation: { provider: providerName, status: "not-configured", translatedCount } };
+  }
+  if (!requestedUrl) {
+    return { ...data, items, translation: { provider: providerName, status: "manual", translatedCount } };
+  }
+
+  const requestedKey = articleKey({ url: requestedUrl });
+  const requestedItem = items.find((item) => articleKey(item) === requestedKey);
+  if (!requestedItem) {
+    return { ...data, items, translation: { provider: providerName, status: "error", translatedCount, error: "A kért cikk már nem található az aktuális hírfolyamban." } };
+  }
+  if (requestedItem.titleHu && requestedItem.summaryHu) {
+    return { ...data, items, translation: { provider: providerName, status: "translated", translatedCount } };
   }
 
   try {
-    const texts = pending.flatMap((item) => [item.title, item.summary]);
+    const pending = [requestedItem];
+    const texts = [requestedItem.title, requestedItem.summary];
     const translations = await translateTexts(texts, { apiKey, endpoint, fetcher });
     const byKey = new Map(pending.map((item, index) => [articleKey(item), {
       titleHu: translations[index * 2],
       summaryHu: translations[index * 2 + 1],
     }]));
     const translatedItems = items.map((item) => ({ ...item, ...byKey.get(articleKey(item)) }));
-    return { ...data, items: translatedItems, translation: { provider: providerName, status: "translated", translatedCount: translatedItems.length } };
+    return { ...data, items: translatedItems, translation: { provider: providerName, status: "translated", translatedCount: translatedCount + 1 } };
   } catch (error) {
     console.error(`Hírfordítás: ${error.message}`);
-    return { ...data, items, translation: { provider: providerName, status: "error", translatedCount: items.length - pending.length, error: error.message } };
+    return { ...data, items, translation: { provider: providerName, status: "error", translatedCount, error: error.message } };
   }
 }

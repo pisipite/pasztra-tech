@@ -26,7 +26,7 @@ A Govee API-kulcsot a Govee Home alkalmazásban lehet igényelni. A kulcsot soha
 
 Az ERM Zapad-azonosítók közül elég az egyiket megadni. Ezek sem kerülnek a publikus adatfájlba: az oldal csak akkor kap riasztási kártyát, ha a szolgáltató valóban tervezett kimaradást jelez.
 
-A Gemini-kulcsot a **Google AI Studio → API Keys** oldalon készítsd el, és kizárólag GitHub Secretként add meg. Az ingyenes csomaghoz nem szükséges számlázási fiók. A fordítás a GitHub Actions futása közben készül, a böngésző nem kapja meg a kulcsot. A rendszer az előző publikus hírfolyam fordításait újrahasználja, ezért csak az új cikkek fogyasztják az ingyenes keretet. Kulcs nélkül vagy átmeneti API-hiba esetén az eredeti bolgár szöveg marad látható.
+A Gemini-kulcsot a **Google AI Studio → API Keys** oldalon készítsd el, és kizárólag GitHub Secretként add meg. Az ingyenes csomaghoz nem szükséges számlázási fiók. A fordítás csak akkor indul el, amikor valaki megnyomja egy hírdoboz **Magyarra** gombját; a böngésző ilyenkor a mentett GitHub frissítési tokennel célzott Actions-futást kér, de magát a Gemini-kulcsot soha nem kapja meg. A korábbi fordításokat a rendszer újrahasználja. Kulcs nélkül vagy átmeneti API-hiba esetén az eredeti bolgár szöveg marad látható.
 
 ## 3. Nem titkos változók
 
