@@ -55,8 +55,17 @@ async function translateTexts(texts, { apiKey, endpoint, fetcher }) {
       }),
       signal: AbortSignal.timeout(30_000),
     });
-    if (!response.ok) throw new Error(`${providerName} ${response.status} ${response.statusText}`);
-    const payload = await response.json();
+    const responseBody = await response.text();
+    if (!response.ok) {
+      let detail = response.statusText;
+      try {
+        detail = JSON.parse(responseBody).error?.message ?? detail;
+      } catch {
+        // A státuszkód akkor is elég a hibakereséshez, ha a válasz nem JSON.
+      }
+      throw new Error(`${providerName} ${response.status}: ${detail}`);
+    }
+    const payload = JSON.parse(responseBody);
     const responseText = payload.candidates?.[0]?.content?.parts
       ?.map((part) => part.text ?? "")
       .join("");
@@ -100,6 +109,6 @@ export async function addHungarianNewsTranslations(data, options = {}) {
     return { ...data, items: translatedItems, translation: { provider: providerName, status: "translated", translatedCount: translatedItems.length } };
   } catch (error) {
     console.error(`Hírfordítás: ${error.message}`);
-    return { ...data, items, translation: { provider: providerName, status: "error", translatedCount: items.length - pending.length } };
+    return { ...data, items, translation: { provider: providerName, status: "error", translatedCount: items.length - pending.length, error: error.message } };
   }
 }
