@@ -196,6 +196,11 @@ function App() {
     setEnergyNews(next);
   }, [settings, energyNews.updatedAt]);
 
+  const queueNewsTranslation = useCallback(async (item: EnergyNewsItem) => {
+    if (!settings.githubToken || !settings.live || !settings.endpoint) return;
+    await dispatchNewsTranslation(settings.githubToken, item.url);
+  }, [settings.githubToken, settings.live, settings.endpoint]);
+
   const triggerManualRefresh = useCallback(async () => {
     if (manualRefreshState === "starting" || manualRefreshState === "waiting") return;
     if (!settings.githubToken) {
@@ -313,7 +318,7 @@ function App() {
 
         <BulgariaEnergyMix data={bulgariaMix} householdFallback={data.solar.energyChart} />
 
-        <EnergyNews data={energyNews} onRequestTranslation={translateNewsItem} />
+        <EnergyNews data={energyNews} onRequestTranslation={translateNewsItem} onQueueTranslation={queueNewsTranslation} />
 
         <SolarForecast data={data} />
 

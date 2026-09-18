@@ -2,23 +2,49 @@ import { DATA_SOURCE_ENDPOINTS } from "./data-sources/endpoints.mjs";
 
 const batchSize = 40;
 const providerName = "Google Gemini";
+const newsHistoryDays = 370;
+const maximumNewsItems = 500;
 
 function articleKey(item) {
   return item.url.replace(/[?#].*$/, "").toLowerCase();
 }
 
-async function previousTranslations(historyUrl, fetcher) {
-  if (!historyUrl) return new Map();
+async function previousNews(historyUrl, fetcher) {
+  if (!historyUrl) return [];
   try {
     const response = await fetcher(historyUrl, { signal: AbortSignal.timeout(10_000) });
-    if (!response.ok) return new Map();
+    if (!response.ok) return [];
     const previous = await response.json();
-    return new Map((previous.items ?? [])
-      .filter((item) => item.titleHu && item.summaryHu)
-      .map((item) => [articleKey(item), { titleHu: item.titleHu, summaryHu: item.summaryHu }]));
+    return Array.isArray(previous.items) ? previous.items : [];
   } catch {
-    return new Map();
+    return [];
   }
+}
+
+function mergeNewsHistory(data, previousItems) {
+  const freshKeys = new Set(data.items.map(articleKey));
+  const previousByKey = new Map(previousItems.map((item) => [articleKey(item), item]));
+  const freshItems = data.items.map((item) => {
+    const previous = previousByKey.get(articleKey(item));
+    return previous?.titleHu && previous.summaryHu
+      ? { ...item, titleHu: previous.titleHu, summaryHu: previous.summaryHu }
+      : item;
+  });
+  const cutoff = new Date(data.updatedAt).getTime() - newsHistoryDays * 86_400_000;
+  const archivedItems = previousItems.filter((item) => (
+    item.kind !== "outage"
+    && !freshKeys.has(articleKey(item))
+    && Number.isFinite(Date.parse(item.publishedAt))
+    && Date.parse(item.publishedAt) >= cutoff
+  ));
+  const items = [...freshItems, ...archivedItems]
+    .sort((left, right) => Date.parse(right.publishedAt) - Date.parse(left.publishedAt))
+    .slice(0, maximumNewsItems);
+  const sources = data.sources.map((source) => ({
+    ...source,
+    itemCount: items.filter((item) => item.sourceId === source.id).length,
+  }));
+  return { ...data, items, sources };
 }
 
 async function translateTexts(texts, { apiKey, endpoint, fetcher }) {
@@ -88,24 +114,25 @@ export async function addHungarianNewsTranslations(data, options = {}) {
   const endpoint = options.endpoint
     ?? process.env.GEMINI_TRANSLATE_API_URL?.trim()
     ?? DATA_SOURCE_ENDPOINTS.gemini.translationApi;
-  const cached = await previousTranslations(historyUrl, fetcher);
-  const items = data.items.map((item) => ({ ...item, ...cached.get(articleKey(item)) }));
+  const history = await previousNews(historyUrl, fetcher);
+  const mergedData = mergeNewsHistory(data, history);
+  const items = mergedData.items;
   const translatedCount = items.filter((item) => item.titleHu && item.summaryHu).length;
 
   if (!apiKey) {
-    return { ...data, items, translation: { provider: providerName, status: "not-configured", translatedCount } };
+    return { ...mergedData, translation: { provider: providerName, status: "not-configured", translatedCount } };
   }
   if (!requestedUrl) {
-    return { ...data, items, translation: { provider: providerName, status: "manual", translatedCount } };
+    return { ...mergedData, translation: { provider: providerName, status: "manual", translatedCount } };
   }
 
   const requestedKey = articleKey({ url: requestedUrl });
   const requestedItem = items.find((item) => articleKey(item) === requestedKey);
   if (!requestedItem) {
-    return { ...data, items, translation: { provider: providerName, status: "error", translatedCount, error: "A kért cikk már nem található az aktuális hírfolyamban." } };
+    return { ...mergedData, translation: { provider: providerName, status: "error", translatedCount, error: "A kért cikk már nem található az aktuális hírfolyamban." } };
   }
   if (requestedItem.titleHu && requestedItem.summaryHu) {
-    return { ...data, items, translation: { provider: providerName, status: "translated", translatedCount } };
+    return { ...mergedData, translation: { provider: providerName, status: "translated", translatedCount } };
   }
 
   try {
@@ -117,9 +144,9 @@ export async function addHungarianNewsTranslations(data, options = {}) {
       summaryHu: translations[index * 2 + 1],
     }]));
     const translatedItems = items.map((item) => ({ ...item, ...byKey.get(articleKey(item)) }));
-    return { ...data, items: translatedItems, translation: { provider: providerName, status: "translated", translatedCount: translatedCount + 1 } };
+    return { ...mergedData, items: translatedItems, translation: { provider: providerName, status: "translated", translatedCount: translatedCount + 1 } };
   } catch (error) {
     console.error(`Hírfordítás: ${error.message}`);
-    return { ...data, items, translation: { provider: providerName, status: "error", translatedCount, error: error.message } };
+    return { ...mergedData, translation: { provider: providerName, status: "error", translatedCount, error: error.message } };
   }
 }

@@ -47,6 +47,20 @@ test("a korábbi publikus fordítást API-hívás nélkül újrahasználja", asy
   assert.equal(result.items[0].titleHu, "Energetikai hír");
 });
 
+test("a korábbi híreket megtartja az időszűrő archívumához", async () => {
+  const archived = {
+    ...data.items[0],
+    id: "story-archive",
+    url: "https://example.com/archive",
+    publishedAt: "2026-08-20T08:00:00.000Z",
+    title: "Архивна енергийна новина",
+  };
+  const fetcher = async () => new Response(JSON.stringify({ items: [archived] }), { status: 200 });
+  const result = await addHungarianNewsTranslations(data, { apiKey: "secret", historyUrl: "https://example.com/history.json", fetcher });
+  assert.equal(result.translation.status, "manual");
+  assert.deepEqual(result.items.map((item) => item.id), ["story-1", "story-archive"]);
+});
+
 test("az új címeket és ajánlókat egy strukturált Gemini-kérésben fordítja le", async () => {
   const fetcher = async (_url, options) => {
     assert.equal(options.headers["x-goog-api-key"], "secret");
