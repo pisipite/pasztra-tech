@@ -19,11 +19,15 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: false
+  # A GitHub Pages deployment can occasionally remain in the environment's
+  # waiting state. Let the next scheduled/manual refresh replace it so one
+  # stale deployment cannot block every later data update.
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -86,6 +90,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build
     steps:
       - name: Deploy
