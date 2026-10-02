@@ -2,7 +2,7 @@ import { useState } from "react";
 import { isValidClimateValues, type ClimateAggregation } from "../../climateData";
 import { isCurrentPeriod, periodLabel } from "../../dateUtils";
 import { formatFixedNumber, formatNumber, formatTime } from "../../formatUtils";
-import type { ClimatePoint, DashboardData, PeriodKey, SolarData } from "../../types";
+import type { ClimatePoint, DashboardData, PeriodKey } from "../../types";
 import { BackToTop } from "../../components/BackToTop";
 import { ClimateChart } from "./ClimateChart";
 
@@ -19,66 +19,9 @@ type Props = {
   onClimateStep: (direction: -1 | 1) => void;
   onClimateCustomChange: (start: string, end: string) => void;
   onClimateAggregationChange: (aggregation: ClimateAggregation) => void;
-  batterySoc?: number;
   loading: boolean;
   onRefresh: () => void;
 };
-
-function solarStatusText(status: SolarData["status"]) {
-  if (status === "online") return "A rendszer termel";
-  if (status === "warning") return "Figyelmet kér";
-  return "Nem elérhető";
-}
-
-function SolarCard({ data, batterySoc, loading, onRefresh }: Pick<Props, "data" | "batterySoc" | "loading" | "onRefresh">) {
-  const batteryLabel = Number.isFinite(batterySoc) ? formatFixedNumber(batterySoc!, 0) : "—";
-  const batteryLevel = Math.max(0, Math.min(100, batterySoc ?? 0));
-  const batteryTemperature = Number.isFinite(data.solar.batteryTemperatureC) ? `${formatFixedNumber(data.solar.batteryTemperatureC!, 1)} °C` : "—";
-  const batteryVoltage = Number.isFinite(data.solar.batteryVoltageV) ? `${formatFixedNumber(data.solar.batteryVoltageV!, 1)} V` : "—";
-
-  return (
-    <article className="card solar-card" id="napelem">
-      <div className="solar-orbit" aria-hidden="true"><i /><i /><i /></div>
-      <span className="sun-charm sun-charm--solar" aria-hidden="true"><i /></span>
-      <div className="card__head section-header section-header--dark">
-        <div className="section-header__lead">
-          <div className="section-kicker"><p className="eyebrow eyebrow--light">Termelés</p><BackToTop /></div>
-          <h2>Napelemes rendszer</h2>
-          <div className="system-status"><span className={`dot dot--${data.solar.status}`} />{solarStatusText(data.solar.status)}</div>
-        </div>
-        <button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button>
-      </div>
-      <div className="solar-main">
-        <div className="power-reading">
-          <span className="power-reading__value">{data.solar.currentPowerKw.toLocaleString("hu-HU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-          <span className="power-reading__unit">kW</span>
-          <p>pillanatnyi teljesítmény</p>
-        </div>
-        <div className="energy-flow">
-          <div><span>Otthon fogyasztása</span><strong>{formatFixedNumber(data.solar.houseLoadKw, 2)} kW</strong></div>
-          <div><span>{data.solar.gridPowerKw < 0 ? "Hálózatba táplálva" : "Hálózatból véve"}</span><strong>{formatFixedNumber(Math.abs(data.solar.gridPowerKw), 2)} kW</strong></div>
-        </div>
-      </div>
-      <div className="battery-status-panel" aria-label={`Akkumulátor töltöttsége: ${Number.isFinite(batterySoc) ? `${batteryLabel} százalék` : "nincs adat"}`}>
-        <div>
-          <span>Akkumulátor</span>
-          <strong>{batteryLabel}<small>%</small></strong>
-          <p>aktuális töltöttségi szint</p>
-          <div className="battery-details">
-            <span><small>Hőmérséklet</small><b>{batteryTemperature}</b></span>
-            <span><small>Feszültség</small><b>{batteryVoltage}</b></span>
-          </div>
-        </div>
-        <span className="battery-shape" aria-hidden="true"><i style={{ width: `${batteryLevel}%` }} /></span>
-      </div>
-      <div className="solar-stats">
-        <div><span>Termelés ma</span><strong>{formatFixedNumber(data.solar.todayKwh, 1)} <small>kWh</small></strong></div>
-        <div><span>Ebben a hónapban</span><strong>{data.solar.monthKwh.toLocaleString("hu-HU")} <small>kWh</small></strong></div>
-        <div><span>Összes termelés</span><strong>{formatFixedNumber(data.solar.lifetimeMwh, 1)} <small>MWh</small></strong></div>
-      </div>
-    </article>
-  );
-}
 
 const climatePeriods: { key: PeriodKey; label: string }[] = [
   { key: "day", label: "Nap" },
@@ -173,7 +116,6 @@ export function DashboardCards(props: Props) {
   const { loading } = props;
   return (
     <section className={`dashboard-grid ${loading ? "is-loading" : ""}`} aria-busy={loading}>
-      <SolarCard {...props} />
       <ClimateCard {...props} />
     </section>
   );

@@ -15,6 +15,5 @@ export const PAGE_BLOCKS: PageBlockDefinition[] = [
   { id: "elojelzes", navigationLabel: "Előrejelzés", codeLocation: "blocks/forecast", dataFile: "dashboard-{range}.json" },
   { id: "fogyasztasi-proba", navigationLabel: "Interaktív próba", codeLocation: "blocks/planner", dataFile: "dashboard-{range}.json" },
   { id: "napallas", navigationLabel: "Napállás", codeLocation: "blocks/sun-position" },
-  { id: "napelem", navigationLabel: "Termelés", codeLocation: "blocks/home-climate", dataFile: "dashboard-{range}.json" },
   { id: "klima", navigationLabel: "Hőmérséklet", codeLocation: "blocks/home-climate", dataFile: "govee-history.json" },
 ];

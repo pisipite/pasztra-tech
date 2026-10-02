@@ -11,7 +11,7 @@ helyi segédfüggvényeit és mintaadatait ugyanabban a mappában kell tartani.
 | `#elojelzes` | `forecast/` | Napelemes termelési előrejelzés |
 | `#fogyasztasi-proba` | `planner/` | Interaktív fogyasztástervező |
 | `#napallas` | `sun-position/` | Napállás és horizont |
-| `#napelem`, `#klima` | `home-climate/` | Napelem- és Govee-kártyák |
+| `#klima` | `home-climate/` | Govee hőmérséklet- és páratartalom-kártya |
 
 A navigáció és a karbantartói blokklista a `src/config/pageBlocks.ts` fájlban
 található. A blokkok publikus exportjait a `src/blocks/index.ts` gyűjti össze.

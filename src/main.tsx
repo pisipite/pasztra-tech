@@ -178,10 +178,6 @@ function App() {
     () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climatePeriod === "day" ? "average" : climateAggregation),
     [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation],
   );
-  const batterySoc = useMemo(() => {
-    const point = [...(data.solar.energyChart ?? [])].reverse().find((item) => Number.isFinite(item.batterySoc));
-    return point?.batterySoc;
-  }, [data.solar.energyChart]);
   const activeDevice = data.govee.devices.find((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
   const source = data.source ?? (!settings.live || !settings.endpoint ? "demo" : "live");
   const solarConnected = connectionIsFresh(data.connections?.solar, source === "live" && data.solar.status === "online", data.updatedAt, clock);
@@ -353,7 +349,6 @@ function App() {
           onClimateStep={climateSelection.step}
           onClimateCustomChange={climateSelection.setCustomRange}
           onClimateAggregationChange={setClimateAggregation}
-          batterySoc={batterySoc}
           loading={loading || manualRefreshBusy}
           onRefresh={() => void triggerManualRefresh()}
         />

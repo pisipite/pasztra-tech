@@ -1015,8 +1015,8 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .section-nav a:hover { color: var(--ink); background: rgba(226,170,69,.14); }
 .section-nav a:focus-visible { position: relative; z-index: 1; }
 
-#kezdolap, #energia, #elojelzes, #fogyasztasi-proba, #napallas, #napelem, #klima, #adatkapcsolat { scroll-margin-top: 76px; }
-#energia:target, #elojelzes:target, #fogyasztasi-proba:target, #napallas:target, #napelem:target, #klima:target { animation: anchor-arrival 1s ease-out; }
+#kezdolap, #energia, #elojelzes, #fogyasztasi-proba, #napallas, #klima, #adatkapcsolat { scroll-margin-top: 76px; }
+#energia:target, #elojelzes:target, #fogyasztasi-proba:target, #napallas:target, #klima:target { animation: anchor-arrival 1s ease-out; }
 @keyframes anchor-arrival { 0%, 35% { box-shadow: 0 0 0 4px rgba(226,170,69,.42), 0 18px 50px rgba(38,49,45,.055); } }
 
 main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 30px; }
