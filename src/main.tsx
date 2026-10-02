@@ -68,6 +68,7 @@ function App() {
   const [bulgariaMix, setBulgariaMix] = useState(makeDemoBulgariaEnergyMix);
   const [energyNews, setEnergyNews] = useState(makeDemoEnergyNews);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [clock, setClock] = useState(() => Date.now());
@@ -163,6 +164,15 @@ function App() {
       document.removeEventListener("visibilitychange", syncClock);
     };
   }, []);
+
+  useEffect(() => {
+    if (!navigationOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setNavigationOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [navigationOpen]);
 
   const climateSeries = useMemo(
     () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climatePeriod === "day" ? "average" : climateAggregation),
@@ -268,28 +278,33 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar" id="oldal-teteje">
-        <a href="#main" className="brand" aria-label="Pasztra tech: Napfény kezdőlap">
-          <span className="brand__mark"><i /></span>
-          <span>Pasztra tech<em>:</em> Napfény</span>
-        </a>
-        <div className="topbar__actions">
-          <div className="stream-indicators" aria-label="Adatfolyamok állapota">
-            <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
-            <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
+      <div className="site-navigation" id="oldal-teteje">
+        <header className="topbar">
+          <a href="#main" className="brand" aria-label="Pasztra tech: Napfény kezdőlap">
+            <span className="brand__mark"><i /></span>
+            <span>Pasztra tech<em>:</em> Napfény</span>
+          </a>
+          <div className="topbar__actions">
+            <div className="stream-indicators" aria-label="Adatfolyamok állapota">
+              <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
+              <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
+            </div>
+            <button className={`data-refresh-button is-${manualRefreshState}`} onClick={() => void triggerManualRefresh()} disabled={manualRefreshBusy} aria-describedby={manualRefreshMessage ? "manual-refresh-status" : undefined}>
+              <i aria-hidden="true">↻</i><span>{manualRefreshLabel}</span>
+            </button>
+            <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Adatkapcsolat beállításai">•••</button>
+            <button className={`icon-button menu-toggle${navigationOpen ? " is-open" : ""}`} type="button" aria-label={navigationOpen ? "Menü bezárása" : "Menü megnyitása"} aria-expanded={navigationOpen} aria-controls="section-menu" onClick={() => setNavigationOpen((open) => !open)}>
+              <span /><span /><span />
+            </button>
           </div>
-          <button className={`data-refresh-button is-${manualRefreshState}`} onClick={() => void triggerManualRefresh()} disabled={manualRefreshBusy} aria-describedby={manualRefreshMessage ? "manual-refresh-status" : undefined}>
-            <i aria-hidden="true">↻</i><span>{manualRefreshLabel}</span>
-          </button>
-          <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Adatkapcsolat beállításai">•••</button>
-        </div>
-      </header>
+        </header>
 
-      <nav className="section-nav" aria-label="Ugrás az oldal szakaszaihoz">
-        <div className="section-nav__track">
-          {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id}>{block.navigationLabel}</a>)}
-        </div>
-      </nav>
+        <nav className={`section-nav${navigationOpen ? " is-open" : ""}`} id="section-menu" aria-label="Ugrás az oldal szakaszaihoz">
+          <div className="section-nav__track">
+            {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id} onClick={() => setNavigationOpen(false)}>{block.navigationLabel}</a>)}
+          </div>
+        </nav>
+      </div>
 
       <main id="main">
         <section className="intro" id="kezdolap">
@@ -340,8 +355,8 @@ function App() {
           onClimateCustomChange={climateSelection.setCustomRange}
           onClimateAggregationChange={setClimateAggregation}
           batterySoc={batterySoc}
-          loading={loading}
-          onRefresh={() => void loadData(period, settings, anchor, customStart, customEnd)}
+          loading={loading || manualRefreshBusy}
+          onRefresh={() => void triggerManualRefresh()}
         />
 
         <footer id="adatkapcsolat"><span>Utolsó adatfrissítés: {formatTime(data.updatedAt)}</span><button onClick={() => setSettingsOpen(true)}>Adatkapcsolat beállítása →</button></footer>

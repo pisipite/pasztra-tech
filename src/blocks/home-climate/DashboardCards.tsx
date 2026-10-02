@@ -88,7 +88,7 @@ const climatePeriods: { key: PeriodKey; label: string }[] = [
   { key: "custom", label: "Egyéb" },
 ];
 
-function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation, climateLoading, onClimatePeriodChange, onClimateStep, onClimateCustomChange, onClimateAggregationChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateAggregation" | "climateLoading" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange" | "onClimateAggregationChange">) {
+function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation, climateLoading, loading, onRefresh, onClimatePeriodChange, onClimateStep, onClimateCustomChange, onClimateAggregationChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateAggregation" | "climateLoading" | "loading" | "onRefresh" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange" | "onClimateAggregationChange">) {
   const [temperatureVisible, setTemperatureVisible] = useState(true);
   const [humidityVisible, setHumidityVisible] = useState(true);
   const validDevices = data.govee.devices.filter((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
@@ -96,15 +96,11 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
   if (!activeDevice) {
     return (
       <article className="card climate-card" id="klima">
-        <div className="card__head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>Nincs elérhető mérő</h2></div></div>
+        <div className="card__head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>Nincs elérhető mérő</h2></div><button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button></div>
       </article>
     );
   }
 
-  const comfortable = activeDevice.temperatureC >= 20
-    && activeDevice.temperatureC <= 25
-    && activeDevice.humidityPct >= 40
-    && activeDevice.humidityPct <= 60;
   const aggregationAvailable = climatePeriod !== "day";
   const weatherTwins = data.govee.weatherTwins ?? [];
   const closestWeatherTwin = weatherTwins[0];
@@ -115,7 +111,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
       <span className="plant-sprout plant-sprout--climate" aria-hidden="true"><i /><i /><i /></span>
       <div className="card__head section-header">
         <div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>{activeDevice.room}</h2></div>
-        <span className={`comfort-badge section-header__tools ${comfortable ? "" : "comfort-badge--alert"}`}>{comfortable ? "Kellemes" : "Ellenőrizendő"}</span>
+        <button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button>
       </div>
       <div className="climate-reading">
         <div className="temperature"><strong>{formatFixedNumber(activeDevice.temperatureC, 1)}°</strong><span>C</span></div>
