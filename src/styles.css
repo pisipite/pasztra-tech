@@ -2052,55 +2052,65 @@ main { max-width: 1500px; padding-top: 28px; }
   .climate-chart-heading .period-control-stack { width: 100%; }
 }
 
-/* Rögzített asztali navigáció és mobil hamburger-menü */
-.site-navigation {
+/* Csak a sárga szekciónavigáció rögzített; a címsor kigördül. */
+.section-nav {
   position: sticky;
   z-index: 40;
   top: 0;
 }
 .app-shell { overflow: clip; }
-.site-navigation .section-nav { position: static; }
-.menu-toggle { display: none; }
+.section-nav__toggle { display: none; }
 #oldal-teteje,
 article[id],
-section[id] { scroll-margin-top: 150px; }
+section[id] { scroll-margin-top: 76px; }
 
 @media (max-width: 760px) {
-  .site-navigation .topbar { position: relative; z-index: 2; }
   .topbar .stream-indicators,
   .topbar .data-refresh-button { display: none; }
-  .menu-toggle {
-    display: inline-flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-  }
-  .menu-toggle span {
+  .section-nav {
     display: block;
-    width: 18px;
+    padding: 7px 16px;
+    border-bottom: 3px solid var(--poster-deep);
+  }
+  .section-nav__toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 9px 5px;
+    border: 0;
+    color: var(--poster-deep);
+    background: transparent;
+    cursor: pointer;
+    font: 700 12px "Oswald", Impact, sans-serif;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+  .menu-toggle__icon {
+    display: grid;
+    gap: 4px;
+    width: 19px;
+  }
+  .menu-toggle__icon i {
+    display: block;
+    width: 19px;
     height: 2px;
     border-radius: 2px;
     background: currentColor;
     transition: transform .18s ease, opacity .18s ease;
   }
-  .menu-toggle.is-open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-  .menu-toggle.is-open span:nth-child(2) { opacity: 0; }
-  .menu-toggle.is-open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
-  .site-navigation .section-nav {
-    display: none;
-    padding: 0;
-    border-bottom: 3px solid var(--poster-deep);
-  }
-  .site-navigation .section-nav.is-open { display: block; }
-  .site-navigation .section-nav__track {
+  .section-nav__toggle.is-open .menu-toggle__icon i:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .section-nav__toggle.is-open .menu-toggle__icon i:nth-child(2) { opacity: 0; }
+  .section-nav__toggle.is-open .menu-toggle__icon i:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+  .section-nav .section-nav__track { display: none; }
+  .section-nav.is-open .section-nav__track {
     display: grid;
     width: 100%;
     max-width: none;
     margin: 0;
     overflow: visible;
   }
-  .site-navigation .section-nav a {
+  .section-nav a {
     display: block;
     padding: 12px 20px;
     border-right: 0;
@@ -2108,7 +2118,7 @@ section[id] { scroll-margin-top: 150px; }
     font-size: 13px;
     transform: none;
   }
-  .site-navigation .section-nav a:last-child { border-bottom: 0; }
+  .section-nav a:last-child { border-bottom: 0; }
   article[id],
   section[id] { scroll-margin-top: 84px; }
 }

@@ -278,33 +278,32 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div className="site-navigation" id="oldal-teteje">
-        <header className="topbar">
-          <a href="#main" className="brand" aria-label="Pasztra tech: Napfény kezdőlap">
-            <span className="brand__mark"><i /></span>
-            <span>Pasztra tech<em>:</em> Napfény</span>
-          </a>
-          <div className="topbar__actions">
-            <div className="stream-indicators" aria-label="Adatfolyamok állapota">
-              <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
-              <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
-            </div>
-            <button className={`data-refresh-button is-${manualRefreshState}`} onClick={() => void triggerManualRefresh()} disabled={manualRefreshBusy} aria-describedby={manualRefreshMessage ? "manual-refresh-status" : undefined}>
-              <i aria-hidden="true">↻</i><span>{manualRefreshLabel}</span>
-            </button>
-            <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Adatkapcsolat beállításai">•••</button>
-            <button className={`icon-button menu-toggle${navigationOpen ? " is-open" : ""}`} type="button" aria-label={navigationOpen ? "Menü bezárása" : "Menü megnyitása"} aria-expanded={navigationOpen} aria-controls="section-menu" onClick={() => setNavigationOpen((open) => !open)}>
-              <span /><span /><span />
-            </button>
+      <header className="topbar" id="oldal-teteje">
+        <a href="#main" className="brand" aria-label="Pasztra tech: Napfény kezdőlap">
+          <span className="brand__mark"><i /></span>
+          <span>Pasztra tech<em>:</em> Napfény</span>
+        </a>
+        <div className="topbar__actions">
+          <div className="stream-indicators" aria-label="Adatfolyamok állapota">
+            <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
+            <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
           </div>
-        </header>
+          <button className={`data-refresh-button is-${manualRefreshState}`} onClick={() => void triggerManualRefresh()} disabled={manualRefreshBusy} aria-describedby={manualRefreshMessage ? "manual-refresh-status" : undefined}>
+            <i aria-hidden="true">↻</i><span>{manualRefreshLabel}</span>
+          </button>
+          <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Adatkapcsolat beállításai">•••</button>
+        </div>
+      </header>
 
-        <nav className={`section-nav${navigationOpen ? " is-open" : ""}`} id="section-menu" aria-label="Ugrás az oldal szakaszaihoz">
-          <div className="section-nav__track">
-            {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id} onClick={() => setNavigationOpen(false)}>{block.navigationLabel}</a>)}
-          </div>
-        </nav>
-      </div>
+      <nav className={`section-nav${navigationOpen ? " is-open" : ""}`} id="section-menu" aria-label="Ugrás az oldal szakaszaihoz">
+        <button className={`section-nav__toggle${navigationOpen ? " is-open" : ""}`} type="button" aria-label={navigationOpen ? "Menü bezárása" : "Menü megnyitása"} aria-expanded={navigationOpen} aria-controls="section-menu-links" onClick={() => setNavigationOpen((open) => !open)}>
+          <span className="menu-toggle__icon" aria-hidden="true"><i /><i /><i /></span>
+          <strong>Menü</strong>
+        </button>
+        <div className="section-nav__track" id="section-menu-links">
+          {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id} onClick={() => setNavigationOpen(false)}>{block.navigationLabel}</a>)}
+        </div>
+      </nav>
 
       <main id="main">
         <section className="intro" id="kezdolap">
