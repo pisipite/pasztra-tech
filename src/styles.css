@@ -27,14 +27,17 @@ html { scroll-behavior: smooth; }
 .section-kicker .eyebrow { margin: 0; }
 .back-to-top {
   display: inline-flex;
+  width: 28px;
   min-height: 25px;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 3px 8px;
+  padding: 3px;
   border: 1px solid rgba(7,63,57,.3);
   border-radius: 2px 9px 3px 6px;
   color: var(--poster-deep);
   background: rgba(248,234,198,.38);
+  cursor: pointer;
   font: 600 11px "Oswald", Impact, sans-serif;
   letter-spacing: .055em;
   text-decoration: none;
