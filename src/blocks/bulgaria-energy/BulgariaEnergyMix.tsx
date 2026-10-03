@@ -1,6 +1,7 @@
 import { useMemo, useState, type MouseEvent } from "react";
 import { dateFromInput, dateInputValue, DAY_MS, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
 import { batteryNetValue, gridNetValue } from "../../energyData";
+import { ENERGY_SOURCE_COLORS } from "../../config/energyColors";
 import { BackToTop } from "../../components/BackToTop";
 import { BulgariaPowerPlantMap } from "./BulgariaPowerPlantMap";
 import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, EnergyChartPoint, PeriodKey } from "../../types";
@@ -22,14 +23,14 @@ const periods: { key: PeriodKey; label: string }[] = [
 ];
 
 const series: { key: MixSeriesKey; label: string; color: string; renewable?: boolean }[] = [
-  { key: "nuclear", label: "Nukleáris", color: "#d16b35" },
-  { key: "coal", label: "Szén", color: "#6d654f" },
-  { key: "gas", label: "Földgáz", color: "#cf5743" },
-  { key: "hydro", label: "Vízenergia", color: "#2d7893", renewable: true },
-  { key: "solar", label: "Napenergia", color: "#e9aa20", renewable: true },
-  { key: "wind", label: "Szélenergia", color: "#118a87", renewable: true },
-  { key: "other", label: "Egyéb", color: "#8b9851" },
-  { key: "imports", label: "Import", color: "#8b6d93" },
+  { key: "nuclear", label: "Nukleáris", color: ENERGY_SOURCE_COLORS.nuclear },
+  { key: "coal", label: "Szén", color: ENERGY_SOURCE_COLORS.coal },
+  { key: "gas", label: "Földgáz", color: ENERGY_SOURCE_COLORS.gas },
+  { key: "hydro", label: "Vízenergia", color: ENERGY_SOURCE_COLORS.hydro, renewable: true },
+  { key: "solar", label: "Napenergia", color: ENERGY_SOURCE_COLORS.solar, renewable: true },
+  { key: "wind", label: "Szélenergia", color: ENERGY_SOURCE_COLORS.wind, renewable: true },
+  { key: "other", label: "Egyéb", color: ENERGY_SOURCE_COLORS.other },
+  { key: "imports", label: "Import", color: ENERGY_SOURCE_COLORS.imports },
 ];
 
 const mixKeys = series.map((item) => item.key);
@@ -219,9 +220,9 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const selectedHousehold = useMemo(() => householdPoints(data, period, anchor, customStart, customEnd, householdFallback), [data, period, anchor, customStart, customEnd, householdFallback]);
   const home = useMemo(() => householdSummary(selectedHousehold.points, selectedHousehold.powerValues), [selectedHousehold]);
   const homeSegments = [
-    { label: "Hálózat", value: home.grid, color: "#2d7893" },
-    { label: "Saját PV", value: home.directPv, color: "#e9aa20" },
-    { label: "Akkumulátor", value: home.battery, color: "#118a87" },
+    { label: "Hálózat", value: home.grid, color: ENERGY_SOURCE_COLORS.grid },
+    { label: "Saját PV", value: home.directPv, color: ENERGY_SOURCE_COLORS.solar },
+    { label: "Akkumulátor", value: home.battery, color: ENERGY_SOURCE_COLORS.battery },
   ];
   const periodSupply = mixKeys.map((key) => ({ key, value: energyTotals[key] }));
   const supplyTotal = periodSupply.reduce((sum, item) => sum + item.value, 0);

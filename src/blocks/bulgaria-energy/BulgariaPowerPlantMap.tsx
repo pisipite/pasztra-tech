@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { ENERGY_SOURCE_COLORS } from "../../config/energyColors";
 import { periodLabel, timestampInPeriod } from "../../dateUtils";
 import { formatFixedNumber, formatNumber } from "../../formatUtils";
 import type { BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType, PeriodKey } from "../../types";
@@ -28,15 +29,7 @@ const mapBounds = { minLongitude: 22.32, maxLongitude: 28.63, minLatitude: 41.22
 // Projecting into the outline instead of the whole canvas keeps the markers
 // geographically aligned with the stylised border.
 const mapPlot = { left: 136, right: 684, top: 41, bottom: 395 };
-const colors: Record<BulgariaPowerPlantType, string> = {
-  nuclear: "#d16b35",
-  coal: "#777057",
-  gas: "#cf5743",
-  hydro: "#3987a0",
-  solar: "#e9aa20",
-  wind: "#118a87",
-  other: "#8b9851",
-};
+const colors: Record<BulgariaPowerPlantType, string> = ENERGY_SOURCE_COLORS;
 const labels: Record<BulgariaPowerPlantType, string> = {
   nuclear: "Nukleáris",
   coal: "Szén",

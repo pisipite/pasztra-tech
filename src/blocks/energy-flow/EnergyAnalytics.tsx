@@ -4,6 +4,7 @@ import { isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils
 import { batteryChargeValue, batteryDischargeValue, batteryNetValue, gridFeedInValue, gridNetValue, gridPurchaseValue, mergeEnergyAndClimate } from "../../energyData";
 import { formatFixedNumber } from "../../formatUtils";
 import type { DashboardData, EnergyChartPoint, PeriodKey } from "../../types";
+import { ENERGY_SOURCE_COLORS } from "../../config/energyColors";
 import { BackToTop } from "../../components/BackToTop";
 
 type Props = {
@@ -26,15 +27,15 @@ const periods: { key: PeriodKey; label: string }[] = [
 ];
 
 const colors = {
-  pv: "#d8902f",
-  grid: "#357a67",
-  gridPurchase: "#357a67",
-  gridFeedIn: "#88c4a7",
-  battery: "#286f9f",
-  batteryCharge: "#7eb5d8",
-  batteryDischarge: "#286f9f",
-  load: "#c9ad00",
-  batterySoc: "#2f7057",
+  pv: ENERGY_SOURCE_COLORS.solar,
+  grid: ENERGY_SOURCE_COLORS.grid,
+  gridPurchase: ENERGY_SOURCE_COLORS.grid,
+  gridFeedIn: ENERGY_SOURCE_COLORS.gridFeedIn,
+  battery: ENERGY_SOURCE_COLORS.battery,
+  batteryCharge: ENERGY_SOURCE_COLORS.batteryCharge,
+  batteryDischarge: ENERGY_SOURCE_COLORS.battery,
+  load: "#353b38",
+  batterySoc: "#66717a",
   temperature: "#b95734",
   humidity: "#65738b",
 };
