@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
   BulgariaEnergyMix,
+  AirQuality,
   ConsumptionPlanner,
   DashboardCards,
   EnergyAnalytics,
@@ -331,6 +332,8 @@ function App() {
         <EnergyNews data={energyNews} onRequestTranslation={translateNewsItem} onQueueTranslation={queueNewsTranslation} />
 
         <SolarForecast data={data} />
+
+        <AirQuality endpoint={settings.endpoint} enabled={settings.live} refreshSeconds={settings.refreshSeconds} />
 
         <ConsumptionPlanner data={data} />
 

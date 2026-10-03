@@ -9,6 +9,7 @@ helyi segédfüggvényeit és mintaadatait ugyanabban a mappában kell tartani.
 | `#energiamix` | `bulgaria-energy/` | Országos energiamix és erőműtérkép |
 | `#hirek` | `news/` | Bolgár energiahírek, szűrők és kártyák |
 | `#elojelzes` | `forecast/` | Napelemes termelési előrejelzés |
+| `#szallo-por` | `air-quality/` | Rila környéki PM2,5/PM10 mérések, térkép és időszűrő |
 | `#fogyasztasi-proba` | `planner/` | Interaktív fogyasztástervező |
 | `#napallas` | `sun-position/` | Napállás és horizont |
 | `#klima` | `home-climate/` | Govee hőmérséklet- és páratartalom-kártya |

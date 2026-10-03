@@ -7,6 +7,11 @@ normalizáló kódtól.
   végpontok.
 - `news-sources.mjs`: bolgár sajtó RSS-forrásai, honlapjai és faviconjai,
   valamint az ERM Zapad szolgáltatói oldal.
+- `air-quality-sources.mjs`: a Rila környéki Sensor.Community kültéri PM2,5/PM10
+  mérések és napi CSV-archívumuk. A gyűjtő 7 napot visszatölt, majd 370 napig
+  őrzi a mintákat, 20 perces idősávonként egy tényleges mérés megtartásával.
+  A mentés a közös `.data-history` gyorsítótárban él; helyreállítási forrása
+  az `AIR_QUALITY_HISTORY_URL`. A publikus kimenet `air-quality.json`.
 - A Google Gemini fordítási végpontja az `endpoints.mjs` fájlban van; a fordító
   és annak publikus-hírfolyamos gyorsítótára a `news-translation.mjs` fájlban.
 

@@ -1,0 +1,57 @@
+.air-quality { margin: 28px 0; padding: clamp(22px, 3.4vw, 46px); border: 3px solid var(--poster-deep); border-radius: 5px 30px 9px 22px; background: var(--poster-paper-light); box-shadow: 9px 10px 0 rgba(7,63,57,.14); }
+.air-quality__toolbar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 14px; align-items: center; margin: 24px 0 16px; }
+.air-quality__pollutants { display: flex; gap: 7px; }
+.air-quality__pollutants button { padding: 10px 14px; background: transparent; color: var(--poster-deep); border: 1px solid #b6b99f; border-radius: 4px 12px 4px 8px; font: 700 16px "Manrope", sans-serif; cursor: pointer; }
+.air-quality__pollutants button[aria-pressed="true"] { color: var(--poster-paper-light); background: var(--poster-deep); border-color: var(--poster-deep); }
+.air-quality__pollutants small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; }
+.air-quality__updated, .air-quality__status { color: #5c665b; font-size: 13px; }
+.air-quality__status:not(:empty) { padding: 12px 15px; margin-bottom: 16px; border-left: 3px solid var(--poster-orange); background: #f4dfb7; line-height: 1.5; }
+.air-quality__layout { display: grid; grid-template-columns: minmax(0, 1fr) 270px; border: 2px solid var(--poster-deep); border-radius: 4px 17px 6px 11px; overflow: hidden; }
+.air-quality__map-scroll { overflow-x: auto; background: #e8e9d8; }
+.air-quality__map { position: relative; min-width: 650px; }
+.air-quality__map svg { display: block; width: 100%; height: auto; }
+.air-quality__mountain { fill: #b8c6a9; stroke: #91a78b; stroke-width: 2; }
+.air-quality__contour { fill: none; stroke: #8da283; stroke-width: 1.3; opacity: .7; }
+.air-quality__road { fill: none; stroke: #c0aa76; stroke-width: 5; stroke-linejoin: round; }
+.air-quality__river { fill: none; stroke: #67999e; stroke-width: 3; stroke-linejoin: round; }
+.air-quality__rila { fill: #315d4f; font: 600 51px "Oswald", sans-serif; letter-spacing: .16em; }
+.air-quality__region-label { fill: #315d4f; font: 600 16px "Manrope", sans-serif; letter-spacing: .23em; }
+.air-quality__landmark { fill: #315d4f; font: 600 16px "Manrope", sans-serif; }
+.air-quality__compass { fill: #315d4f; font: 700 22px "Manrope", sans-serif; }
+.air-quality__map-caption { fill: #596653; font: 500 17px "Manrope", sans-serif; }
+.air-quality__town { position: absolute; transform: translate(-50%, 15px); display: grid; gap: 3px; min-width: 90px; padding: 7px 10px; color: var(--poster-deep); background: #fbf5e4; border: 2px solid; border-left-width: 5px; border-radius: 3px 9px 3px 6px; cursor: pointer; text-align: left; white-space: nowrap; box-shadow: 2px 3px 0 #2449361a; }
+.air-quality__town strong { font-size: 13px; }
+.air-quality__town span { font: 500 12px "DM Mono", monospace; }
+.air-quality__town--sapareva { transform: translate(-35%, -110%); }
+.air-quality__town--samokov { transform: translate(-50%, -120%); }
+.air-quality__town--boboshevo { transform: translate(-45%, 15px); }
+.air-quality__town--dolna { transform: translate(-65%, -110%); }
+.air-quality__town--razlog { transform: translate(-50%, -105%); }
+.air-quality__town.is-selected { outline: 2px solid var(--poster-deep); outline-offset: 3px; }
+.air-quality button:focus-visible, .air-quality__map-scroll:focus-visible { outline: 3px solid var(--poster-orange); outline-offset: 4px; }
+.air-quality__detail { background: var(--poster-deep); color: var(--poster-paper-light); padding: 26px 22px; min-width: 0; }
+.air-quality__detail .eyebrow { font-size: 12px; color: #d7dfa9; }
+.air-quality__detail h3 { margin: 15px 0; font: 600 29px "Oswald", sans-serif; }
+.air-quality__detail h3 small { display: block; margin-top: 3px; color: #d7dfa9; font: 500 14px "Manrope", sans-serif; }
+.air-quality__value { display: block; margin: 20px 0 16px; font: 500 49px "Oswald", sans-serif; line-height: 1; }
+.air-quality__value small { margin-left: 8px; font: 500 16px "DM Mono", monospace; }
+.air-quality__detail > p:not(.eyebrow) { font-size: 14px; line-height: 1.6; color: #dbe1c5; }
+.air-quality__stations { display: grid; gap: 16px; margin-top: 22px; max-height: 260px; overflow-y: auto; }
+.air-quality__stations > div { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding-top: 12px; border-top: 1px solid #c6d1b833; font-size: 13px; }
+.air-quality__stations a { color: #f4d37b; text-underline-offset: 3px; }
+.air-quality__stations strong { font-size: 13px; }
+.air-quality__stations small { grid-column: 1 / -1; color: #c7d4bc; font-size: 12px; line-height: 1.6; }
+.air-quality__legend { display: flex; flex-wrap: wrap; gap: 9px 16px; margin: 17px 0; font-size: 12px; color: #52604f; }
+.air-quality__legend span { display: inline-flex; gap: 6px; align-items: center; }
+.air-quality__legend i { width: 13px; height: 13px; border: 1px solid #173f3544; border-radius: 50%; }
+.air-quality__coverage, .air-quality__source { color: #566051; font-size: 13px; line-height: 1.7; }
+.air-quality__source { padding-top: 18px; margin: 18px 0 0; border-top: 1px solid #b9c1aa; }
+.air-quality__source a { color: var(--poster-deep); text-underline-offset: 3px; font-weight: 700; }
+.air-quality__table-details { margin-top: 16px; font-size: 14px; }
+.air-quality__table-details summary { cursor: pointer; font-weight: 700; padding: 8px 0; }
+.air-quality__table-scroll { overflow-x: auto; }
+.air-quality table { border-collapse: collapse; width: 100%; margin-top: 10px; text-align: left; }
+.air-quality td, .air-quality th { padding: 11px 10px; border-bottom: 1px solid #c9cdb5; }
+.air-quality th button { padding: 0; border: none; background: none; color: var(--poster-deep); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 1150px) { .air-quality__layout { grid-template-columns: 1fr; } .air-quality__detail { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; } .air-quality__detail .eyebrow { grid-column: 1 / -1; } .air-quality__detail h3 { margin-top: 0; } .air-quality__detail .air-quality__value { margin-top: 0; } .air-quality__stations { margin-top: 0; grid-row: span 2; max-height: 210px; } }
+@media (max-width: 640px) { .air-quality { padding: 22px 14px; margin-left: -10px; margin-right: -10px; box-shadow: 5px 7px 0 rgba(7,63,57,.14); } .air-quality__detail { display: block; padding: 22px; } .air-quality__stations { margin-top: 20px; } .air-quality__toolbar { align-items: flex-start; flex-direction: column; } .air-quality td, .air-quality th { padding: 10px 7px; font-size: 12px; } }

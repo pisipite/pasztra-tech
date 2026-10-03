@@ -3,12 +3,21 @@ import { smoothPath } from "../../chartUtils";
 import { BackToTop } from "../../components/BackToTop";
 import { formatFixedNumber } from "../../formatUtils";
 import type { DashboardData, SolarForecastPoint } from "../../types";
+import "./forecast.css";
 
 type Props = { data: DashboardData };
 
 function timePosition(label: string) {
   const [hour = 0, minute = 0] = label.split(":").map(Number);
   return (hour * 60 + minute) / 1440;
+}
+
+function ForecastSource({ demo = false }: { demo?: boolean }) {
+  return <p className="forecast-note forecast-source">
+    {demo ? "Mintaadatok. Élő módban az időjárási adatok forrása: " : "Időjárási adatok forrása: "}
+    <a href="https://open-meteo.com/en/docs" target="_blank" rel="noreferrer">Open-Meteo</a>
+    {demo ? "." : " · órás besugárzás, felhőzet és csapadékvalószínűség. A termelési becslés ezekből készül."}
+  </p>;
 }
 
 export function SolarForecast({ data }: Props) {
@@ -25,7 +34,7 @@ export function SolarForecast({ data }: Props) {
   }, [data.solar.energyChart, selectedDay, selectedIndex]);
 
   if (!forecast || !selectedDay) {
-    return <article className="forecast-card card" id="elojelzes"><div className="forecast-head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div><h2>Termelési előrejelzés</h2><p className="forecast-subtitle">Az időjárási becslés a következő frissítéssel érkezik.</p></div></div></article>;
+    return <article className="forecast-card card" id="elojelzes"><div className="forecast-head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div><h2>Termelési előrejelzés</h2><p className="forecast-subtitle">Az időjárási becslés a következő frissítéssel érkezik.</p></div></div><ForecastSource demo={data.source === "demo"} /></article>;
   }
 
   const width = 1000;
@@ -89,6 +98,7 @@ export function SolarForecast({ data }: Props) {
         {active && <div className="forecast-tooltip"><strong>{active.label}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{formatFixedNumber(active.precipitationProbabilityPct, 0)}%</b></span></div>}
       </div>
       <p className="forecast-note">Az előrejelzés időjárási modellből készült becslés; a helyi hegyoldal árnyékolása eltérést okozhat.</p>
+      <ForecastSource demo={data.source === "demo"} />
     </article>
   );
 }
