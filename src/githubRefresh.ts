@@ -1,7 +1,17 @@
 import type { DashboardData, EnergyNewsData } from "./types";
 
-const dispatchUrl = "https://api.github.com/repos/pisipite/pasztra-tech/actions/workflows/deploy-pages.yml/dispatches";
+const workflowUrl = "https://api.github.com/repos/pisipite/pasztra-tech/actions/workflows/deploy-pages.yml";
+const dispatchUrl = `${workflowUrl}/dispatches`;
 const apiVersion = "2022-11-28";
+const activeRunStatuses = new Set(["queued", "in_progress", "waiting", "pending", "requested"]);
+const activeRunMaxAgeMs = 30 * 60_000;
+
+type WorkflowRun = {
+  head_branch?: string;
+  status?: string;
+  created_at?: string;
+  run_started_at?: string;
+};
 
 export type RefreshProgress = "starting" | "waiting";
 
@@ -37,7 +47,42 @@ async function dispatchWorkflow(token: string, inputs?: Record<string, string>) 
 }
 
 export async function dispatchDashboardRefresh(token: string) {
-  return dispatchWorkflow(token);
+  // Reuse a recent main run, including one waiting for a runner or deployment.
+  // Bound the lookup and let a new request recover runs stalled for 30 minutes.
+  const response = await fetch(`${workflowUrl}/runs?branch=main&per_page=100`, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": apiVersion,
+    },
+    cache: "no-store",
+  });
+  if (response.status === 401 || response.status === 403) {
+    throw new Error("A GitHub-token érvénytelen, lejárt, vagy nincs Actions olvasási jogosultsága.");
+  }
+  if (!response.ok) {
+    throw new Error("A GitHubon futó frissítések állapota nem ellenőrizhető. Új futás nem indult; ellenőrizd a GitHub Actions állapotát.");
+  }
+
+  const payload = await response.json() as { workflow_runs?: WorkflowRun[] };
+  if (!Array.isArray(payload.workflow_runs)) {
+    throw new Error("A GitHub nem adott érvényes futáslistát. Új frissítés nem indult.");
+  }
+  const now = Date.now();
+  const activeRuns = payload.workflow_runs.filter((run) => run.head_branch === "main" && activeRunStatuses.has(run.status ?? ""));
+  const isStalled = (run: WorkflowRun) => {
+    const startedAt = new Date(run.run_started_at ?? run.created_at ?? "").getTime();
+    // Missing timestamps are not evidence that an active run is safe to replace.
+    return Number.isFinite(startedAt) && now - startedAt >= activeRunMaxAgeMs;
+  };
+  const hasStalledRun = activeRuns.some(isStalled);
+  const hasRecentRunning = activeRuns.some((run) => run.status === "in_progress" && !isStalled(run));
+  // Protect a recent running build, but fresh queued requests must not hide an
+  // older blocker indefinitely (the schedule can keep creating pending runs).
+  if (activeRuns.length > 0 && (!hasStalledRun || hasRecentRunning)) return;
+
+  // The workflow only permits this explicit recovery request to replace a run.
+  return dispatchWorkflow(token, hasStalledRun ? { force_refresh: "true" } : undefined);
 }
 
 export async function dispatchNewsTranslation(token: string, articleUrl: string) {
@@ -60,7 +105,7 @@ export async function waitForFreshDashboard(endpoint: string, previousUpdatedAt:
     await wait(5_000);
   }
 
-  throw new Error("A frissítés elindult, de az új adatok még nem jelentek meg. Néhány perc múlva próbáld újra.");
+  throw new Error("Az új adatok még nem jelentek meg. A GitHub-futás várakozhat vagy még dolgozhat; új frissítést ne indíts. Az oldal később automatikusan betölti az új adatokat. A futás állapota a GitHub Actions oldalon ellenőrizhető.");
 }
 
 function comparableArticleUrl(value: string) {

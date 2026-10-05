@@ -11,6 +11,11 @@ on:
         description: "Csak ezt a hírcikket fordítsa magyarra"
         required: false
         type: string
+      force_refresh:
+        description: "Beragadt frissítés megszakítása és újraindítása"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -19,15 +24,19 @@ permissions:
 
 concurrency:
   group: pages
-  # A GitHub Pages deployment can occasionally remain in the environment's
-  # waiting state. Let the next scheduled/manual refresh replace it so one
-  # stale deployment cannot block every later data update.
-  cancel-in-progress: true
+  # Normal refreshes wait for the active publication instead of cancelling it.
+  # A code update or explicit recovery can still replace a genuinely stuck run.
+  cancel-in-progress: ${{ github.event_name == 'push' || inputs.force_refresh == true }}
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    name: Build and deploy
+    # Use a fixed, supported image while hosted-runner allocation is unstable.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 25
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -43,7 +52,7 @@ jobs:
           path: ~/gosungrow
           key: gosungrow-encryption-v3.0.7-linux-amd64
       - name: Mérési előzmények
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: .data-history
           key: measurement-history-${{ github.run_id }}
@@ -80,20 +89,22 @@ jobs:
           AIR_QUALITY_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/air-quality.json
           SUNGROW_DAY_HISTORY_DAYS: 31
         run: bash scripts/fetch-live-data.sh
+      # Save collected measurements even when a later build/deployment fails.
+      - name: Mérési előzmények mentése
+        uses: actions/cache/save@v4
+        with:
+          path: .data-history
+          key: measurement-history-${{ github.run_id }}
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: build
-    steps:
+      # Reuse this runner: a successful build must not wait for a second one.
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
+        timeout-minutes: 11
+        with:
+          timeout: 600000

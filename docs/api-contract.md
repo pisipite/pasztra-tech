@@ -16,7 +16,7 @@ A `range` értéke `today`, `7d`, `30d` vagy `year`. A frontend az aktív napot,
 
 ## Govee mérési előzmények
 
-A 15 percenként futó munkafolyamat minden Govee-mérést időbélyeggel hozzáfűz a `.data-history/govee-history.json` előzményhez. A fájlt a GitHub Actions gyorsítótára őrzi meg a futások között, a legutóbbi Pages-kiadásban található `data/govee-history.json` pedig tartalék visszaállítási forrás. Az előzmény legfeljebb 370 napot tart meg.
+A 20 percenként ütemezett munkafolyamat minden Govee-mérést időbélyeggel hozzáfűz a `.data-history/govee-history.json` előzményhez. A fájlt a GitHub Actions gyorsítótára őrzi meg a futások között; mentése az összeállítás és közzététel előtt történik. A legutóbbi Pages-kiadásban található `data/govee-history.json` tartalék visszaállítási forrás. Az előzmény legfeljebb 370 napot tart meg.
 
 A napi grafikon az időbélyeges méréseket, a heti és havi grafikon a napi átlagokat, az éves grafikon pedig a havi átlagokat használja. Mivel a Govee API aktuális állapotot ad vissza, a történeti vonal a funkció bekapcsolása utáni mérésekből épül fel.
 

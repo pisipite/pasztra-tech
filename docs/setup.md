@@ -1,6 +1,6 @@
 # Élő adatok beállítása
 
-Az oldal 15 percenként GitHub Actionsben frissíti a publikus adatfájlokat, majd újratelepíti a GitHub Pages oldalt. A felhasználónevek, jelszavak és API-kulcsok nem kerülnek bele a weboldalba vagy a build eredményébe.
+Az oldal 20 percenként ütemezett GitHub Actions-futással frissíti a publikus adatfájlokat, majd újratelepíti a GitHub Pages oldalt. Az ütemezés szolgáltatási terhelés vagy üzemzavar esetén késhet. A felhasználónevek, jelszavak és API-kulcsok nem kerülnek bele a weboldalba vagy a build eredményébe.
 
 ## 1. GitHub Pages bekapcsolása
 
@@ -54,7 +54,9 @@ GoSungrow show ps list
 
 ## 4. Egykattintásos kézi frissítés
 
-Az oldal fejlécében lévő **Adatok frissítése** gomb a GitHub Actions munkafolyamatot indítja el, megvárja az új adatfájl megjelenését, majd automatikusan újratölti a dashboardot.
+Az **Adatok frissítése** gomb először ellenőrzi a GitHubon aktív frissítéseket. A már futó vagy várakozó frissítést megvárja; csak akkor indít újat, ha nincs ilyen. A 30 percnél régebbi beragadt futás helyett kifejezett helyreállítást kér, kivéve, ha közben már ténylegesen dolgozik egy újabb futás. Az új adatfájl megjelenésekor automatikusan újratölti a dashboardot.
+
+GitHub-üzemzavar idején az ismételt kattintás nem gyorsítja a futtatógép kiosztását. Kézi helyreállításhoz az **Actions → Deploy to GitHub Pages → Run workflow** alatt a `force_refresh` kapcsolóval lehet a beragadt futást lecserélni. A szolgáltató futtatógép-kiosztási hibáját ez sem tudja megszüntetni.
 
 Az első használat előtt:
 

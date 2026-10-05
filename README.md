@@ -13,7 +13,9 @@ pnpm dev
 
 ## GitHub Pages
 
-A `.github/workflows/deploy-pages.yml` minden `main` ágra küldött változtatás után, valamint 10 percenként elkészíti és publikálja az oldalt. A GitHub repository **Settings → Pages → Source** beállításánál válaszd a **GitHub Actions** lehetőséget.
+A `.github/workflows/deploy-pages.yml` minden `main` ágra küldött változtatás után, valamint 20 percenként ütemezve elkészíti és publikálja az oldalt. A GitHub ütemezése és a futtatógépek elérhetősége miatt a tényleges frissítés késhet. A GitHub repository **Settings → Pages → Source** beállításánál válaszd a **GitHub Actions** lehetőséget.
+
+Az adatgyűjtés, az összeállítás és a közzététel ugyanazon a futtatón történik. A szokásos frissítések megvárják az aktív futást; csak kódfrissítés vagy a kézi `force_refresh` helyreállítás szakítja meg azt. A mérési előzmények már a közzététel előtt a gyorsítótárba kerülnek, így egy későbbi közzétételi hiba nem akadályozza meg a mentésüket.
 
 ## Élő adatok
 
