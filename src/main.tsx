@@ -338,7 +338,7 @@ function App() {
 
       <main id="main">
         <section className="intro" id="kezdolap">
-          <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-poster-hero${darkMode ? "-night" : ""}.png`} alt={`A hegyoldali otthon ${darkMode ? "éjszakai" : "nappali"}, turisztikai plakát stílusú látképe`} />
+          <img className="intro__photo" src={`${import.meta.env.BASE_URL}${darkMode ? "pasztra-poster-hero-night.png?v=2" : "pasztra-poster-hero.png"}`} alt={`A hegyoldali otthon ${darkMode ? "éjszakai" : "nappali"}, turisztikai plakát stílusú látképe`} />
           <div className="intro__shade" aria-hidden="true" />
           <span className="sun-charm sun-charm--hero" aria-hidden="true"><i /></span>
           <div className="intro__content">
