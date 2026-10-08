@@ -121,8 +121,8 @@ export function AirQuality({ endpoint, enabled, refreshSeconds }: { endpoint: st
             <svg viewBox="0 0 1000 660" role="img" aria-label={mapLabel}>
               <title>{mapLabel}</title>
               <desc>A színes pontok a mérők megközelítő helyei. A településgombok a környező mérők átlagát mutatják; részletes adatok a térkép mellett.</desc>
-              <defs><pattern id="air-map-grid" width="50" height="50" patternUnits="userSpaceOnUse"><path d="M50 0H0V50" fill="none" stroke="#d2d6c1" strokeWidth=".8" /></pattern></defs>
-              <rect width="1000" height="660" fill="#e8e9d8" />
+              <defs><pattern id="air-map-grid" width="50" height="50" patternUnits="userSpaceOnUse"><path className="air-quality__grid" d="M50 0H0V50" fill="none" strokeWidth=".8" /></pattern></defs>
+              <rect className="air-quality__map-bg" width="1000" height="660" />
               <rect width="1000" height="660" fill="url(#air-map-grid)" />
               <path d={mapPath([[42.24,23.25],[42.285,23.35],[42.29,23.49],[42.25,23.62],[42.27,23.71],[42.16,23.76],[42.06,23.66],[41.96,23.56],[41.96,23.42],[42.04,23.34],[42.11,23.29],[42.16,23.22]]) + " Z"} className="air-quality__mountain" />
               <path d={mapPath([[42.20,23.28],[42.245,23.39],[42.24,23.50],[42.18,23.64],[42.09,23.64],[42.035,23.54],[42.025,23.44],[42.10,23.35],[42.20,23.28]])} className="air-quality__contour" />

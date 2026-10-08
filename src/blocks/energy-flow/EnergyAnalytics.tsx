@@ -34,10 +34,10 @@ const colors = {
   battery: ENERGY_SOURCE_COLORS.battery,
   batteryCharge: ENERGY_SOURCE_COLORS.batteryCharge,
   batteryDischarge: ENERGY_SOURCE_COLORS.battery,
-  load: "#353b38",
-  batterySoc: "#66717a",
-  temperature: "#b95734",
-  humidity: "#65738b",
+  load: "var(--series-load)",
+  batterySoc: "var(--series-battery-soc)",
+  temperature: "var(--series-temperature)",
+  humidity: "var(--series-humidity)",
 };
 
 const shortDayFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric" });

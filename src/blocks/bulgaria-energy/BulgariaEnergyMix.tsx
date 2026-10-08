@@ -35,7 +35,7 @@ const series: { key: MixSeriesKey; label: string; color: string; renewable?: boo
 
 const mixKeys = series.map((item) => item.key);
 const generationKeys = series.filter((item) => item.key !== "imports").map((item) => item.key);
-const loadColor = "#073f39";
+const loadColor = "var(--series-load)";
 const compactNumber = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
 const hourFormatter = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
 const dayFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric" });

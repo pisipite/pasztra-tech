@@ -1,0 +1,245 @@
+/* One palette for SVG charts, legends and HTML bars. The selected theme only
+   changes presentation; energy and climate values are never recalculated. */
+:root {
+  --series-hydro: #246b43;
+  --series-solar: #479e62;
+  --series-wind: #8abb75;
+  --series-nuclear: #285e8b;
+  --series-coal: #173b5a;
+  --series-gas: #4f88b4;
+  --series-other: #78a7ca;
+  --series-imports: #a3c2d9;
+  --series-grid: #285e8b;
+  --series-grid-feed-in: #78a7ca;
+  --series-battery: #4f88b4;
+  --series-battery-charge: #a3c2d9;
+  --series-load: #353b38;
+  --series-battery-soc: #66717a;
+  --series-temperature: #b95734;
+  --series-humidity: #65738b;
+}
+
+.theme-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid rgba(248,234,198,.48);
+  border-radius: 5px 12px 5px 9px;
+}
+.theme-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: 3px 7px 3px 6px;
+  color: #f8eac6;
+  background: transparent;
+  cursor: pointer;
+  font: 600 10px "Oswald", Impact, sans-serif;
+  text-transform: uppercase;
+}
+.theme-switch button:hover { background: rgba(248,234,198,.14); }
+.theme-switch button.is-active { color: #092d32; background: #e9aa20; }
+.theme-switch button:focus-visible { outline: 2px solid #f8eac6; outline-offset: 2px; }
+.theme-switch button > span:first-child { font-size: 15px; line-height: 1; }
+@media (max-width: 1100px) {
+  .theme-switch button { padding-inline: 6px; }
+  .theme-switch button > span:last-child { display: none; }
+}
+@media (max-width: 380px) {
+  .topbar__actions { gap: 5px; }
+  .theme-switch button { padding-inline: 4px; }
+}
+
+:root[data-theme="dark"] {
+  --ink: #eaf0e7;
+  --muted: #aabbb7;
+  --paper: #102a30;
+  --line: rgba(174,210,205,.29);
+  --forest: #8bceb8;
+  --poster-teal: #55c5b5;
+  --poster-blue: #79bdd7;
+  --poster-orange: #f5a66e;
+  --poster-yellow: #f1bd58;
+  --poster-coral: #f08470;
+  --series-hydro: #52c4a1;
+  --series-solar: #f0bb4d;
+  --series-wind: #89d69d;
+  --series-nuclear: #f18b58;
+  --series-coal: #a39488;
+  --series-gas: #e08378;
+  --series-other: #b7c588;
+  --series-imports: #bb99c9;
+  --series-grid: #75b9e0;
+  --series-grid-feed-in: #6dd4d2;
+  --series-battery: #bc9ee8;
+  --series-battery-charge: #99b8ee;
+  --series-load: #f1e4ce;
+  --series-battery-soc: #d1e5bf;
+  --series-temperature: #f4a77b;
+  --series-humidity: #80c7df;
+  --dark-bg: #071b24;
+  --dark-panel: #102c32;
+  --dark-raised: #193a40;
+  --dark-text: #eaf0e7;
+  --dark-muted: #aabbb7;
+  --dark-border: #497078;
+}
+
+[data-theme="dark"] body {
+  color: var(--dark-text);
+  background: radial-gradient(circle at 80% 0%, #14384a 0, transparent 36%), var(--dark-bg);
+}
+[data-theme="dark"] .app-shell::before { opacity: .1; }
+[data-theme="dark"] .topbar { background: #071b24; }
+[data-theme="dark"] .section-nav { background: #c89436; border-color: #071b24; }
+[data-theme="dark"] .intro { border-color: #6e9ca2; background: #071b24; box-shadow: 0 0 0 2px #071b24; }
+[data-theme="dark"] .intro__photo { filter: saturate(.9) contrast(1.07); }
+[data-theme="dark"] .intro__shade { background: linear-gradient(90deg, rgba(4,20,32,.94), rgba(4,20,32,.54) 30%, transparent 68%); }
+[data-theme="dark"] .intro h1,
+[data-theme="dark"] .intro .eyebrow { color: #fff0c9; text-shadow: 0 2px 15px rgba(0,0,0,.55); }
+
+/* Main cards and their header/control hierarchy. */
+[data-theme="dark"] :is(.card, .energy-analysis, .forecast-card, .sun-horizon-card, .planner-card, .solar-card, .climate-card, .bulgaria-mix, .energy-news, .air-quality) {
+  color: var(--dark-text);
+  border-color: var(--dark-border);
+  background-color: var(--dark-panel);
+  background-image: radial-gradient(circle at 20% 30%, rgba(165,211,204,.04) 0 .7px, transparent 1px);
+  box-shadow: none;
+}
+[data-theme="dark"] :is(.analysis-toolbar h2, .forecast-head h2, .sun-horizon-head h2, .planner-head h2, .card__head h2, .climate-chart-heading > div:first-child strong, .section-header h2, .bulgaria-mix .section-header h2, .bulgaria-mix h2, .bulgaria-mix__home h3, .air-quality h2, .energy-news h2) { color: var(--dark-text); }
+[data-theme="dark"] :is(.section-header__lead > p, .bulgaria-mix__freshness, .energy-news__status, .energy-news__foot, .forecast-subtitle, .air-quality__updated, .air-quality__status) { color: var(--dark-muted); }
+[data-theme="dark"] :is(.eyebrow, .solar-card .eyebrow) { color: var(--poster-orange); }
+[data-theme="dark"] :is(.period-tabs, .forecast-tabs, .planner-day-tabs, .climate-aggregation, .energy-news-controls) { background: var(--dark-raised); border-color: var(--dark-border); }
+[data-theme="dark"] :is(.period-tabs, .forecast-tabs, .planner-day-tabs, .climate-aggregation, .energy-news-controls) button { color: var(--dark-text); }
+[data-theme="dark"] :is(.period-tabs, .forecast-tabs, .planner-day-tabs, .climate-aggregation, .energy-news-controls) button.active,
+[data-theme="dark"] .energy-news-controls button.is-active { color: #081e25; background: var(--poster-yellow); }
+[data-theme="dark"] :is(.period-stepper, .custom-range input, .overlay-toggles button, .climate-legend button, .energy-news-source select, .field input, .field select) {
+  color: var(--dark-text);
+  border-color: var(--dark-border);
+  background: var(--dark-raised);
+}
+[data-theme="dark"] :is(.period-stepper button, .overlay-toggles button, .climate-legend button, .energy-news-controls__view > span, .energy-news-source > span) { color: var(--dark-text); }
+[data-theme="dark"] :is(.chart-legend, .forecast-legend, .climate-legend) { color: var(--dark-muted); border-color: var(--dark-border); }
+[data-theme="dark"] :is(.energy-gridline, .climate-gridline, .forecast-gridline, .forecast-grid, .mix-gridline) { stroke: rgba(176,211,207,.23); }
+[data-theme="dark"] :is(.energy-zero, .hover-line, .climate-hover-line, .forecast-hover) { stroke: #8bb3b5; }
+[data-theme="dark"] :is(.energy-axis-label, .energy-x-label, .energy-axis-title, .climate-axis, .climate-x-label, .forecast-axis-label, .forecast-x-label, .forecast-axis-title, .mix-axis) { fill: #b9cfce; }
+[data-theme="dark"] :is(.chart-tooltip, .climate-tooltip, .forecast-tooltip, .bulgaria-mix__tooltip, .mix-donut__tooltip) {
+  color: var(--dark-text);
+  border-color: #68969a;
+  background: rgba(19,49,56,.97);
+  box-shadow: 5px 5px 0 rgba(0,0,0,.27);
+}
+[data-theme="dark"] :is(.chart-tooltip span, .climate-tooltip span, .mix-donut__tooltip span, .bulgaria-mix__empty) { color: var(--dark-muted); }
+[data-theme="dark"] :is(.chart-tooltip b, .climate-tooltip b) { color: var(--dark-text); }
+[data-theme="dark"] .hover-band { fill: rgba(241,189,88,.14); stroke: rgba(241,189,88,.45); }
+[data-theme="dark"] .forecast-line--expected { stroke: #f1bd58; }
+[data-theme="dark"] .forecast-line--actual { stroke: #70d0b3; }
+[data-theme="dark"] .forecast-legend i:not(.expected) { background: #70d0b3; }
+[data-theme="dark"] .forecast-legend i.expected { border-color: #f1bd58; }
+[data-theme="dark"] .climate-line--temperature { stroke: var(--series-temperature); }
+[data-theme="dark"] .climate-line--humidity { stroke: var(--series-humidity); }
+[data-theme="dark"] .climate-axis--temperature { fill: var(--series-temperature); }
+[data-theme="dark"] .climate-axis--humidity { fill: var(--series-humidity); }
+[data-theme="dark"] .climate-point--temperature { fill: var(--series-temperature); }
+[data-theme="dark"] .climate-point--humidity { fill: var(--series-humidity); }
+[data-theme="dark"] .climate-point { stroke: var(--dark-panel); }
+[data-theme="dark"] .climate-legend .is-temperature { background: var(--series-temperature); }
+[data-theme="dark"] .climate-legend .is-humidity { background: var(--series-humidity); }
+
+/* Subpanels, horizon illustration and the interactive consumption chart. */
+[data-theme="dark"] :is(.forecast-summary, .sun-horizon-readings, .planner-summary, .planner-panel, .planner-explanation, .planner-source-panel, .planner-battery-impact, .planner-battery-settings, .device-list, .device-row, .battery-status-panel, .bulgaria-mix__home) {
+  color: var(--dark-text);
+  border-color: var(--dark-border);
+  background: var(--dark-raised);
+}
+[data-theme="dark"] :is(.forecast-summary strong, .sun-horizon-readings strong, .planner-summary strong, .planner-result-head h3, .planner-battery-impact h3, .planner-explanation h3, .battery-status-panel b, .solar-card .card__head, .solar-card .battery-status-panel, .solar-card .energy-flow strong) { color: var(--dark-text); }
+[data-theme="dark"] :is(.forecast-summary span, .forecast-summary small, .sun-horizon-readings span, .sun-horizon-readings small, .planner-summary span, .planner-summary small, .planner-battery-impact > p, .planner-explanation > p, .device-row span, .power-reading p, .energy-flow span, .battery-status-panel span, .battery-status-panel p, .battery-status-panel .battery-details small) { color: var(--dark-muted); }
+[data-theme="dark"] :is(.planner-simple-inputs > label span, .planner-simple-inputs .planner-energy-input, .planner-source-list > div, .planner-battery-fields label span, .planner-device-fields label > span, .planner-device-fields input, .planner-device-fields select, .planner-timeline-wrap, .planner-timeline, .planner-battery-day, .planner-device, .planner-explanation .planner-caveat) {
+  color: var(--dark-text);
+  border-color: var(--dark-border);
+  background: var(--dark-raised);
+}
+[data-theme="dark"] :is(.planner-simple-inputs input, .planner-battery-fields input, .planner-device-fields input, .planner-device-fields select, .planner-source-list strong, .planner-source-list small, .planner-battery-impact dd, .planner-explanation dd, .planner-battery-settings summary b, .planner-battery-settings > p strong) { color: var(--dark-text); }
+[data-theme="dark"] :is(.planner-timeline, .planner-summary > div, .planner-battery-impact dl div, .planner-explanation dl > div) { border-color: var(--dark-border); }
+[data-theme="dark"] .planner-timeline { background-image: repeating-linear-gradient(90deg, transparent 0 calc(16.666% - 1px), rgba(184,211,207,.12) calc(16.666% - 1px) 16.666%); }
+[data-theme="dark"] .planner-hours { background: #18383e; }
+[data-theme="dark"] .planner-hours span,
+[data-theme="dark"] .planner-key { color: var(--dark-muted); }
+[data-theme="dark"] .planner-battery-profile polyline { stroke: #7bd8bc; }
+[data-theme="dark"] .planner-source-bar { background: #496065; }
+[data-theme="dark"] .planner-source-bar .pv { background: var(--series-solar); }
+[data-theme="dark"] .planner-source-bar .battery { background: var(--series-battery); }
+[data-theme="dark"] .planner-source-bar .grid { background: var(--series-grid); }
+[data-theme="dark"] .solar-stats { background: var(--dark-border); }
+[data-theme="dark"] .solar-stats > div { color: var(--dark-text); background: var(--dark-raised); }
+[data-theme="dark"] .solar-stats :is(span, small) { color: var(--dark-muted); }
+[data-theme="dark"] .power-reading__value,
+[data-theme="dark"] .power-reading__unit { color: var(--poster-yellow); }
+[data-theme="dark"] .battery-shape { border-color: var(--dark-text); background: #0c252b; }
+[data-theme="dark"] .battery-shape::after { background: var(--dark-text); }
+[data-theme="dark"] .battery-shape i { background: var(--series-battery); }
+[data-theme="dark"] .humidity-reading { border-color: var(--dark-border); }
+[data-theme="dark"] .humidity-reading strong { color: var(--series-humidity); }
+[data-theme="dark"] .humidity-reading span:not(.humidity-drop) { color: var(--dark-muted); }
+[data-theme="dark"] .humidity-drop__body { fill: #367a92; stroke: #b9dce1; }
+[data-theme="dark"] .device-icon { border-color: var(--dark-border); background: #15373c; }
+[data-theme="dark"] #horizon-sky stop:nth-child(1) { stop-color: #102b48; }
+[data-theme="dark"] #horizon-sky stop:nth-child(2) { stop-color: #244d66; }
+[data-theme="dark"] #horizon-sky stop:nth-child(3) { stop-color: #537b85; }
+[data-theme="dark"] #horizon-mountain stop:nth-child(1) { stop-color: #173d44; }
+[data-theme="dark"] #horizon-mountain stop:nth-child(2) { stop-color: #0b2933; }
+[data-theme="dark"] .horizon-mountain--back { fill: rgba(33,72,95,.7); }
+[data-theme="dark"] .horizon-tree-line { stroke: #071b24; }
+[data-theme="dark"] .horizon-labels text { fill: #e5e8d5; }
+[data-theme="dark"] .sun-horizon-status { color: var(--dark-text); border-color: var(--dark-border); background: var(--dark-raised); }
+[data-theme="dark"] .weather-twins { color: var(--dark-muted); }
+[data-theme="dark"] .weather-twins > button { color: var(--poster-yellow); border-color: var(--poster-yellow); }
+[data-theme="dark"] .weather-twins__tooltip { color: var(--dark-text); border-color: var(--dark-border); background: var(--dark-raised); }
+[data-theme="dark"] .weather-twins__tooltip::after { border-color: var(--dark-border); background: var(--dark-raised); }
+[data-theme="dark"] .weather-twins__tooltip small { color: var(--dark-muted); }
+
+/* National mix: the left donut is already dark; darken the timeline beside it. */
+[data-theme="dark"] .bulgaria-mix__history { color: var(--dark-text); background: #142f39; }
+[data-theme="dark"] :is(.bulgaria-mix__chart-head span, .bulgaria-mix__bar-title b, .bulgaria-mix__bar-title span, .bulgaria-mix__legend button, .bulgaria-mix__source-list span, .bulgaria-mix__note, .bulgaria-mix__home-empty, .bulgaria-mix__credit) { color: var(--dark-muted); }
+[data-theme="dark"] .mix-load-line { stroke: var(--series-load); }
+[data-theme="dark"] .mix-hover-line { stroke: #d9ece6; }
+[data-theme="dark"] .mix-donut__center { color: var(--dark-text); background: #173c42; }
+[data-theme="dark"] .mix-donut__renewable-track { stroke: rgba(217,238,227,.17); }
+[data-theme="dark"] .mix-donut__renewable-value { stroke: #73d2ac; }
+[data-theme="dark"] .bulgaria-mix__map-toggle { color: var(--dark-text); border-color: var(--dark-border); background: var(--dark-raised); }
+[data-theme="dark"] .bulgaria-mix__map-toggle:hover { color: #081e25; background: var(--poster-yellow); }
+[data-theme="dark"] .bulgaria-mix__stack { border-color: var(--dark-border); }
+[data-theme="dark"] .bulgaria-mix__credit a { color: var(--poster-yellow); }
+[data-theme="dark"] .plant-map-stage { background: #112a34; }
+[data-theme="dark"] .plant-map-country { fill: #22444d; stroke: #88b4af; }
+
+/* News and air-quality controls retain the same chart/card contrast. */
+[data-theme="dark"] .energy-news-card { color: var(--dark-text); border-color: var(--dark-border); background: var(--dark-raised); }
+[data-theme="dark"] .energy-news-card.is-lead { background: #0b3037; }
+[data-theme="dark"] :is(.energy-news-card__meta, .energy-news-card > p, .energy-news-source small, .energy-news__foot, .energy-news-empty) { color: var(--dark-muted); }
+[data-theme="dark"] :is(.energy-news-card__link, .energy-news-card__translate, .energy-news__foot a, .energy-news-empty strong) { color: var(--poster-yellow); }
+[data-theme="dark"] .energy-news-card.category-solar .energy-news-card__labels span { color: var(--poster-yellow); }
+[data-theme="dark"] .energy-news-card.category-renewables .energy-news-card__labels span { color: #a4d9a0; }
+[data-theme="dark"] .energy-news-outage { color: var(--dark-text); }
+[data-theme="dark"] .energy-news-outage span { color: var(--dark-muted); }
+[data-theme="dark"] .air-quality__map-scroll { background: #142f39; }
+[data-theme="dark"] .air-quality__map-bg { fill: #142f39; }
+[data-theme="dark"] .air-quality__grid { stroke: #36525a; }
+[data-theme="dark"] .air-quality__mountain { fill: #345a61; stroke: #58827f; }
+[data-theme="dark"] .air-quality__contour { stroke: #73a19d; }
+[data-theme="dark"] :is(.air-quality__rila, .air-quality__region-label, .air-quality__landmark, .air-quality__compass, .air-quality__map-caption) { fill: #d2e5d8; }
+[data-theme="dark"] .air-quality__town { color: var(--dark-text); background: #24474d; }
+[data-theme="dark"] :is(.air-quality__legend, .air-quality__coverage, .air-quality__source) { color: var(--dark-muted); }
+[data-theme="dark"] :is(.air-quality__pollutants button, .air-quality th button, .air-quality__source a) { color: var(--dark-text); border-color: var(--dark-border); }
+[data-theme="dark"] .air-quality__status:not(:empty) { background: #24404a; }
+[data-theme="dark"] .settings { color: var(--dark-text); background: var(--dark-panel); }
+[data-theme="dark"] .settings h2 { color: var(--dark-text); }
+[data-theme="dark"] footer { color: var(--dark-muted); }
+
+@media (max-width: 760px) {
+  [data-theme="dark"] .intro__shade { background: linear-gradient(0deg, rgba(4,20,32,.94), rgba(4,20,32,.25) 67%, transparent 88%); }
+}

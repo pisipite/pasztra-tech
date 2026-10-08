@@ -26,12 +26,24 @@ import { dispatchDashboardRefresh, dispatchNewsTranslation, waitForFreshDashboar
 import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, EnergyNewsItem, PeriodKey } from "./types";
 import { usePeriodSelection } from "./usePeriodSelection";
 import "./styles.css";
+import "./theme.css";
 
 const connectionStaleMs = 45 * 60 * 1000;
 const recoveryAfterMs = 40 * 60 * 1000;
 const recoveryCooldownMs = 50 * 60 * 1000;
 const recoveryAttemptKey = "solar-home-auto-recovery-at";
 type ManualRefreshState = "idle" | "starting" | "waiting" | "success" | "error";
+type ThemePreference = "system" | "light" | "dark";
+const themeStorageKey = "pasztra-theme";
+
+function initialThemePreference(): ThemePreference {
+  try {
+    const saved = localStorage.getItem(themeStorageKey);
+    return saved === "light" || saved === "dark" ? saved : "system";
+  } catch {
+    return "system";
+  }
+}
 
 function withRepairedClimate(dashboard: DashboardData): DashboardData {
   return Array.isArray(dashboard.govee?.chart)
@@ -75,6 +87,23 @@ function App() {
   const [clock, setClock] = useState(() => Date.now());
   const [manualRefreshState, setManualRefreshState] = useState<ManualRefreshState>("idle");
   const [manualRefreshMessage, setManualRefreshMessage] = useState("");
+  const [themePreference, setThemePreference] = useState<ThemePreference>(initialThemePreference);
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const darkMode = themePreference === "system" ? systemDark : themePreference === "dark";
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const syncSystemTheme = (event: MediaQueryListEvent) => setSystemDark(event.matches);
+    media.addEventListener("change", syncSystemTheme);
+    return () => media.removeEventListener("change", syncSystemTheme);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+    document.documentElement.style.colorScheme = darkMode ? "dark" : "light";
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", darkMode ? "#071b24" : "#063832");
+    try { localStorage.setItem(themeStorageKey, themePreference); } catch { /* storage is optional */ }
+  }, [themePreference, darkMode]);
 
   const loadData = useCallback(async (currentPeriod: PeriodKey, currentSettings: DashboardSettings, currentAnchor: Date, from?: string, to?: string) => {
     const currentRange = rangeForPeriod(currentPeriod, from, to);
@@ -281,6 +310,11 @@ function App() {
           <span>Pasztra tech<em>:</em> Napfény</span>
         </a>
         <div className="topbar__actions">
+          <div className="theme-switch" role="group" aria-label="Megjelenés">
+            <button type="button" className={themePreference === "system" ? "is-active" : ""} aria-label="Rendszerbeállítás követése" aria-pressed={themePreference === "system"} title="A rendszer megjelenésének követése" onClick={() => setThemePreference("system")}><span aria-hidden="true">◐</span><span>Rendszer</span></button>
+            <button type="button" className={themePreference === "light" ? "is-active" : ""} aria-label="Világos mód" aria-pressed={themePreference === "light"} title="Világos mód" onClick={() => setThemePreference("light")}><span aria-hidden="true">☀</span><span>Világos</span></button>
+            <button type="button" className={themePreference === "dark" ? "is-active" : ""} aria-label="Sötét mód" aria-pressed={themePreference === "dark"} title="Sötét mód" onClick={() => setThemePreference("dark")}><span aria-hidden="true">☾</span><span>Sötét</span></button>
+          </div>
           <div className="stream-indicators" aria-label="Adatfolyamok állapota">
             <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
             <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
@@ -304,7 +338,7 @@ function App() {
 
       <main id="main">
         <section className="intro" id="kezdolap">
-          <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-poster-hero.png`} alt="A hegyoldali otthon turisztikai plakát stílusú látképe" />
+          <img className="intro__photo" src={`${import.meta.env.BASE_URL}pasztra-poster-hero${darkMode ? "-night" : ""}.png`} alt={`A hegyoldali otthon ${darkMode ? "éjszakai" : "nappali"}, turisztikai plakát stílusú látképe`} />
           <div className="intro__shade" aria-hidden="true" />
           <span className="sun-charm sun-charm--hero" aria-hidden="true"><i /></span>
           <div className="intro__content">
