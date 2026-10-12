@@ -1,4 +1,4 @@
-import { StrictMode, useCallback, useEffect, useMemo, useState } from "react";
+import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
@@ -22,7 +22,8 @@ import { rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
 import { formatHeadingDate, formatTime } from "./formatUtils";
-import { dispatchDashboardRefresh, dispatchNewsTranslation, waitForFreshDashboard, waitForNewsTranslation } from "./githubRefresh";
+import { dispatchDashboardRefresh, dispatchNewsTranslation, watchFreshDashboard, waitForNewsTranslation } from "./githubRefresh";
+import { readRefreshSession, storeRefreshSession, type RefreshSession } from "./refreshSession";
 import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, EnergyNewsItem, PeriodKey } from "./types";
 import { usePeriodSelection } from "./usePeriodSelection";
 import "./styles.css";
@@ -82,11 +83,13 @@ function App() {
   const [energyNews, setEnergyNews] = useState(makeDemoEnergyNews);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [clock, setClock] = useState(() => Date.now());
-  const [manualRefreshState, setManualRefreshState] = useState<ManualRefreshState>("idle");
-  const [manualRefreshMessage, setManualRefreshMessage] = useState("");
+  const [refreshSession, setRefreshSession] = useState<RefreshSession | null>(readRefreshSession);
+  const [manualRefreshState, setManualRefreshState] = useState<ManualRefreshState>(refreshSession?.phase === "dispatching" ? "starting" : refreshSession ? "waiting" : "idle");
+  const [manualRefreshMessage, setManualRefreshMessage] = useState(refreshSession ? "Korábbi frissítés ellenőrzése…" : "");
+  const [translationStatus, setTranslationStatus] = useState<{ title: string; step: string; queued: number } | null>(null);
+  const dispatchRef = useRef<Promise<void> | null>(null);
   const [themePreference, setThemePreference] = useState<ThemePreference>(initialThemePreference);
   const [systemDark, setSystemDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
   const darkMode = themePreference === "system" ? systemDark : themePreference === "dark";
@@ -112,15 +115,12 @@ function App() {
       setError("");
       return;
     }
-    setLoading(true);
     try {
       const dashboard = await fetchFreshJson<DashboardData>(dashboardUrl(currentSettings.endpoint, currentPeriod, currentAnchor, from, to));
       setData(withRepairedClimate(dashboard));
       setError("");
     } catch {
       setError("Az élő adatforrás most nem érhető el. Az utolsó ismert adatok láthatók.");
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -219,7 +219,7 @@ function App() {
     setSettingsOpen(false);
   };
 
-  const translateNewsItem = useCallback(async (item: EnergyNewsItem) => {
+  const translateNewsItem = useCallback(async (item: EnergyNewsItem, resume = false) => {
     if (!settings.githubToken) {
       setSettingsOpen(true);
       throw new Error("A fordításhoz add meg a GitHub frissítési tokent az Adatkapcsolat panelen.");
@@ -227,18 +227,18 @@ function App() {
     if (!settings.live || !settings.endpoint) {
       throw new Error("A fordítás csak az élő hírfolyamban érhető el.");
     }
-    await dispatchNewsTranslation(settings.githubToken, item.url);
+    if (!resume) await dispatchNewsTranslation(settings.githubToken, item.url);
     const next = await waitForNewsTranslation(dataFileUrl(settings.endpoint, DATA_FILES.energyNews), item.url, energyNews.updatedAt);
     setEnergyNews(next);
   }, [settings, energyNews.updatedAt]);
 
-  const queueNewsTranslation = useCallback(async (item: EnergyNewsItem) => {
-    if (!settings.githubToken || !settings.live || !settings.endpoint) return;
-    await dispatchNewsTranslation(settings.githubToken, item.url);
-  }, [settings.githubToken, settings.live, settings.endpoint]);
+  const updateRefreshSession = useCallback((next: RefreshSession | null) => {
+    storeRefreshSession(next);
+    setRefreshSession(next);
+  }, []);
 
-  const triggerManualRefresh = useCallback(async () => {
-    if (manualRefreshState === "starting" || manualRefreshState === "waiting") return;
+  const triggerManualRefresh = useCallback(() => {
+    if (refreshSession) return;
     if (!settings.githubToken) {
       setManualRefreshState("error");
       setManualRefreshMessage("Az első használathoz add meg a finomhangolt GitHub frissítési tokent az Adatkapcsolat panelen.");
@@ -253,31 +253,59 @@ function App() {
     }
 
     setManualRefreshState("starting");
-    setManualRefreshMessage("A frissítési kérés elküldése a GitHubnak…");
-    try {
-      await dispatchDashboardRefresh(settings.githubToken);
+    setManualRefreshMessage("GitHub-frissítés indítása…");
+    updateRefreshSession({ previousUpdatedAt: data.updatedAt, requestedAt: new Date().toISOString(), phase: "dispatching" });
+  }, [refreshSession, settings, data.updatedAt, updateRefreshSession]);
+
+  useEffect(() => {
+    if (refreshSession?.phase !== "dispatching" || !settings.githubToken) return;
+    if (!dispatchRef.current) dispatchRef.current = dispatchDashboardRefresh(settings.githubToken);
+    void dispatchRef.current.then(() => {
+      dispatchRef.current = null;
       setManualRefreshState("waiting");
-      setManualRefreshMessage("Az adatok gyűjtése és az oldal frissítése folyamatban van. Ez általában 1–2 perc.");
-      const freshData = await waitForFreshDashboard(settings.endpoint, data.updatedAt, (progress) => setManualRefreshState(progress));
-      setData(withRepairedClimate(freshData));
-      await Promise.all([
-        loadData(period, settings, anchor, customStart, customEnd),
-        loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
-        loadBulgariaMix(settings),
-        loadEnergyNews(settings),
-      ]);
-      setClock(Date.now());
-      setManualRefreshState("success");
-      setManualRefreshMessage(`Kész: az új adatok megérkeztek (${formatTime(freshData.updatedAt)}).`);
-      window.setTimeout(() => {
-        setManualRefreshState("idle");
-        setManualRefreshMessage("");
-      }, 8_000);
-    } catch (refreshError) {
+      setManualRefreshMessage("GitHub-futtatóra várakozás");
+      updateRefreshSession({ ...refreshSession, phase: "waiting" });
+    }).catch((refreshError) => {
+      dispatchRef.current = null;
+      updateRefreshSession(null);
       setManualRefreshState("error");
       setManualRefreshMessage(refreshError instanceof Error ? refreshError.message : "A frissítés nem sikerült.");
-    }
-  }, [manualRefreshState, settings, data.updatedAt, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory, loadBulgariaMix, loadEnergyNews]);
+    });
+  }, [refreshSession, settings.githubToken, updateRefreshSession]);
+
+  useEffect(() => {
+    if (refreshSession?.phase !== "waiting" || !settings.githubToken || !settings.endpoint) return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const freshData = await watchFreshDashboard(settings.endpoint, refreshSession.previousUpdatedAt, settings.githubToken, (step) => {
+          if (!controller.signal.aborted) setManualRefreshMessage(step);
+        }, controller.signal);
+        if (controller.signal.aborted) return;
+        setData(withRepairedClimate(freshData));
+        await Promise.all([
+          loadData(period, settings, anchor, customStart, customEnd),
+          loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
+          loadBulgariaMix(settings),
+          loadEnergyNews(settings),
+        ]);
+        setClock(Date.now());
+        updateRefreshSession(null);
+        setManualRefreshState("success");
+        setManualRefreshMessage(`Kész: az új adatok megérkeztek (${formatTime(freshData.updatedAt)}).`);
+        window.setTimeout(() => {
+          setManualRefreshState((current) => current === "success" ? "idle" : current);
+          setManualRefreshMessage((current) => current.startsWith("Kész:") ? "" : current);
+        }, 8_000);
+      } catch (refreshError) {
+        if (controller.signal.aborted) return;
+        updateRefreshSession(null);
+        setManualRefreshState("error");
+        setManualRefreshMessage(refreshError instanceof Error ? refreshError.message : "A frissítés nem sikerült.");
+      }
+    })();
+    return () => controller.abort();
+  }, [refreshSession, settings, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory, loadBulgariaMix, loadEnergyNews, updateRefreshSession]);
 
   useEffect(() => {
     if (document.visibilityState !== "visible" || !settings.live || !settings.endpoint || !settings.githubToken) return;
@@ -293,11 +321,11 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [clock, data.updatedAt, settings.live, settings.endpoint, settings.githubToken, manualRefreshState, triggerManualRefresh]);
 
-  const manualRefreshBusy = manualRefreshState === "starting" || manualRefreshState === "waiting";
+  const manualRefreshBusy = Boolean(refreshSession);
   const manualRefreshLabel = manualRefreshState === "starting"
     ? "Indítás…"
     : manualRefreshState === "waiting"
-      ? "Adatok gyűjtése…"
+      ? "Frissítés…"
       : manualRefreshState === "success"
         ? "Frissítve"
         : "Adatok frissítése";
@@ -319,22 +347,31 @@ function App() {
             <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
             <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
           </div>
-          <button className={`data-refresh-button is-${manualRefreshState}`} onClick={() => void triggerManualRefresh()} disabled={manualRefreshBusy} aria-describedby={manualRefreshMessage ? "manual-refresh-status" : undefined}>
+          <button className={`data-refresh-button is-${manualRefreshState}`} onClick={triggerManualRefresh} disabled={manualRefreshBusy} title="Az oldal összes adatának frissítése" aria-describedby={manualRefreshBusy ? "manual-refresh-status" : undefined}>
             <i aria-hidden="true">↻</i><span>{manualRefreshLabel}</span>
           </button>
           <button className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Adatkapcsolat beállításai">•••</button>
         </div>
       </header>
 
+      <div className="sticky-navigation">
       <nav className={`section-nav${navigationOpen ? " is-open" : ""}`} id="section-menu" aria-label="Ugrás az oldal szakaszaihoz">
+        <div className="section-nav__mobile-controls">
         <button className={`section-nav__toggle${navigationOpen ? " is-open" : ""}`} type="button" aria-label={navigationOpen ? "Menü bezárása" : "Menü megnyitása"} aria-expanded={navigationOpen} aria-controls="section-menu-links" onClick={() => setNavigationOpen((open) => !open)}>
           <span className="menu-toggle__icon" aria-hidden="true"><i /><i /><i /></span>
           <strong>Menü</strong>
         </button>
+        <button className="section-nav__refresh" type="button" onClick={triggerManualRefresh} disabled={manualRefreshBusy} title="Az oldal összes adatának frissítése" aria-label={manualRefreshBusy ? "Adatfrissítés folyamatban" : "Adatok frissítése"}>↻</button>
+        </div>
         <div className="section-nav__track" id="section-menu-links">
           {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id} onClick={() => setNavigationOpen(false)}>{block.navigationLabel}</a>)}
         </div>
       </nav>
+      {(manualRefreshBusy || translationStatus) && <div className="activity-bar" id="manual-refresh-status" role="status" aria-live="polite">
+        {manualRefreshBusy && <span className="activity-bar__item"><i aria-hidden="true" /> <strong>Adatfrissítés</strong><span>{manualRefreshMessage}</span></span>}
+        {translationStatus && <span className="activity-bar__item"><i aria-hidden="true" /> <strong>Fordítás</strong><span>{translationStatus.step}: {translationStatus.title}</span>{translationStatus.queued > 0 && <em>+{translationStatus.queued} sorban</em>}</span>}
+      </div>}
+      </div>
 
       <main id="main">
         <section className="intro" id="kezdolap">
@@ -348,7 +385,7 @@ function App() {
         </section>
 
         {error && <div className="notice" role="status">{error}</div>}
-        {manualRefreshMessage && <div id="manual-refresh-status" className={`notice manual-refresh-notice is-${manualRefreshState}`} role="status">{manualRefreshBusy && <i aria-hidden="true" />}{manualRefreshMessage}</div>}
+        {!manualRefreshBusy && manualRefreshMessage && <div className={`notice manual-refresh-notice is-${manualRefreshState}`} role="status">{manualRefreshMessage}</div>}
 
         <EnergyAnalytics
           data={data}
@@ -363,7 +400,7 @@ function App() {
 
         <BulgariaEnergyMix data={bulgariaMix} householdFallback={data.solar.energyChart} />
 
-        <EnergyNews data={energyNews} onRequestTranslation={translateNewsItem} onQueueTranslation={queueNewsTranslation} />
+        <EnergyNews data={energyNews} onRequestTranslation={settings.githubToken && settings.live && settings.endpoint ? translateNewsItem : undefined} onTranslationStatusChange={setTranslationStatus} />
 
         <SolarForecast data={data} />
 
@@ -386,8 +423,9 @@ function App() {
           onClimateStep={climateSelection.step}
           onClimateCustomChange={climateSelection.setCustomRange}
           onClimateAggregationChange={setClimateAggregation}
-          loading={loading || manualRefreshBusy}
-          onRefresh={() => void triggerManualRefresh()}
+          loading={manualRefreshBusy}
+          refreshLabel={manualRefreshLabel}
+          onRefresh={triggerManualRefresh}
         />
 
         <footer id="adatkapcsolat"><span>Utolsó adatfrissítés: {formatTime(data.updatedAt)}</span><button onClick={() => setSettingsOpen(true)}>Adatkapcsolat beállítása →</button></footer>

@@ -7,13 +7,12 @@ const activeRunStatuses = new Set(["queued", "in_progress", "waiting", "pending"
 const activeRunMaxAgeMs = 30 * 60_000;
 
 type WorkflowRun = {
+  id?: number;
   head_branch?: string;
   status?: string;
   created_at?: string;
   run_started_at?: string;
 };
-
-export type RefreshProgress = "starting" | "waiting";
 
 function wait(milliseconds: number) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
@@ -89,23 +88,54 @@ export async function dispatchNewsTranslation(token: string, articleUrl: string)
   return dispatchWorkflow(token, { translate_news_url: articleUrl });
 }
 
-export async function waitForFreshDashboard(endpoint: string, previousUpdatedAt: string, onProgress: (progress: RefreshProgress) => void) {
+const stepLabels: Array<[string, string]> = [
+  ["Friss Sungrow és Govee adatok", "Sungrow, Govee, ENTSO-E és hírek gyűjtése"],
+  ["Mérési előzmények mentése", "Mérési előzmények mentése"],
+  ["pnpm install", "Weboldal függőségeinek előkészítése"],
+  ["pnpm build", "Ábrák és oldal összeállítása"],
+  ["upload-pages-artifact", "Új oldal feltöltése"],
+  ["Deploy", "Új oldal közzététele"],
+];
+
+export async function currentRefreshStep(token: string): Promise<string> {
+  const headers = { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": apiVersion };
+  const runsResponse = await fetch(`${workflowUrl}/runs?branch=main&per_page=10`, { headers, cache: "no-store" });
+  if (!runsResponse.ok) throw new Error("A GitHub-futás állapota nem érhető el.");
+  const runs = (await runsResponse.json() as { workflow_runs?: WorkflowRun[] }).workflow_runs ?? [];
+  const active = runs.find((run) => run.status === "in_progress") ?? runs.find((run) => activeRunStatuses.has(run.status ?? ""));
+  if (!active?.id) return "Közzétételre várakozás";
+  if (active.status !== "in_progress") return "GitHub-futtatóra várakozás";
+  const jobsResponse = await fetch(`https://api.github.com/repos/pisipite/pasztra-tech/actions/runs/${active.id}/jobs?per_page=10`, { headers, cache: "no-store" });
+  if (!jobsResponse.ok) return "Adatgyűjtés folyamatban";
+  const jobs = (await jobsResponse.json() as { jobs?: Array<{ steps?: Array<{ name?: string; status?: string }> }> }).jobs ?? [];
+  const step = jobs.flatMap((job) => job.steps ?? []).find((item) => item.status === "in_progress");
+  if (!step?.name) return "Adatgyűjtés folyamatban";
+  return stepLabels.find(([name]) => step.name?.includes(name))?.[1] ?? "Előkészítés és közzététel";
+}
+
+export async function watchFreshDashboard(endpoint: string, previousUpdatedAt: string, token: string, onStep: (step: string) => void, signal?: AbortSignal) {
   const previousTime = new Date(previousUpdatedAt).getTime();
   const dashboardUrl = new URL(endpoint.replace("{range}", "today"), window.location.href);
-
-  onProgress("waiting");
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    dashboardUrl.searchParams.set("updated", String(Date.now()));
-    const response = await fetch(dashboardUrl, { cache: "no-store" });
-    if (response.ok) {
-      const candidate = await response.json() as DashboardData;
-      const candidateTime = new Date(candidate.updatedAt).getTime();
-      if (Number.isFinite(candidateTime) && candidateTime > previousTime) return candidate;
+  const startedAt = Date.now();
+  let attempt = 0;
+  while (!signal?.aborted && Date.now() - startedAt < 30 * 60_000) {
+    if (attempt % 3 === 0) {
+      try { onStep(await currentRefreshStep(token)); } catch { onStep("Új adatokra várakozás"); }
     }
-    await wait(5_000);
+    try {
+      dashboardUrl.searchParams.set("updated", String(Date.now()));
+      const response = await fetch(dashboardUrl, { cache: "no-store", signal });
+      if (response.ok) {
+        const candidate = await response.json() as DashboardData;
+        const candidateTime = new Date(candidate.updatedAt).getTime();
+        if (Number.isFinite(candidateTime) && candidateTime > previousTime) return candidate;
+      }
+    } catch { /* Temporary connection errors must not interrupt a running refresh. */ }
+    attempt += 1;
+    await wait(7_000);
   }
-
-  throw new Error("Az új adatok még nem jelentek meg. A GitHub-futás várakozhat vagy még dolgozhat; új frissítést ne indíts. Az oldal később automatikusan betölti az új adatokat. A futás állapota a GitHub Actions oldalon ellenőrizhető.");
+  if (signal?.aborted) throw new Error("A frissítés figyelése megszakadt.");
+  throw new Error("Az új adatok 30 perc után sem jelentek meg. Ellenőrizd a GitHub Actions futást.");
 }
 
 function comparableArticleUrl(value: string) {
@@ -115,19 +145,20 @@ function comparableArticleUrl(value: string) {
 export async function waitForNewsTranslation(newsUrl: URL, articleUrl: string, previousUpdatedAt: string) {
   const requestedUrl = comparableArticleUrl(articleUrl);
   const previousTime = new Date(previousUpdatedAt).getTime();
-  for (let attempt = 0; attempt < 48; attempt += 1) {
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     newsUrl.searchParams.set("updated", String(Date.now()));
-    const response = await fetch(newsUrl, { cache: "no-store" });
-    if (response.ok) {
+    let response: Response | undefined;
+    try { response = await fetch(newsUrl, { cache: "no-store" }); } catch { /* retry transient connection errors */ }
+    if (response?.ok) {
       const candidate = await response.json() as EnergyNewsData;
       const translated = candidate.items?.find((item) => comparableArticleUrl(item.url) === requestedUrl);
       if (translated?.titleHu && translated.summaryHu) return candidate;
       const candidateTime = new Date(candidate.updatedAt).getTime();
-      if (Number.isFinite(candidateTime) && candidateTime > previousTime && candidate.translation?.status === "error") {
+      if (Number.isFinite(candidateTime) && candidateTime > previousTime && candidate.translation?.status === "error" && candidate.translation.requestedUrl && comparableArticleUrl(candidate.translation.requestedUrl) === requestedUrl) {
         throw new Error(candidate.translation.error ?? "A Gemini nem tudta lefordítani a cikket.");
       }
     }
     await wait(5_000);
   }
-  throw new Error("A fordítás elindult, de még nem jelent meg. Néhány perc múlva próbáld újra.");
+  throw new Error("A fordítás 25 perc után sem jelent meg. Ellenőrizd a GitHub Actions futást.");
 }

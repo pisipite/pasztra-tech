@@ -96,6 +96,8 @@
 [data-theme="dark"] .app-shell::before { opacity: .1; }
 [data-theme="dark"] .topbar { background: #071b24; }
 [data-theme="dark"] .section-nav { background: #c89436; border-color: #071b24; }
+[data-theme="dark"] .activity-bar { color: #f5e3ad; background: #143c3b; border-color: #c89436; }
+[data-theme="dark"] .activity-bar__item em { color: #f1b64f; }
 [data-theme="dark"] .intro { border-color: #6e9ca2; background: #071b24; box-shadow: 0 0 0 2px #071b24; }
 [data-theme="dark"] .intro__photo { filter: saturate(.9) contrast(1.07); }
 [data-theme="dark"] .intro__shade { background: linear-gradient(90deg, rgba(4,20,32,.94), rgba(4,20,32,.54) 30%, transparent 68%); }

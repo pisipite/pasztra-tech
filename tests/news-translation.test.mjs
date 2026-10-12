@@ -74,4 +74,5 @@ test("az új címeket és ajánlókat egy strukturált Gemini-kérésben fordít
   assert.equal(result.items[0].titleHu, "Energetikai hír");
   assert.equal(result.items[0].summaryHu, "Új villamosenergia-hálózat.");
   assert.equal(result.translation.provider, "Google Gemini");
+  assert.equal(result.translation.requestedUrl, data.items[0].url);
 });

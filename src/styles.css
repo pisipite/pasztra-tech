@@ -2057,10 +2057,31 @@ main { max-width: 1500px; padding-top: 28px; }
 
 /* Csak a sárga szekciónavigáció rögzített; a címsor kigördül. */
 .section-nav {
-  position: sticky;
-  z-index: 40;
-  top: 0;
+  position: relative;
+  z-index: auto;
 }
+.sticky-navigation { position: sticky; z-index: 40; top: 0; }
+.section-nav__mobile-controls { display: none; }
+.activity-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  min-height: 32px;
+  padding: 5px clamp(20px, 4vw, 64px);
+  border-bottom: 2px solid var(--poster-deep);
+  color: var(--poster-deep);
+  background: #f6dfa1;
+  box-shadow: 0 6px 16px rgba(6, 56, 50, .13);
+  font-size: 11px;
+  line-height: 1.35;
+}
+.activity-bar__item { display: inline-flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; }
+.activity-bar__item > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.activity-bar__item strong { font-family: "Oswald", Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.activity-bar__item em { font-style: normal; white-space: nowrap; color: #9a3e20; font-weight: 700; }
+.activity-bar__item > i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #c36b27; box-shadow: 0 0 0 3px rgba(195, 107, 39, .16); animation: activity-pulse 1.3s ease-in-out infinite; }
+@keyframes activity-pulse { 50% { opacity: .35; } }
 .app-shell { overflow: clip; }
 .section-nav__toggle { display: none; }
 #oldal-teteje,
@@ -2075,6 +2096,9 @@ section[id] { scroll-margin-top: 76px; }
     padding: 7px 16px;
     border-bottom: 3px solid var(--poster-deep);
   }
+  .section-nav__mobile-controls { display: flex; align-items: center; gap: 12px; }
+  .section-nav__refresh { flex: 0 0 36px; height: 36px; border: 1px solid var(--poster-deep); border-radius: 6px; color: var(--poster-deep); background: transparent; font-size: 21px; cursor: pointer; }
+  .section-nav__refresh:disabled { opacity: .5; cursor: wait; }
   .section-nav__toggle {
     display: flex;
     align-items: center;
@@ -2112,6 +2136,8 @@ section[id] { scroll-margin-top: 76px; }
     max-width: none;
     margin: 0;
     overflow: visible;
+    max-height: min(50vh, 360px);
+    overflow-y: auto;
   }
   .section-nav a {
     display: block;
@@ -2122,6 +2148,7 @@ section[id] { scroll-margin-top: 76px; }
     transform: none;
   }
   .section-nav a:last-child { border-bottom: 0; }
+  .activity-bar { padding: 5px 16px; }
   article[id],
   section[id] { scroll-margin-top: 84px; }
 }

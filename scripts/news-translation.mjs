@@ -129,10 +129,10 @@ export async function addHungarianNewsTranslations(data, options = {}) {
   const requestedKey = articleKey({ url: requestedUrl });
   const requestedItem = items.find((item) => articleKey(item) === requestedKey);
   if (!requestedItem) {
-    return { ...mergedData, translation: { provider: providerName, status: "error", translatedCount, error: "A kért cikk már nem található az aktuális hírfolyamban." } };
+    return { ...mergedData, translation: { provider: providerName, status: "error", translatedCount, requestedUrl, error: "A kért cikk már nem található az aktuális hírfolyamban." } };
   }
   if (requestedItem.titleHu && requestedItem.summaryHu) {
-    return { ...mergedData, translation: { provider: providerName, status: "translated", translatedCount } };
+    return { ...mergedData, translation: { provider: providerName, status: "translated", translatedCount, requestedUrl } };
   }
 
   try {
@@ -144,9 +144,9 @@ export async function addHungarianNewsTranslations(data, options = {}) {
       summaryHu: translations[index * 2 + 1],
     }]));
     const translatedItems = items.map((item) => ({ ...item, ...byKey.get(articleKey(item)) }));
-    return { ...mergedData, items: translatedItems, translation: { provider: providerName, status: "translated", translatedCount: translatedCount + 1 } };
+    return { ...mergedData, items: translatedItems, translation: { provider: providerName, status: "translated", translatedCount: translatedCount + 1, requestedUrl } };
   } catch (error) {
     console.error(`Hírfordítás: ${error.message}`);
-    return { ...mergedData, translation: { provider: providerName, status: "error", translatedCount, error: error.message } };
+    return { ...mergedData, translation: { provider: providerName, status: "error", translatedCount, requestedUrl, error: error.message } };
   }
 }

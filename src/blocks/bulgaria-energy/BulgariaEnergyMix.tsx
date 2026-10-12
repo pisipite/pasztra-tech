@@ -244,7 +244,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
     <article className="bulgaria-mix card" id="energiamix">
       <div className="bulgaria-mix__head section-header">
         <div className="section-header__lead">
-          <div className="section-kicker"><p className="eyebrow">Országos energia · Bulgária</p><BackToTop /></div>
+          <div className="section-kicker"><p className="eyebrow">Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
           <p className="bulgaria-mix__freshness"><i className={data.source === "live" ? "is-live" : ""} />{data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}</p>
           <button

@@ -8,7 +8,7 @@ const source = await readFile(new URL("../src/githubRefresh.ts", import.meta.url
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const { dispatchDashboardRefresh, dispatchNewsTranslation, waitForFreshDashboard } = await import(
+const { currentRefreshStep, dispatchDashboardRefresh, dispatchNewsTranslation, waitForNewsTranslation, watchFreshDashboard } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
 );
 
@@ -150,31 +150,39 @@ test("a külön kért cikkfordítást aktív dashboard-futás mellett sem nyeli 
   assert.deepEqual(JSON.parse(requests[0].options.body), { ref: "main", inputs: { translate_news_url: articleUrl } });
 });
 
-test("a dashboard-várakozás az első új adatot visszaadja, token nélkül", async (t) => {
-  mockBrowser(t);
-  const freshData = { updatedAt: "2026-10-05T12:01:00.000Z" };
-  const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json(freshData));
-  const progress = [];
-  const result = await waitForFreshDashboard("data/{range}.json", "2026-10-05T11:00:00.000Z", (value) => progress.push(value));
-  assert.deepEqual(result, freshData);
-  assert.deepEqual(progress, ["waiting"]);
-  assert.equal(fetchMock.mock.callCount(), 1);
-  const [url, options] = fetchMock.mock.calls[0].arguments;
-  assert.equal(url.pathname, "/dashboard/data/today.json");
-  assert.deepEqual(options, { cache: "no-store" });
+test("a GitHub futási lépéseiből konkrét frissítési státuszt készít", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    requests.push(String(url));
+    if (String(url).includes("/jobs?")) return Response.json({ jobs: [{ steps: [{ name: "Friss Sungrow és Govee adatok", status: "in_progress" }] }] });
+    return Response.json({ workflow_runs: [{ id: 123, status: "in_progress", head_branch: "main" }] });
+  });
+  assert.match(await currentRefreshStep("test-token"), /Sungrow, Govee, ENTSO-E és hírek/);
+  assert.equal(requests.length, 2);
 });
 
-test("a dashboard-időtúllépés GitHub-várakozást magyaráz és nem kér újraindítást", async (t) => {
+test("újratöltés után a friss adatot figyeli, új GitHub-dispatch nélkül", async (t) => {
   mockBrowser(t);
-  const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json({ updatedAt: "2026-10-05T11:00:00.000Z" }));
-  await assert.rejects(
-    waitForFreshDashboard("data/{range}.json", "2026-10-05T11:00:00.000Z", () => {}),
-    (error) => {
-      assert.match(error.message, /GitHub-futás várakozhat/);
-      assert.match(error.message, /új frissítést ne indíts/);
-      assert.doesNotMatch(error.message, /próbáld újra/);
-      return true;
-    },
-  );
-  assert.equal(fetchMock.mock.callCount(), 40);
+  const urls = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    urls.push(String(url));
+    if (String(url).includes("api.github.com")) return Response.json({ workflow_runs: [] });
+    return Response.json({ updatedAt: "2026-10-05T12:01:00.000Z" });
+  });
+  const result = await watchFreshDashboard("data/{range}.json", "2026-10-05T11:00:00.000Z", "test-token", () => {});
+  assert.equal(result.updatedAt, "2026-10-05T12:01:00.000Z");
+  assert.ok(urls.every((url) => !url.includes("/dispatches")));
+});
+
+test("másik cikk fordítási hibája nem szakítja meg az aktuális fordítás figyelését", async (t) => {
+  mockBrowser(t);
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls += 1;
+    if (calls === 1) return Response.json({ updatedAt: "2026-10-05T12:01:00Z", items: [], translation: { status: "error", requestedUrl: "https://example.com/other", error: "Másik cikk hibája" } });
+    return Response.json({ updatedAt: "2026-10-05T12:02:00Z", items: [{ url: "https://example.com/article", titleHu: "Cím", summaryHu: "Ajánló" }] });
+  });
+  const result = await waitForNewsTranslation(new URL("https://example.com/news.json"), "https://example.com/article", "2026-10-05T12:00:00Z");
+  assert.equal(result.items[0].titleHu, "Cím");
+  assert.equal(calls, 2);
 });

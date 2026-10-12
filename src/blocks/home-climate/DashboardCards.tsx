@@ -20,6 +20,7 @@ type Props = {
   onClimateCustomChange: (start: string, end: string) => void;
   onClimateAggregationChange: (aggregation: ClimateAggregation) => void;
   loading: boolean;
+  refreshLabel: string;
   onRefresh: () => void;
 };
 
@@ -31,7 +32,7 @@ const climatePeriods: { key: PeriodKey; label: string }[] = [
   { key: "custom", label: "Egyéb" },
 ];
 
-function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation, climateLoading, loading, onRefresh, onClimatePeriodChange, onClimateStep, onClimateCustomChange, onClimateAggregationChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateAggregation" | "climateLoading" | "loading" | "onRefresh" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange" | "onClimateAggregationChange">) {
+function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation, climateLoading, loading, refreshLabel, onRefresh, onClimatePeriodChange, onClimateStep, onClimateCustomChange, onClimateAggregationChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateAggregation" | "climateLoading" | "loading" | "refreshLabel" | "onRefresh" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange" | "onClimateAggregationChange">) {
   const [temperatureVisible, setTemperatureVisible] = useState(true);
   const [humidityVisible, setHumidityVisible] = useState(true);
   const validDevices = data.govee.devices.filter((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
@@ -39,7 +40,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
   if (!activeDevice) {
     return (
       <article className="card climate-card" id="klima">
-        <div className="card__head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>Nincs elérhető mérő</h2></div><button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button></div>
+        <div className="card__head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>Nincs elérhető mérő</h2></div><button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading} title="Az oldal összes adatának frissítése"><span aria-hidden="true">↻ </span>{refreshLabel}</button></div>
       </article>
     );
   }
@@ -54,7 +55,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
       <span className="plant-sprout plant-sprout--climate" aria-hidden="true"><i /><i /><i /></span>
       <div className="card__head section-header">
         <div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Hőmérséklet</p><BackToTop /></div><h2>{activeDevice.room}</h2></div>
-        <button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading}>{loading ? "Frissül…" : "Frissítés ↻"}</button>
+        <button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading} title="Az oldal összes adatának frissítése"><span aria-hidden="true">↻ </span>{refreshLabel}</button>
       </div>
       <div className="climate-reading">
         <div className="temperature"><strong>{formatFixedNumber(activeDevice.temperatureC, 1)}°</strong><span>C</span></div>

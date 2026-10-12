@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "../../components/BackToTop";
 import { dateInputValue, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
 import { formatTime } from "../../formatUtils";
@@ -27,6 +27,16 @@ const newsPeriods: Array<{ key: PeriodKey; label: string }> = [
   { key: "month", label: "Hónap" },
   { key: "custom", label: "Egyéb" },
 ];
+
+const translationQueueKey = "pasztra-news-translation-queue-v1";
+type QueuedTranslation = { item: EnergyNewsItem; phase: "queued" | "cloud-waiting" };
+
+function readTranslationQueue(): QueuedTranslation[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(translationQueueKey) ?? "[]") as QueuedTranslation[];
+    return Array.isArray(parsed) ? parsed.filter((entry) => entry?.item?.id && entry?.item?.url && (entry.phase === "queued" || entry.phase === "cloud-waiting")) : [];
+  } catch { return []; }
+}
 
 function newsDate(value: string) {
   return new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value));
@@ -86,10 +96,10 @@ function NewsCard({ item, source, lead, showOriginal, translationBusy, translati
   );
 }
 
-export function EnergyNews({ data, onRequestTranslation, onQueueTranslation }: {
+export function EnergyNews({ data, onRequestTranslation, onTranslationStatusChange }: {
   data: EnergyNewsData;
-  onRequestTranslation?: (item: EnergyNewsItem) => Promise<void>;
-  onQueueTranslation?: (item: EnergyNewsItem) => Promise<void>;
+  onRequestTranslation?: (item: EnergyNewsItem, resume?: boolean) => Promise<void>;
+  onTranslationStatusChange?: (status: { title: string; step: string; queued: number } | null) => void;
 }) {
   const periodSelection = usePeriodSelection();
   const { period: newsPeriod, anchor: newsAnchor, customStart: newsCustomStart, customEnd: newsCustomEnd } = periodSelection;
@@ -98,10 +108,72 @@ export function EnergyNews({ data, onRequestTranslation, onQueueTranslation }: {
   const [sourceId, setSourceId] = useState("all");
   const [visibleCount, setVisibleCount] = useState(INITIAL_NEWS_LIMIT);
   const [originalItems, setOriginalItems] = useState<Set<string>>(() => new Set());
-  const [translationPendingId, setTranslationPendingId] = useState<string>();
+  const [translationQueue, setTranslationQueue] = useState<QueuedTranslation[]>(readTranslationQueue);
+  const translationQueueRef = useRef(translationQueue);
+  const processingRef = useRef(false);
   const [translationLabel, setTranslationLabel] = useState("Fordítás…");
   const [translationErrors, setTranslationErrors] = useState<Record<string, string>>({});
   const [localTranslations, setLocalTranslations] = useState(loadLocalNewsTranslations);
+
+  function commitTranslationQueue(next: QueuedTranslation[]) {
+    translationQueueRef.current = next;
+    try { localStorage.setItem(translationQueueKey, JSON.stringify(next)); } catch { /* Current tab still processes the queue. */ }
+    setTranslationQueue(next);
+  }
+
+  useEffect(() => {
+    const active = translationQueue[0];
+    onTranslationStatusChange?.(active ? { title: active.item.title, step: translationLabel, queued: translationQueue.length - 1 } : null);
+  }, [translationQueue, translationLabel, onTranslationStatusChange]);
+
+  useEffect(() => {
+    const active = translationQueue[0];
+    if (!active || processingRef.current) return;
+    if (active.phase === "cloud-waiting" && !onRequestTranslation) {
+      setTranslationLabel("Adatkapcsolat beállítandó");
+      return;
+    }
+    processingRef.current = true;
+    const item = active.item;
+    void (async () => {
+      try {
+        const published = data.items.find((candidate) => candidate.url === item.url);
+        if (published?.titleHu && published.summaryHu) {
+          // A közzétett fordítás egy újratöltés alatt már megérkezhetett.
+        } else if (active.phase === "cloud-waiting") {
+          setTranslationLabel("Felhőben");
+          if (!onRequestTranslation) throw new Error("A felhőfordítás nem érhető el.");
+          await onRequestTranslation(item, true);
+        } else {
+          const cached = loadLocalNewsTranslations()[item.id];
+          if (cached?.url === item.url && cached.titleHu && cached.summaryHu) {
+            setLocalTranslations((current) => ({ ...current, [item.id]: cached }));
+          } else if (canTranslateInBrowser()) {
+            try {
+              const translation = await translateNewsInBrowser(item, setTranslationLabel);
+              setLocalTranslations(storeLocalNewsTranslation(item, translation));
+            } catch (error) {
+              if (!onRequestTranslation) throw error;
+            }
+          } else if (!onRequestTranslation) {
+            throw new Error("A fordítás nem érhető el ebben a böngészőben.");
+          }
+          if (onRequestTranslation) {
+            setTranslationLabel("Felhőben");
+            commitTranslationQueue([{ item, phase: "cloud-waiting" }, ...translationQueueRef.current.slice(1)]);
+            await onRequestTranslation(item);
+          }
+        }
+        setOriginalItems((current) => { const next = new Set(current); next.delete(item.id); return next; });
+      } catch (error) {
+        setTranslationErrors((current) => ({ ...current, [item.id]: error instanceof Error ? error.message : "A fordítás nem sikerült." }));
+      } finally {
+        commitTranslationQueue(translationQueueRef.current.filter((entry) => entry.item.id !== item.id));
+        setTranslationLabel("Fordítás…");
+        processingRef.current = false;
+      }
+    })();
+  }, [translationQueue, onRequestTranslation, data.items]);
   const sourceById = useMemo(() => new Map(data.sources.map((source) => [source.id, source])), [data.sources]);
   const effectiveSourceId = sourceId === "all" || sourceById.has(sourceId) ? sourceId : "all";
   const items = useMemo(() => data.items.filter((item) => (
@@ -151,7 +223,7 @@ export function EnergyNews({ data, onRequestTranslation, onQueueTranslation }: {
     setVisibleCount(INITIAL_NEWS_LIMIT);
   }
 
-  async function toggleLanguage(item: EnergyNewsItem) {
+  function toggleLanguage(item: EnergyNewsItem) {
     const storedTranslation = localTranslations[item.id];
     const localTranslation = storedTranslation?.url === item.url ? storedTranslation : undefined;
     const hasTranslation = Boolean((item.titleHu && item.summaryHu) || (localTranslation?.titleHu && localTranslation.summaryHu));
@@ -164,35 +236,9 @@ export function EnergyNews({ data, onRequestTranslation, onQueueTranslation }: {
       });
       return;
     }
-    if ((!canTranslateInBrowser() && !onRequestTranslation) || translationPendingId) return;
-    setTranslationPendingId(item.id);
-    setTranslationLabel("Fordítás…");
+    if ((!canTranslateInBrowser() && !onRequestTranslation) || translationQueueRef.current.some((entry) => entry.item.id === item.id)) return;
     setTranslationErrors((current) => ({ ...current, [item.id]: "" }));
-    try {
-      if (canTranslateInBrowser()) {
-        try {
-          const translation = await translateNewsInBrowser(item, setTranslationLabel);
-          setLocalTranslations(storeLocalNewsTranslation(item, translation));
-          if (onQueueTranslation) void onQueueTranslation(item).catch(() => undefined);
-        } catch (error) {
-          if (!onRequestTranslation) throw error;
-          setTranslationLabel("Felhőben…");
-          await onRequestTranslation(item);
-        }
-      } else if (onRequestTranslation) {
-        setTranslationLabel("Felhőben…");
-        await onRequestTranslation(item);
-      }
-      setOriginalItems((current) => {
-        const next = new Set(current);
-        next.delete(item.id);
-        return next;
-      });
-    } catch (error) {
-      setTranslationErrors((current) => ({ ...current, [item.id]: error instanceof Error ? error.message : "A fordítás nem sikerült." }));
-    } finally {
-      setTranslationPendingId(undefined);
-    }
+    commitTranslationQueue([...translationQueueRef.current, { item, phase: "queued" }]);
   }
 
   return (
@@ -249,7 +295,8 @@ export function EnergyNews({ data, onRequestTranslation, onQueueTranslation }: {
           const translatedItem = item.titleHu && item.summaryHu || !localTranslation
             ? item
             : { ...item, titleHu: localTranslation.titleHu, summaryHu: localTranslation.summaryHu };
-          return <NewsCard item={translatedItem} source={sourceById.get(item.sourceId)} lead={index === 0} showOriginal={originalItems.has(item.id)} translationBusy={translationPendingId === item.id} translationLabel={translationPendingId === item.id ? translationLabel : undefined} translationDisabled={Boolean(translationPendingId && translationPendingId !== item.id) || (!translatedItem.titleHu && !canTranslateInBrowser() && !onRequestTranslation)} translationError={translationErrors[item.id]} onLanguageToggle={() => void toggleLanguage(item)} key={item.id} />;
+          const queueIndex = translationQueue.findIndex((entry) => entry.item.id === item.id);
+          return <NewsCard item={translatedItem} source={sourceById.get(item.sourceId)} lead={index === 0} showOriginal={originalItems.has(item.id)} translationBusy={queueIndex >= 0 && !translatedItem.titleHu} translationLabel={queueIndex === 0 ? translationLabel : queueIndex > 0 ? `Sorban: ${queueIndex}.` : undefined} translationDisabled={(queueIndex >= 0 && !translatedItem.titleHu) || (!translatedItem.titleHu && !canTranslateInBrowser() && !onRequestTranslation)} translationError={translationErrors[item.id]} onLanguageToggle={() => toggleLanguage(item)} key={item.id} />;
         })}</div>{remainingCount > 0 && <button type="button" className="energy-news-load-more" onClick={() => setVisibleCount((current) => current + NEWS_LOAD_STEP)}>Továbbiak betöltése <span>+{Math.min(NEWS_LOAD_STEP, remainingCount)}</span></button>}</>
         : <div className="energy-news-empty"><strong>{selectedSource?.status === "setup-required" ? "Az ERM Zapad még nincs beállítva." : "Nincs hír a kiválasztott időszakban."}</strong><span>{selectedSource?.status === "setup-required" ? "A helyi tervezett áramszünetekhez add meg az ITN- vagy POD-azonosítót a GitHub titkai között." : "Lépj egy másik időszakra, vagy válassz másik kategóriát és forrást."}</span></div>}
 
