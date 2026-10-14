@@ -3,6 +3,7 @@ import type { DashboardData, EnergyNewsData } from "./types";
 const workflowUrl = "https://api.github.com/repos/pisipite/pasztra-tech/actions/workflows/deploy-pages.yml";
 const dispatchUrl = `${workflowUrl}/dispatches`;
 const apiVersion = "2022-11-28";
+const dispatchApiVersion = "2026-03-10";
 const activeRunStatuses = new Set(["queued", "in_progress", "waiting", "pending", "requested"]);
 const activeRunMaxAgeMs = 30 * 60_000;
 
@@ -14,8 +15,13 @@ type WorkflowRun = {
   run_started_at?: string;
 };
 
-function wait(milliseconds: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+function wait(milliseconds: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal?.aborted) { resolve(); return; }
+    const done = () => { window.clearTimeout(timer); signal?.removeEventListener("abort", done); resolve(); };
+    const timer = window.setTimeout(done, milliseconds);
+    signal?.addEventListener("abort", done, { once: true });
+  });
 }
 
 async function dispatchWorkflow(token: string, inputs?: Record<string, string>) {
@@ -24,13 +30,19 @@ async function dispatchWorkflow(token: string, inputs?: Record<string, string>) 
     headers: {
       Accept: "application/vnd.github+json",
       Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": apiVersion,
+      "X-GitHub-Api-Version": dispatchApiVersion,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ ref: "main", ...(inputs ? { inputs } : {}) }),
   });
 
-  if (response.status === 204) return;
+  if (response.status === 200) {
+    const payload = await response.json() as { workflow_run_id?: number };
+    return { runId: Number.isSafeInteger(payload.workflow_run_id) ? payload.workflow_run_id : undefined };
+  }
+  // Older GitHub API behavior did not return a run identifier. In that case
+  // the UI can stop waiting, but must not guess which server run to cancel.
+  if (response.status === 204) return { runId: undefined };
 
   let message = "A GitHub nem fogadta el a frissítési kérést.";
   try {
@@ -78,14 +90,26 @@ export async function dispatchDashboardRefresh(token: string) {
   const hasRecentRunning = activeRuns.some((run) => run.status === "in_progress" && !isStalled(run));
   // Protect a recent running build, but fresh queued requests must not hide an
   // older blocker indefinitely (the schedule can keep creating pending runs).
-  if (activeRuns.length > 0 && (!hasStalledRun || hasRecentRunning)) return;
+  if (activeRuns.length > 0 && (!hasStalledRun || hasRecentRunning)) return { runId: undefined, owned: false };
 
   // The workflow only permits this explicit recovery request to replace a run.
-  return dispatchWorkflow(token, hasStalledRun ? { force_refresh: "true" } : undefined);
+  const dispatched = await dispatchWorkflow(token, hasStalledRun ? { force_refresh: "true" } : undefined);
+  return { ...dispatched, owned: true };
 }
 
 export async function dispatchNewsTranslation(token: string, articleUrl: string) {
   return dispatchWorkflow(token, { translate_news_url: articleUrl });
+}
+
+export async function cancelWorkflowRun(token: string, runId: number) {
+  if (!Number.isSafeInteger(runId) || runId <= 0) throw new Error("Érvénytelen GitHub-futásazonosító.");
+  const response = await fetch(`https://api.github.com/repos/pisipite/pasztra-tech/actions/runs/${runId}/cancel`, {
+    method: "POST",
+    headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`, "X-GitHub-Api-Version": apiVersion },
+  });
+  if (response.status === 202 || response.status === 409) return;
+  if (response.status === 401 || response.status === 403) throw new Error("A GitHub-tokenhoz Actions írási jogosultság szükséges a futás leállításához.");
+  throw new Error("A GitHub-futás leállítása nem sikerült. Ellenőrizd az Actions oldalon.");
 }
 
 const stepLabels: Array<[string, string]> = [
@@ -132,7 +156,7 @@ export async function watchFreshDashboard(endpoint: string, previousUpdatedAt: s
       }
     } catch { /* Temporary connection errors must not interrupt a running refresh. */ }
     attempt += 1;
-    await wait(7_000);
+    await wait(7_000, signal);
   }
   if (signal?.aborted) throw new Error("A frissítés figyelése megszakadt.");
   throw new Error("Az új adatok 30 perc után sem jelentek meg. Ellenőrizd a GitHub Actions futást.");
@@ -142,13 +166,14 @@ function comparableArticleUrl(value: string) {
   return value.replace(/[?#].*$/, "").toLowerCase();
 }
 
-export async function waitForNewsTranslation(newsUrl: URL, articleUrl: string, previousUpdatedAt: string) {
+export async function waitForNewsTranslation(newsUrl: URL, articleUrl: string, previousUpdatedAt: string, signal?: AbortSignal) {
   const requestedUrl = comparableArticleUrl(articleUrl);
   const previousTime = new Date(previousUpdatedAt).getTime();
   for (let attempt = 0; attempt < 300; attempt += 1) {
+    if (signal?.aborted) throw new Error("A fordítás figyelése megszakadt.");
     newsUrl.searchParams.set("updated", String(Date.now()));
     let response: Response | undefined;
-    try { response = await fetch(newsUrl, { cache: "no-store" }); } catch { /* retry transient connection errors */ }
+    try { response = await fetch(newsUrl, { cache: "no-store", signal }); } catch { /* retry transient connection errors */ }
     if (response?.ok) {
       const candidate = await response.json() as EnergyNewsData;
       const translated = candidate.items?.find((item) => comparableArticleUrl(item.url) === requestedUrl);
@@ -158,7 +183,7 @@ export async function waitForNewsTranslation(newsUrl: URL, articleUrl: string, p
         throw new Error(candidate.translation.error ?? "A Gemini nem tudta lefordítani a cikket.");
       }
     }
-    await wait(5_000);
+    await wait(5_000, signal);
   }
   throw new Error("A fordítás 25 perc után sem jelent meg. Ellenőrizd a GitHub Actions futást.");
 }

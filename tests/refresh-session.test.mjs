@@ -25,10 +25,16 @@ function mockStorage(t) {
 
 test("a futó frissítés újratöltés után is visszaállítható", (t) => {
   mockStorage(t);
-  const session = { previousUpdatedAt: "2026-10-12T09:00:00Z", requestedAt: new Date().toISOString(), phase: "waiting" };
+  const session = { previousUpdatedAt: "2026-10-12T09:00:00Z", requestedAt: new Date().toISOString(), phase: "waiting", runId: 735, ownsRun: true };
   storeRefreshSession(session);
   assert.deepEqual(readRefreshSession(), session);
   storeRefreshSession(null);
+  assert.equal(readRefreshSession(), null);
+});
+
+test("hibás futásazonosítót nem állít vissza", (t) => {
+  mockStorage(t);
+  storeRefreshSession({ previousUpdatedAt: "2026-10-12T09:00:00Z", requestedAt: new Date().toISOString(), phase: "waiting", runId: -1 });
   assert.equal(readRefreshSession(), null);
 });
 

@@ -8,7 +8,7 @@ const source = await readFile(new URL("../src/githubRefresh.ts", import.meta.url
 const compiled = ts.transpileModule(source, {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
 }).outputText;
-const { currentRefreshStep, dispatchDashboardRefresh, dispatchNewsTranslation, waitForNewsTranslation, watchFreshDashboard } = await import(
+const { cancelWorkflowRun, currentRefreshStep, dispatchDashboardRefresh, dispatchNewsTranslation, waitForNewsTranslation, watchFreshDashboard } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
 );
 
@@ -35,7 +35,8 @@ function mockBrowser(t) {
   const previous = globalThis.window;
   globalThis.window = {
     location: { href: "https://example.com/dashboard/" },
-    setTimeout(callback) { callback(); },
+    setTimeout(callback) { queueMicrotask(callback); return 1; },
+    clearTimeout() {},
   };
   t.after(() => {
     if (previous === undefined) delete globalThis.window;
@@ -46,7 +47,8 @@ function mockBrowser(t) {
 for (const status of ["queued", "in_progress", "waiting", "pending", "requested"]) {
   test(`a közelmúltbeli main ${status} futást új dispatch nélkül megvárja`, async (t) => {
     const requests = mockRuns(t, [{ ...recentRun, status }]);
-    await dispatchDashboardRefresh("test-token");
+    const dispatched = await dispatchDashboardRefresh("test-token");
+    assert.deepEqual(dispatched, { runId: undefined, owned: false });
     assert.equal(requests.length, 1);
     assert.equal(requests[0].url, `${workflowUrl}/runs?branch=main&per_page=100`);
     assert.equal(requests[0].options.cache, "no-store");
@@ -66,7 +68,34 @@ test("befejezett és más ágon futó futás mellett normál frissítést indít
   assert.equal(requests[1].url, `${workflowUrl}/dispatches`);
   assert.equal(requests[1].options.method, "POST");
   assert.equal(requests[1].options.headers.Authorization, "Bearer test-token");
+  assert.equal(requests[1].options.headers["X-GitHub-Api-Version"], "2026-03-10");
   assert.deepEqual(JSON.parse(requests[1].options.body), { ref: "main" });
+});
+
+test("a saját frissítési futás azonosítója visszakerül a visszavonáshoz", async (t) => {
+  t.mock.method(globalThis, "fetch", async (url) => String(url).endsWith("/dispatches")
+    ? Response.json({ workflow_run_id: 735 }, { status: 200 })
+    : Response.json({ workflow_runs: [] }));
+  assert.deepEqual(await dispatchDashboardRefresh("test-token"), { runId: 735, owned: true });
+});
+
+test("a saját GitHub-futás visszavonása az azonosított futást célozza", async (t) => {
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    requests.push({ url: String(url), options });
+    return new Response(null, { status: 202 });
+  });
+  await cancelWorkflowRun("test-token", 735);
+  assert.equal(requests[0].url, "https://api.github.com/repos/pisipite/pasztra-tech/actions/runs/735/cancel");
+  assert.equal(requests[0].options.method, "POST");
+  assert.equal(requests[0].options.headers.Authorization, "Bearer test-token");
+  await assert.rejects(cancelWorkflowRun("test-token", -1), /Érvénytelen/);
+  assert.equal(requests.length, 1);
+});
+
+test("jogosultsági hiba esetén a visszavonás érthető hibát jelez", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(null, { status: 403 }));
+  await assert.rejects(cancelWorkflowRun("test-token", 735), /Actions írási jogosultság/);
 });
 
 test("30 perce beragadt aktív main futás helyett kifejezett helyreállítást kér", async (t) => {
@@ -185,4 +214,26 @@ test("másik cikk fordítási hibája nem szakítja meg az aktuális fordítás 
   const result = await waitForNewsTranslation(new URL("https://example.com/news.json"), "https://example.com/article", "2026-10-05T12:00:00Z");
   assert.equal(result.items[0].titleHu, "Cím");
   assert.equal(calls, 2);
+});
+
+test("a megszakított fordítás nem kér le újabb híradatot", async (t) => {
+  mockBrowser(t);
+  const controller = new AbortController();
+  controller.abort();
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => Response.json({ items: [] }));
+  await assert.rejects(waitForNewsTranslation(new URL("https://example.com/news.json"), "https://example.com/article", "2026-10-05T12:00:00Z", controller.signal), /megszakadt/);
+  assert.equal(fetchMock.mock.callCount(), 0);
+});
+
+test("a fordítás várakozása megszakításra azonnal feloldódik", async (t) => {
+  const previous = globalThis.window;
+  globalThis.window = { setTimeout, clearTimeout };
+  t.after(() => { if (previous === undefined) delete globalThis.window; else globalThis.window = previous; });
+  const controller = new AbortController();
+  const fetchMock = t.mock.method(globalThis, "fetch", async () => {
+    queueMicrotask(() => controller.abort());
+    return Response.json({ updatedAt: "2026-10-05T12:00:00Z", items: [] });
+  });
+  await assert.rejects(waitForNewsTranslation(new URL("https://example.com/news.json"), "https://example.com/article", "2026-10-05T12:00:00Z", controller.signal), /megszakadt/);
+  assert.equal(fetchMock.mock.callCount(), 1);
 });

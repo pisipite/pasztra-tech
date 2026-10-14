@@ -4,6 +4,8 @@ export type RefreshSession = {
   previousUpdatedAt: string;
   requestedAt: string;
   phase: "dispatching" | "waiting";
+  runId?: number;
+  ownsRun?: boolean;
 };
 
 export function readRefreshSession(): RefreshSession | null {
@@ -11,6 +13,7 @@ export function readRefreshSession(): RefreshSession | null {
     const parsed = JSON.parse(localStorage.getItem(storageKey) ?? "null") as RefreshSession | null;
     if (!parsed || !Number.isFinite(Date.parse(parsed.requestedAt)) || !Number.isFinite(Date.parse(parsed.previousUpdatedAt))) return null;
     if (parsed.phase !== "dispatching" && parsed.phase !== "waiting") return null;
+    if (parsed.runId !== undefined && (!Number.isSafeInteger(parsed.runId) || parsed.runId <= 0)) return null;
     if (Date.now() - Date.parse(parsed.requestedAt) > 30 * 60_000) {
       localStorage.removeItem(storageKey);
       return null;

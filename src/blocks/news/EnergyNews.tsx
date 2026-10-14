@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "../../components/BackToTop";
 import { dateInputValue, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
 import { formatTime } from "../../formatUtils";
@@ -29,12 +29,14 @@ const newsPeriods: Array<{ key: PeriodKey; label: string }> = [
 ];
 
 const translationQueueKey = "pasztra-news-translation-queue-v1";
-type QueuedTranslation = { item: EnergyNewsItem; phase: "queued" | "cloud-waiting" };
+type QueuedTranslation = { item: EnergyNewsItem; phase: "queued" | "cloud-waiting"; runId?: number };
 
 function readTranslationQueue(): QueuedTranslation[] {
   try {
     const parsed = JSON.parse(localStorage.getItem(translationQueueKey) ?? "[]") as QueuedTranslation[];
-    return Array.isArray(parsed) ? parsed.filter((entry) => entry?.item?.id && entry?.item?.url && (entry.phase === "queued" || entry.phase === "cloud-waiting")) : [];
+    return Array.isArray(parsed) ? parsed.filter((entry) => entry?.item?.id && entry?.item?.url
+      && (entry.phase === "queued" || entry.phase === "cloud-waiting")
+      && (entry.runId === undefined || (Number.isSafeInteger(entry.runId) && entry.runId > 0))) : [];
   } catch { return []; }
 }
 
@@ -96,10 +98,11 @@ function NewsCard({ item, source, lead, showOriginal, translationBusy, translati
   );
 }
 
-export function EnergyNews({ data, onRequestTranslation, onTranslationStatusChange }: {
+export function EnergyNews({ data, onRequestTranslation, onCancelRun, onTranslationStatusChange }: {
   data: EnergyNewsData;
-  onRequestTranslation?: (item: EnergyNewsItem, resume?: boolean) => Promise<void>;
-  onTranslationStatusChange?: (status: { title: string; step: string; queued: number } | null) => void;
+  onRequestTranslation?: (item: EnergyNewsItem, options?: { resume?: boolean; signal?: AbortSignal; onRunId?: (runId?: number) => void }) => Promise<void>;
+  onCancelRun?: (runId: number) => Promise<void>;
+  onTranslationStatusChange?: (status: { title: string; step: string; queued: number; cancel: () => void } | null) => void;
 }) {
   const periodSelection = usePeriodSelection();
   const { period: newsPeriod, anchor: newsAnchor, customStart: newsCustomStart, customEnd: newsCustomEnd } = periodSelection;
@@ -110,21 +113,37 @@ export function EnergyNews({ data, onRequestTranslation, onTranslationStatusChan
   const [originalItems, setOriginalItems] = useState<Set<string>>(() => new Set());
   const [translationQueue, setTranslationQueue] = useState<QueuedTranslation[]>(readTranslationQueue);
   const translationQueueRef = useRef(translationQueue);
-  const processingRef = useRef(false);
+  const processingRef = useRef<{ id: string; controller: AbortController } | null>(null);
   const [translationLabel, setTranslationLabel] = useState("Fordítás…");
   const [translationErrors, setTranslationErrors] = useState<Record<string, string>>({});
   const [localTranslations, setLocalTranslations] = useState(loadLocalNewsTranslations);
 
-  function commitTranslationQueue(next: QueuedTranslation[]) {
+  const commitTranslationQueue = useCallback((next: QueuedTranslation[]) => {
     translationQueueRef.current = next;
     try { localStorage.setItem(translationQueueKey, JSON.stringify(next)); } catch { /* Current tab still processes the queue. */ }
     setTranslationQueue(next);
-  }
+  }, []);
+
+  const cancelActiveTranslation = useCallback(() => {
+    const active = translationQueueRef.current[0];
+    if (!active) return;
+    processingRef.current?.controller.abort();
+    processingRef.current = null;
+    commitTranslationQueue(translationQueueRef.current.filter((entry) => entry.item.id !== active.item.id));
+    setTranslationLabel("Fordítás…");
+    if (active.runId && onCancelRun) {
+      void onCancelRun(active.runId).catch((error) => {
+        setTranslationErrors((current) => ({ ...current, [active.item.id]: error instanceof Error ? error.message : "A távoli fordítás leállítása nem sikerült." }));
+      });
+    } else if (active.phase === "cloud-waiting") {
+      setTranslationErrors((current) => ({ ...current, [active.item.id]: "A várakozás megszakadt; az azonosítatlan GitHub-futás még folytatódhat." }));
+    }
+  }, [commitTranslationQueue, onCancelRun]);
 
   useEffect(() => {
     const active = translationQueue[0];
-    onTranslationStatusChange?.(active ? { title: active.item.title, step: translationLabel, queued: translationQueue.length - 1 } : null);
-  }, [translationQueue, translationLabel, onTranslationStatusChange]);
+    onTranslationStatusChange?.(active ? { title: active.item.title, step: translationLabel, queued: translationQueue.length - 1, cancel: cancelActiveTranslation } : null);
+  }, [translationQueue, translationLabel, onTranslationStatusChange, cancelActiveTranslation]);
 
   useEffect(() => {
     const active = translationQueue[0];
@@ -133,7 +152,8 @@ export function EnergyNews({ data, onRequestTranslation, onTranslationStatusChan
       setTranslationLabel("Adatkapcsolat beállítandó");
       return;
     }
-    processingRef.current = true;
+    const operation = { id: active.item.id, controller: new AbortController() };
+    processingRef.current = operation;
     const item = active.item;
     void (async () => {
       try {
@@ -143,37 +163,47 @@ export function EnergyNews({ data, onRequestTranslation, onTranslationStatusChan
         } else if (active.phase === "cloud-waiting") {
           setTranslationLabel("Felhőben");
           if (!onRequestTranslation) throw new Error("A felhőfordítás nem érhető el.");
-          await onRequestTranslation(item, true);
+          await onRequestTranslation(item, { resume: true, signal: operation.controller.signal });
         } else {
           const cached = loadLocalNewsTranslations()[item.id];
           if (cached?.url === item.url && cached.titleHu && cached.summaryHu) {
             setLocalTranslations((current) => ({ ...current, [item.id]: cached }));
           } else if (canTranslateInBrowser()) {
             try {
-              const translation = await translateNewsInBrowser(item, setTranslationLabel);
-              setLocalTranslations(storeLocalNewsTranslation(item, translation));
+              const translation = await translateNewsInBrowser(item, (label) => {
+                if (!operation.controller.signal.aborted) setTranslationLabel(label);
+              });
+              if (!operation.controller.signal.aborted) setLocalTranslations(storeLocalNewsTranslation(item, translation));
             } catch (error) {
               if (!onRequestTranslation) throw error;
             }
           } else if (!onRequestTranslation) {
             throw new Error("A fordítás nem érhető el ebben a böngészőben.");
           }
-          if (onRequestTranslation) {
+          if (onRequestTranslation && !operation.controller.signal.aborted) {
             setTranslationLabel("Felhőben");
             commitTranslationQueue([{ item, phase: "cloud-waiting" }, ...translationQueueRef.current.slice(1)]);
-            await onRequestTranslation(item);
+            await onRequestTranslation(item, {
+              signal: operation.controller.signal,
+              onRunId: (runId) => {
+                if (!runId || operation.controller.signal.aborted) return;
+                commitTranslationQueue(translationQueueRef.current.map((entry) => entry.item.id === item.id ? { ...entry, runId } : entry));
+              },
+            });
           }
         }
-        setOriginalItems((current) => { const next = new Set(current); next.delete(item.id); return next; });
+        if (!operation.controller.signal.aborted) setOriginalItems((current) => { const next = new Set(current); next.delete(item.id); return next; });
       } catch (error) {
-        setTranslationErrors((current) => ({ ...current, [item.id]: error instanceof Error ? error.message : "A fordítás nem sikerült." }));
+        if (!operation.controller.signal.aborted) setTranslationErrors((current) => ({ ...current, [item.id]: error instanceof Error ? error.message : "A fordítás nem sikerült." }));
       } finally {
-        commitTranslationQueue(translationQueueRef.current.filter((entry) => entry.item.id !== item.id));
-        setTranslationLabel("Fordítás…");
-        processingRef.current = false;
+        if (processingRef.current === operation) {
+          processingRef.current = null;
+          commitTranslationQueue(translationQueueRef.current.filter((entry) => entry.item.id !== item.id));
+          setTranslationLabel("Fordítás…");
+        }
       }
     })();
-  }, [translationQueue, onRequestTranslation, data.items]);
+  }, [translationQueue, onRequestTranslation, data.items, commitTranslationQueue]);
   const sourceById = useMemo(() => new Map(data.sources.map((source) => [source.id, source])), [data.sources]);
   const effectiveSourceId = sourceId === "all" || sourceById.has(sourceId) ? sourceId : "all";
   const items = useMemo(() => data.items.filter((item) => (

@@ -10,11 +10,11 @@ export interface PageBlockDefinition {
 // couple rendering to file-system paths.
 export const PAGE_BLOCKS: PageBlockDefinition[] = [
   { id: "energia", navigationLabel: "Energiafolyam", codeLocation: "blocks/energy-flow", dataFile: "dashboard-{range}.json" },
-  { id: "energiamix", navigationLabel: "Bulgária", codeLocation: "blocks/bulgaria-energy", dataFile: "bulgaria-energy-mix.json" },
-  { id: "hirek", navigationLabel: "Hírek", codeLocation: "blocks/news", dataFile: "energy-news.json" },
   { id: "elojelzes", navigationLabel: "Előrejelzés", codeLocation: "blocks/forecast", dataFile: "dashboard-{range}.json" },
-  { id: "szallo-por", navigationLabel: "Szálló por", codeLocation: "blocks/air-quality", dataFile: "air-quality.json" },
+  { id: "klima", navigationLabel: "Hőmérséklet", codeLocation: "blocks/home-climate", dataFile: "govee-history.json" },
   { id: "fogyasztasi-proba", navigationLabel: "Interaktív próba", codeLocation: "blocks/planner", dataFile: "dashboard-{range}.json" },
   { id: "napallas", navigationLabel: "Napállás", codeLocation: "blocks/sun-position" },
-  { id: "klima", navigationLabel: "Hőmérséklet", codeLocation: "blocks/home-climate", dataFile: "govee-history.json" },
+  { id: "szallo-por", navigationLabel: "Szálló por", codeLocation: "blocks/air-quality", dataFile: "air-quality.json" },
+  { id: "hirek", navigationLabel: "Hírek", codeLocation: "blocks/news", dataFile: "energy-news.json" },
+  { id: "energiamix", navigationLabel: "Bulgária", codeLocation: "blocks/bulgaria-energy", dataFile: "bulgaria-energy-mix.json" },
 ];

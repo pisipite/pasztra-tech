@@ -2080,6 +2080,8 @@ main { max-width: 1500px; padding-top: 28px; }
 .activity-bar__item > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .activity-bar__item strong { font-family: "Oswald", Impact, sans-serif; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
 .activity-bar__item em { font-style: normal; white-space: nowrap; color: #9a3e20; font-weight: 700; }
+.activity-bar__item button { flex: 0 0 auto; padding: 2px 7px; border: 1px solid currentColor; border-radius: 3px; color: inherit; background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+.activity-bar__item button:hover, .activity-bar__item button:focus-visible { background: var(--poster-deep); color: #fff2cd; }
 .activity-bar__item > i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #c36b27; box-shadow: 0 0 0 3px rgba(195, 107, 39, .16); animation: activity-pulse 1.3s ease-in-out infinite; }
 @keyframes activity-pulse { 50% { opacity: .35; } }
 .app-shell { overflow: clip; }
