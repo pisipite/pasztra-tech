@@ -44,6 +44,7 @@ const shortDayFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short", day
 const weekDayFormatter = new Intl.DateTimeFormat("hu-HU", { weekday: "short", month: "short", day: "numeric" });
 const monthNameFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short" });
 const fullDayFormatter = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+const clockFormatter = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
 const fullMonthFormatter = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long" });
 
 function pointDate(point: EnergyChartPoint) {
@@ -64,7 +65,9 @@ function axisPointLabel(point: EnergyChartPoint, period: PeriodKey) {
 function tooltipPointLabel(point: EnergyChartPoint, period: PeriodKey) {
   const date = pointDate(point);
   if (!date) return point.label;
-  return period === "year" ? fullMonthFormatter.format(date) : fullDayFormatter.format(date);
+  if (period === "year") return fullMonthFormatter.format(date);
+  const day = fullDayFormatter.format(date);
+  return period === "day" ? `${day} · ${clockFormatter.format(date)}` : day;
 }
 
 function formatValue(value: number, unit: string) {
