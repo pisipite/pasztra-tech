@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-15T20:48:11.889Z",
+  "fetchedAt": "2026-10-15T20:53:11.904Z",
   "bounds": {
     "lamin": 41.3,
     "lomin": 22.3,
@@ -10,12 +10,12 @@
     "aircraft": {
       "status": "ok",
       "name": "OpenSky Network",
-      "updatedAt": "2026-10-15T20:48:05.000Z"
+      "updatedAt": "2026-10-15T20:53:08.000Z"
     },
     "trains": {
       "status": "ok",
       "name": "BDZ GTFS-RT · bolgár NAP",
-      "updatedAt": "2026-10-15T20:48:11.000Z"
+      "updatedAt": "2026-10-15T20:53:11.000Z"
     },
     "roads": {
       "status": "unavailable",
@@ -30,49 +30,7 @@
       "url": "https://www.mvr.bg/press/%D0%B0%D0%BA%D1%82%D1%83%D0%B0%D0%BB%D0%BD%D0%B0-%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F/%D0%B0%D0%BA%D1%82%D1%83%D0%B0%D0%BB%D0%BD%D0%B0-%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F/%D0%B0%D0%BA%D1%82%D1%83%D0%B0%D0%BB%D0%BD%D0%BE/93598"
     }
   },
-  "aircraft": [
-    {
-      "id": "4bb850",
-      "callsign": "PGT5309",
-      "country": "Turkey",
-      "longitude": 23.0091,
-      "latitude": 42.2098,
-      "altitudeM": 11193.78,
-      "speedKmh": 696,
-      "heading": 329.27,
-      "seenAt": "2026-10-15T20:48:04.000Z",
-      "trail": [
-        {
-          "latitude": 41.7566,
-          "longitude": 23.3688,
-          "at": "2026-10-15T20:43:06.000Z"
-        },
-        {
-          "latitude": 42.2098,
-          "longitude": 23.0091,
-          "at": "2026-10-15T20:48:04.000Z"
-        }
-      ],
-      "route": {
-        "origin": {
-          "name": "Adnan Menderes International Airport",
-          "city": "İzmir",
-          "code": "ADB",
-          "latitude": 38.2924,
-          "longitude": 27.157
-        },
-        "destination": {
-          "name": "Cologne Bonn Airport",
-          "city": "Cologne",
-          "code": "CGN",
-          "latitude": 50.8659,
-          "longitude": 7.14274
-        },
-        "flightNumber": "H95309"
-      },
-      "routeCheckedAt": "2026-10-15T20:43:12.151Z"
-    }
-  ],
+  "aircraft": [],
   "trains": [],
   "roads": [],
   "borders": [
