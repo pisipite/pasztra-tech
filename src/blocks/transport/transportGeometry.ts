@@ -1,4 +1,5 @@
 import type { FeatureCollection, MultiPolygon, Polygon } from "geojson";
+import type { Aircraft, FlightRoute } from "./transportData";
 
 export type CountyData = FeatureCollection<Polygon | MultiPolygon>;
 export type LatLon = [latitude: number, longitude: number];
@@ -46,6 +47,31 @@ export function clipToCounties(points: LatLon[], counties: CountyData): LatLon[]
 const radians = (degrees: number) => degrees * Math.PI / 180;
 const degrees = (angle: number) => angle * 180 / Math.PI;
 
+function distanceKm(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+  const deltaLat = radians(b.latitude - a.latitude), deltaLon = radians(b.longitude - a.longitude);
+  const value = Math.sin(deltaLat / 2) ** 2 + Math.cos(radians(a.latitude)) * Math.cos(radians(b.latitude)) * Math.sin(deltaLon / 2) ** 2;
+  return 12742 * Math.asin(Math.min(1, Math.sqrt(value)));
+}
+
+// Validate older snapshots too: a still-running collector may have published
+// a callsign match without the newer routeVerified flag.
+export function trustedFlightRoute(aircraft: Aircraft): FlightRoute | null {
+  const route = aircraft.route;
+  if (!route || aircraft.routeVerified === false || !Number.isFinite(aircraft.latitude) || !Number.isFinite(aircraft.longitude)) return null;
+  const direct = distanceKm(route.origin, route.destination);
+  if (direct < 30) return null;
+  const fromOrigin = distanceKm(route.origin, aircraft);
+  const toDestination = distanceKm(aircraft, route.destination);
+  if (fromOrigin + toDestination - direct > Math.max(120, direct * 0.15)) return null;
+  if (Number.isFinite(aircraft.heading) && toDestination > 100) {
+    const lat1 = radians(aircraft.latitude), lat2 = radians(route.destination.latitude);
+    const deltaLon = radians(route.destination.longitude - aircraft.longitude);
+    const bearing = (degrees(Math.atan2(Math.sin(deltaLon) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon))) + 360) % 360;
+    if (Math.abs(((aircraft.heading! - bearing + 540) % 360) - 180) > 100) return null;
+  }
+  return route;
+}
+
 function destinationPoint([latitude, longitude]: LatLon, bearingDegrees: number, distanceKm: number): LatLon {
   const angular = distanceKm / 6371;
   const lat = radians(latitude), lon = radians(longitude), bearing = radians(bearingDegrees);
@@ -55,6 +81,9 @@ function destinationPoint([latitude, longitude]: LatLon, bearingDegrees: number,
 }
 
 export function estimatedExit(start: LatLon, destination: LatLon | null, heading: number | null): LatLon | null {
+  // A current measured heading is more trustworthy than a route database's
+  // destination. It also avoids drawing a turn across the county on selection.
+  if (Number.isFinite(heading)) return destinationPoint(start, heading!, 280);
   if (destination) {
     const lat1 = radians(start[0]), lat2 = radians(destination[0]), deltaLon = radians(destination[1] - start[1]);
     const bearing = degrees(Math.atan2(Math.sin(deltaLon) * Math.cos(lat2), Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLon)));
@@ -62,5 +91,5 @@ export function estimatedExit(start: LatLon, destination: LatLon | null, heading
     const distance = 2 * 6371 * Math.asin(Math.min(1, Math.sqrt(Math.sin(deltaLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2)));
     return destinationPoint(start, bearing, Math.min(distance, 280));
   }
-  return Number.isFinite(heading) ? destinationPoint(start, heading!, 280) : null;
+  return null;
 }

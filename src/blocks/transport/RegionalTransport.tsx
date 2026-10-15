@@ -2,16 +2,33 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { BackToTop } from "../../components/BackToTop";
-import { clipToCounties, estimatedExit, type CountyData, type LatLon } from "./transportGeometry";
-import { sourceLabel, TRANSPORT_LINKS, validSnapshot, type Aircraft, type Train, type TransportSnapshot } from "./transportData";
+import { clipToCounties, estimatedExit, trustedFlightRoute, type CountyData, type LatLon } from "./transportGeometry";
+import { sourceLabel, TRANSPORT_LINKS, validSnapshot, type Aircraft, type BorderCrossing, type RoadEvent, type Train, type TransportSnapshot } from "./transportData";
 import "./transport.css";
 
 const timeFormat = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const numberFormat = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 0 });
 const dateLabel = (value?: string) => value && Number.isFinite(Date.parse(value)) ? timeFormat.format(new Date(value)) : "–";
-type LayerKey = "aircraft" | "trains" | "roads";
+type LayerKey = "aircraft" | "trains" | "roads" | "borders";
+type Props = { loading: boolean; refreshLabel: string; onRefresh: () => void };
+const roadCategories: Record<string, string> = {
+  accident: "Baleset", jam: "Torlódás", laneClosed: "Sávlezárás", roadClosed: "Útlezárás", roadWorks: "Útépítés",
+  flooding: "Árvíz", ice: "Jeges út", fog: "Köd", dangerousConditions: "Veszélyes útviszonyok",
+  brokenDownVehicle: "Műszaki hiba", rain: "Eső", wind: "Erős szél", unknown: "Közúti jelzés",
+};
+const borderStatuses: Record<BorderCrossing["status"], string> = { normal: "Normál forgalom", busy: "Erős forgalom", restricted: "Korlátozás", unknown: "Nincs friss minősítés" };
+const dayFormat = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric" });
+const borderDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? dayFormat.format(new Date(`${value}T12:00:00Z`)) : "nincs adat";
 
-function popup(title: string, details: string[]) {
+async function fetchTransportSnapshot(): Promise<TransportSnapshot> {
+  const response = await fetch(`${import.meta.env.BASE_URL}data/transport-live.json?updated=${Date.now()}`, { cache: "no-store" });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const next: unknown = await response.json();
+  if (!validSnapshot(next)) throw new Error("Érvénytelen közlekedési adat.");
+  return next;
+}
+
+function popup(title: string, details: string[], link?: { url: string; label: string }) {
   const container = document.createElement("div");
   container.className = "transport-popup";
   const heading = document.createElement("strong");
@@ -21,6 +38,14 @@ function popup(title: string, details: string[]) {
     const line = document.createElement("span");
     line.textContent = detail;
     container.append(line);
+  }
+  if (link) {
+    const anchor = document.createElement("a");
+    anchor.href = link.url;
+    anchor.target = "_blank";
+    anchor.rel = "noopener noreferrer";
+    anchor.textContent = link.label;
+    container.append(anchor);
   }
   return container;
 }
@@ -36,32 +61,36 @@ function flightIcon(heading: number | null) {
 }
 
 function planeDetails(aircraft: Aircraft) {
+  const route = trustedFlightRoute(aircraft);
   return [
-    aircraft.route ? `${aircraft.route.origin.name} → ${aircraft.route.destination.name}` : "Az indulási és érkezési repülőtér nem ismert.",
+    route ? `${route.origin.name} → ${route.destination.name}` : "Az indulási és érkezési repülőtér nem igazolható ehhez a pozícióhoz.",
     aircraft.country || "Ismeretlen lajstromozási ország",
     aircraft.altitudeM === null ? "Magasság: nincs adat" : `Magasság: ${numberFormat.format(aircraft.altitudeM)} m`,
     aircraft.speedKmh === null ? "Sebesség: nincs adat" : `Sebesség: ${numberFormat.format(aircraft.speedKmh)} km/h`,
     `Pozíció: ${dateLabel(aircraft.seenAt)}`,
     (aircraft.trail?.length ?? 0) > 1 ? `Eddigi nyom: ${aircraft.trail?.length} mért pont` : "A mért útvonalhoz még kell egy következő pozíció.",
-    aircraft.route ? "A cél felé rajzolt szakasz becslés, nem repülési terv." : "A szaggatott folytatás a jelenlegi irány becslése.",
+    aircraft.heading !== null ? "A szaggatott folytatás a jelenlegi irány becslése, nem repülési terv." : route ? "A szaggatott folytatás a cél alapján készült becslés, nem repülési terv." : "A további útvonal nem becsülhető.",
   ];
 }
 
 function flightTitle(aircraft: Aircraft) {
-  const number = aircraft.route?.flightNumber || aircraft.callsign || aircraft.id.toUpperCase();
-  return aircraft.route ? `${aircraft.route.origin.city} → ${aircraft.route.destination.city} · ${number}` : `Útvonal nem ismert · ${number}`;
+  const route = trustedFlightRoute(aircraft);
+  const number = route?.flightNumber || aircraft.callsign || aircraft.id.toUpperCase();
+  return route ? `${route.origin.city} → ${route.destination.city} · ${number}` : `Útvonal nem igazolt · ${number}`;
 }
 
 function trainTitle(train: Train) {
   return train.route ? `${train.route.origin} → ${train.route.destination} · ${train.label}` : `Útvonal nem ismert · ${train.label}`;
 }
 
-export function RegionalTransport() {
+export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
   const mapElement = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const groups = useRef<Record<LayerKey, L.LayerGroup> | null>(null);
   const aircraftMarkers = useRef(new globalThis.Map<string, L.Marker>());
   const trainMarkers = useRef(new globalThis.Map<string, L.CircleMarker>());
+  const roadMarkers = useRef(new globalThis.Map<string, L.CircleMarker>());
+  const borderMarkers = useRef(new globalThis.Map<string, L.CircleMarker>());
   const railwayLayer = useRef<L.LayerGroup | null>(null);
   const routeLayer = useRef<L.LayerGroup | null>(null);
   const [snapshot, setSnapshot] = useState<TransportSnapshot | null>(null);
@@ -69,9 +98,17 @@ export function RegionalTransport() {
   const [railwayCount, setRailwayCount] = useState(0);
   const [selectedAircraftId, setSelectedAircraftId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [localRefreshing, setLocalRefreshing] = useState(false);
+  const [localRefreshed, setLocalRefreshed] = useState(false);
   const [clock, setClock] = useState(() => Date.now());
-  const [visible, setVisible] = useState<Record<LayerKey, boolean>>({ aircraft: true, trains: true, roads: false });
+  const [visible, setVisible] = useState<Record<LayerKey, boolean>>({ aircraft: true, trains: true, roads: true, borders: true });
   const [boundaryError, setBoundaryError] = useState(false);
+
+  useEffect(() => {
+    if (!localRefreshed) return;
+    const timer = window.setTimeout(() => setLocalRefreshed(false), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [localRefreshed]);
 
   useEffect(() => {
     if (!mapElement.current) return;
@@ -81,7 +118,7 @@ export function RegionalTransport() {
       subdomains: "abc", maxZoom: 18,
       attribution: 'Adatok &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> közreműködők · térkép &copy; <a href="https://www.openstreetmap.fr/">OSM France</a>',
     }).addTo(leafletMap);
-    const layers = { aircraft: L.layerGroup().addTo(leafletMap), trains: L.layerGroup().addTo(leafletMap), roads: L.layerGroup().addTo(leafletMap) };
+    const layers = { aircraft: L.layerGroup().addTo(leafletMap), trains: L.layerGroup().addTo(leafletMap), roads: L.layerGroup().addTo(leafletMap), borders: L.layerGroup().addTo(leafletMap) };
     groups.current = layers;
     railwayLayer.current = L.layerGroup().addTo(leafletMap);
     routeLayer.current = L.layerGroup().addTo(leafletMap);
@@ -121,7 +158,9 @@ export function RegionalTransport() {
       }).catch(() => { if (!controller.signal.aborted) setRailwayCount(0); });
     const markers = aircraftMarkers.current;
     const trains = trainMarkers.current;
-    return () => { controller.abort(); leafletMap.remove(); map.current = null; groups.current = null; railwayLayer.current = null; routeLayer.current = null; markers.clear(); trains.clear(); };
+    const roads = roadMarkers.current;
+    const borders = borderMarkers.current;
+    return () => { controller.abort(); leafletMap.remove(); map.current = null; groups.current = null; railwayLayer.current = null; routeLayer.current = null; markers.clear(); trains.clear(); roads.clear(); borders.clear(); };
   }, []);
 
   useEffect(() => {
@@ -129,10 +168,7 @@ export function RegionalTransport() {
     const load = async () => {
       setClock(Date.now());
       try {
-        const response = await fetch(`${import.meta.env.BASE_URL}data/transport-live.json?updated=${Date.now()}`, { cache: "no-store" });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const next: unknown = await response.json();
-        if (!validSnapshot(next)) throw new Error("Érvénytelen közlekedési adat.");
+        const next = await fetchTransportSnapshot();
         if (active) { setSnapshot(next); setError(""); }
       } catch {
         if (active) setError("A közlekedési adatgyűjtő még nem érhető el. Indítsd el helyben a transport:watch parancsot.");
@@ -141,13 +177,13 @@ export function RegionalTransport() {
     void load();
     const timer = window.setInterval(() => void load(), 60_000);
     return () => { active = false; window.clearInterval(timer); };
-  }, []);
+  }, [refreshLabel]);
 
   useEffect(() => {
     const layers = groups.current;
     const leafletMap = map.current;
     if (!layers || !leafletMap) return;
-    for (const key of ["aircraft", "trains", "roads"] as const) {
+    for (const key of ["aircraft", "trains", "roads", "borders"] as const) {
       layers[key].clearLayers();
       if (visible[key] && !leafletMap.hasLayer(layers[key])) layers[key].addTo(leafletMap);
       if (!visible[key] && leafletMap.hasLayer(layers[key])) leafletMap.removeLayer(layers[key]);
@@ -172,12 +208,35 @@ export function RegionalTransport() {
         .on("click", () => setSelectedAircraftId(null)).addTo(layers.trains);
       trainMarkers.current.set(train.id, marker);
     }
+    roadMarkers.current.clear();
     if (visible.roads) for (const road of snapshot?.roads ?? []) {
       if (!Number.isFinite(road.latitude) || !Number.isFinite(road.longitude)) continue;
-      L.circleMarker([road.latitude, road.longitude], { radius: 9, color: "#063832", fillColor: "#efb02d", fillOpacity: 1, weight: 2 })
-        .bindPopup(popup(road.title, [road.description || "Közúti esemény", `Frissítve: ${dateLabel(road.updatedAt)}`])).addTo(layers.roads);
+      const color = road.category === "roadClosed" || road.category === "accident" ? "#c9543d" : road.category === "jam" ? "#e88e31" : "#dfb13c";
+      if (counties && road.path && road.path.length > 1) {
+        const path: LatLon[] = road.path.filter((pair) => pair.length === 2 && pair.every(Number.isFinite)).map(([lat, lon]) => [lat, lon]);
+        for (const segment of clipToCounties(path, counties)) {
+          L.polyline(segment, { color, weight: 5, opacity: .82, dashArray: road.planned ? "7 6" : undefined, interactive: false }).addTo(layers.roads);
+        }
+      }
+      const marker = L.circleMarker([road.latitude, road.longitude], { radius: 8, color: "#063832", fillColor: color, fillOpacity: 1, weight: 2 })
+        .bindPopup(popup(`${roadCategories[road.category ?? "unknown"] ?? "Közúti jelzés"} · ${road.title}`, [
+          road.description || "Közúti esemény",
+          road.delayMinutes ? `Becsült késés: ${road.delayMinutes} perc` : "Becsült késés: nincs adat",
+          road.planned ? `Tervezett esemény · kezdete a forrás szerint` : "Jelenleg jelentett esemény",
+          road.endAt ? `Várható vége: ${dateLabel(road.endAt)}` : "",
+          `Lekérve/jelentve: ${dateLabel(road.updatedAt)}`,
+        ].filter(Boolean), { url: TRANSPORT_LINKS.tomtom, label: "TomTom Traffic ↗" })).addTo(layers.roads);
+      roadMarkers.current.set(road.id, marker);
     }
-  }, [snapshot, visible]);
+    borderMarkers.current.clear();
+    if (visible.borders) for (const border of snapshot?.borders ?? []) {
+      const fillColor = border.status === "normal" ? "#3f9984" : border.status === "busy" ? "#e4a529" : border.status === "restricted" ? "#d15d44" : "#9fa8a1";
+      const marker = L.circleMarker([border.latitude, border.longitude], { radius: 9, color: "#063832", fillColor, fillOpacity: .95, weight: 2 })
+        .bindPopup(popup(border.name, [borderStatuses[border.status], border.description, `Hivatalos jelentés: ${borderDate(border.reportedOn)}`, "Nem percben mért várakozási idő."], border.sourceUrl ? { url: border.sourceUrl, label: "Eredeti MVR-jelentés ↗" } : undefined))
+        .addTo(layers.borders);
+      borderMarkers.current.set(border.id, marker);
+    }
+  }, [counties, snapshot, visible]);
 
   useEffect(() => {
     const overlay = routeLayer.current;
@@ -190,7 +249,8 @@ export function RegionalTransport() {
       L.polyline(segment, { color: "#23a79b", weight: 4, opacity: .95 }).addTo(overlay);
     }
     const start: LatLon = [aircraft.latitude, aircraft.longitude];
-    const destination = aircraft.route ? [aircraft.route.destination.latitude, aircraft.route.destination.longitude] as LatLon : null;
+    const route = trustedFlightRoute(aircraft);
+    const destination = route ? [route.destination.latitude, route.destination.longitude] as LatLon : null;
     const end = estimatedExit(start, destination, aircraft.heading);
     if (end) for (const segment of clipToCounties([start, end], counties)) {
       L.polyline(segment, { color: "#f0b539", weight: 3, opacity: .95, dashArray: "7 7" }).addTo(overlay);
@@ -201,10 +261,34 @@ export function RegionalTransport() {
   const flightStale = !Number.isFinite(flightAge) || flightAge > 15 * 60_000;
   const trainAge = snapshot?.sources.trains.updatedAt ? clock - Date.parse(snapshot.sources.trains.updatedAt) : Infinity;
   const trainStale = !Number.isFinite(trainAge) || trainAge > 15 * 60_000;
+  const roadAge = snapshot?.sources.roads.updatedAt ? clock - Date.parse(snapshot.sources.roads.updatedAt) : Infinity;
+  const roadStale = !Number.isFinite(roadAge) || roadAge > 45 * 60_000;
+  const borderAge = snapshot?.sources.borders?.updatedAt ? clock - Date.parse(snapshot.sources.borders.updatedAt) : Infinity;
+  const borderStale = !Number.isFinite(borderAge) || borderAge > 4 * 60 * 60_000;
   const planes = snapshot?.aircraft ?? [];
   const trains = snapshot?.trains ?? [];
+  const roads = snapshot?.roads ?? [];
+  const borders = snapshot?.borders ?? [];
   const selectedFlight = planes.find((item) => item.id === selectedAircraftId);
   const toggle = (key: LayerKey) => setVisible((current) => ({ ...current, [key]: !current[key] }));
+  const refresh = async () => {
+    if (!import.meta.env.DEV) { onRefresh(); return; }
+    if (localRefreshing) return;
+    setLocalRefreshing(true);
+    setLocalRefreshed(false);
+    setError("");
+    try {
+      const response = await fetch("/__transport/refresh", { method: "POST", cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      setSnapshot(await fetchTransportSnapshot());
+      setClock(Date.now());
+      setLocalRefreshed(true);
+    } catch {
+      setError("A helyi közlekedési adatgyűjtés nem sikerült. Ellenőrizd a fejlesztői szerver naplóját.");
+    } finally {
+      setLocalRefreshing(false);
+    }
+  };
   const focusAircraft = (aircraft: Aircraft) => {
     setSelectedAircraftId(aircraft.id);
     map.current?.flyTo([aircraft.latitude, aircraft.longitude], Math.max(map.current.getZoom(), 9));
@@ -215,6 +299,14 @@ export function RegionalTransport() {
     map.current?.flyTo([train.latitude, train.longitude], Math.max(map.current.getZoom(), 9));
     trainMarkers.current.get(train.id)?.openPopup();
   };
+  const focusRoad = (road: RoadEvent) => {
+    map.current?.flyTo([road.latitude, road.longitude], Math.max(map.current.getZoom(), 10));
+    roadMarkers.current.get(road.id)?.openPopup();
+  };
+  const focusBorder = (border: BorderCrossing) => {
+    map.current?.flyTo([border.latitude, border.longitude], Math.max(map.current.getZoom(), 10));
+    borderMarkers.current.get(border.id)?.openPopup();
+  };
 
   return <article className="regional-transport card" id="kozlekedes">
     <div className="section-header">
@@ -223,19 +315,27 @@ export function RegionalTransport() {
         <h2>Mi mozog a környéken?</h2>
         <p>Kjusztendil és Blagoevgrad megye · Pasztra körül</p>
       </div>
-      <div className="transport-freshness-group" role="status">
-        <div className="transport-freshness"><i className={!flightStale && snapshot?.sources.aircraft.status === "ok" ? "is-live" : ""} />
-          <span>{sourceLabel(snapshot?.sources.aircraft, flightStale)}<small>Repülők: {dateLabel(snapshot?.sources.aircraft.updatedAt)}</small></span></div>
-        <div className="transport-freshness"><i className={!trainStale && snapshot?.sources.trains.status === "ok" ? "is-live" : ""} />
-          <span>{sourceLabel(snapshot?.sources.trains, trainStale)}<small>BDZ: {dateLabel(snapshot?.sources.trains.updatedAt)}</small></span></div>
+      <div className="transport-header-tools section-header__tools">
+        <button className="refresh-button" type="button" onClick={() => void refresh()} disabled={loading || localRefreshing} title={import.meta.env.DEV ? "Közlekedési források azonnali lekérése a helyi gépen" : "Az oldal összes adatának frissítése, a közlekedési adatokkal együtt"} aria-describedby={loading ? "manual-refresh-status" : undefined}><span aria-hidden="true">↻ </span>{localRefreshing ? "Közlekedés frissítése…" : localRefreshed ? "Frissítve" : refreshLabel}</button>
+        {localRefreshing && <small className="transport-header-tools__status" role="status">Repülők, vonatok, utak és határok lekérése…</small>}
+        <div className="transport-freshness-group" role="status">
+          <div className="transport-freshness"><i className={!flightStale && snapshot?.sources.aircraft.status === "ok" ? "is-live" : ""} />
+            <span>{sourceLabel(snapshot?.sources.aircraft, flightStale)}<small>Repülők: {dateLabel(snapshot?.sources.aircraft.updatedAt)}</small></span></div>
+          <div className="transport-freshness"><i className={!trainStale && snapshot?.sources.trains.status === "ok" ? "is-live" : ""} />
+            <span>{sourceLabel(snapshot?.sources.trains, trainStale)}<small>BDZ: {dateLabel(snapshot?.sources.trains.updatedAt)}</small></span></div>
+          <div className="transport-freshness"><i className={!roadStale && snapshot?.sources.roads.status === "ok" ? "is-live" : ""} />
+            <span>{snapshot?.sources.roads.status === "unavailable" ? "Torlódásadat nincs" : sourceLabel(snapshot?.sources.roads, roadStale)}<small>Utak: {dateLabel(snapshot?.sources.roads.updatedAt)}</small></span></div>
+          <div className="transport-freshness"><i className={!borderStale && snapshot?.sources.borders?.status === "ok" ? "is-live" : ""} />
+            <span>{snapshot?.sources.borders?.status === "ok" && !borderStale ? "Hivatalos közlés" : snapshot?.sources.borders?.status === "stale" || borderStale && borders.some((border) => border.reportedOn) ? "Korábbi közlés" : "Határadat nincs"}<small>Határ: {borders[0] ? borderDate(borders[0].reportedOn) : "–"}</small></span></div>
+        </div>
       </div>
     </div>
 
     <div className="transport-layers" aria-label="Térképrétegek">
-      {([ ["aircraft", "Repülők", planes.length], ["trains", "Vonatok", snapshot?.trains.length ?? 0], ["roads", "Úthelyzet", snapshot?.roads.length ?? 0] ] as const).map(([key, label, count]) =>
-        <button key={key} type="button" aria-pressed={visible[key]} disabled={key === "roads" && snapshot?.sources[key].status === "unavailable"} onClick={() => toggle(key)} className={`transport-layers__button transport-layers__button--${key}`}>
-          <span className="transport-layers__symbol" aria-hidden="true">{key === "aircraft" ? "✈" : key === "trains" ? "▰" : "!"}</span>
-          <strong>{label}</strong><span>{key === "trains" ? `${count} vonat · ${railwayCount} vasúti szakasz` : snapshot?.sources[key].status === "unavailable" ? "nincs bekötve" : `${count} jelzés`}</span>
+      {([ ["aircraft", "Repülők", planes.length], ["trains", "Vonatok", trains.length], ["roads", "Úthelyzet", roads.length], ["borders", "Határátkelők", borders.length] ] as const).map(([key, label, count]) =>
+        <button key={key} type="button" aria-pressed={visible[key]} disabled={key === "roads" && snapshot?.sources.roads.status === "unavailable" || key === "borders" && !borders.length} onClick={() => toggle(key)} className={`transport-layers__button transport-layers__button--${key}`}>
+          <span className="transport-layers__symbol" aria-hidden="true">{key === "aircraft" ? "✈" : key === "trains" ? "▰" : key === "borders" ? "⇄" : "!"}</span>
+          <strong>{label}</strong><span>{key === "trains" ? `${count} vonat · ${railwayCount} vasúti szakasz` : key === "roads" && snapshot?.sources.roads.status === "unavailable" ? "API-kulcs szükséges" : key === "borders" ? `${count} átkelő` : `${count} jelzés`}</span>
         </button>)}
       <span className="transport-layers__hint">A térkép görgő helyett a + / − gombbal nagyítható.</span>
     </div>
@@ -266,14 +366,35 @@ export function RegionalTransport() {
             </button>) : <p>{visible.trains ? "Most nincs jelentett vonat a két megyében." : "A vonatréteg ki van kapcsolva."}</p>}
           </div>
         </div>
+        <div className="transport-side__roads">
+          <h3>Úthelyzet <small>{roads.length}</small></h3>
+          {snapshot?.sources.roads.status === "unavailable" && <p className="transport-side__warning">A szakaszszintű torlódások és útépítések még nem érhetők el. A szerveroldali TomTom-kulcs beállítása szükséges.</p>}
+          {(snapshot?.sources.roads.status === "stale" || roadStale && snapshot?.sources.roads.status === "ok") && <p className="transport-side__warning">A közúti jelzések nem frissek; indulás előtt ellenőrizd a forrást.</p>}
+          <div className="transport-side__list transport-side__list--roads">
+            {visible.roads && roads.length ? roads.slice(0, 18).map((road) => <button type="button" key={road.id} onClick={() => focusRoad(road)}>
+              <span><b>!</b><strong>{road.title}</strong><small>{roadCategories[road.category ?? "unknown"] ?? "Közúti jelzés"}{road.planned ? " · tervezett" : ""}{road.delayMinutes ? ` · +${road.delayMinutes} perc` : ""}</small></span><em>↗</em>
+            </button>) : <p>{visible.roads ? snapshot?.sources.roads.status === "ok" ? "Most nincs jelentett közúti esemény a két megyében." : "Nincs elérhető közúti eseményadat." : "Az úthelyzetréteg ki van kapcsolva."}</p>}
+          </div>
+        </div>
+        <div className="transport-side__borders">
+          <h3>Határátkelők <small>{borders.length}</small></h3>
+          <p className="transport-side__caption">Hivatalos, napi forgalmi közlés — nem mért várakozási idő.</p>
+          {(snapshot?.sources.borders?.status !== "ok" || borderStale) && <p className="transport-side__warning">{snapshot?.sources.borders?.status === "stale" || borderStale && borders.some((border) => border.reportedOn) ? "A határjelentés korábbi; indulás előtt ellenőrizd az új közlést." : "A hivatalos határjelentés most nem érhető el."}</p>}
+          <div className="transport-side__list transport-side__list--borders">
+            {visible.borders && borders.length ? borders.map((border) => <button type="button" key={border.id} onClick={() => focusBorder(border)}>
+              <span><b>⇄</b><strong>{border.name}</strong><small>{borderStatuses[border.status]} · {borderDate(border.reportedOn)}</small></span><em>↗</em>
+            </button>) : <p>{visible.borders ? "A határátkelők még nem töltődtek be." : "A határréteg ki van kapcsolva."}</p>}
+          </div>
+        </div>
         <div className="transport-side__pending">
           <strong>Adatforrások</strong>
-          <p>A vasútvonalak a BDZ menetrendi alakzatai, a járműpontok a hivatalos GTFS-RT adatok. Közúti élő eseményfolyam még nincs bekötve.</p>
+          <p>A vasútvonalak a BDZ menetrendi alakzatai, a járműpontok a hivatalos GTFS-RT adatok. A határhelyzet az MVR közlése; a közúti eseményréteg TomTom Traffic-adatot használ, ha az API-kulcs be van állítva.</p>
           <a href={TRANSPORT_LINKS.bdz} target="_blank" rel="noreferrer">BDZ élő radar ↗</a>
+          <a href={TRANSPORT_LINKS.mvr} target="_blank" rel="noreferrer">Határjelentések ↗</a>
           <a href={TRANSPORT_LINKS.roads} target="_blank" rel="noreferrer">Közúti adatportál ↗</a>
         </div>
       </aside>
     </div>
-    <p className="transport-footnote">{boundaryError ? "A megyehatárok most nem tölthetők be. " : "Szaggatott körvonal: megyehatár. "}Térkép és határok: <a href={TRANSPORT_LINKS.osm} target="_blank" rel="noreferrer">OpenStreetMap</a>. Vasút és vonatok: <a href={TRANSPORT_LINKS.bdzNap} target="_blank" rel="noreferrer">BDZ / bolgár NAP</a>. Repülőpozíció: <a href={TRANSPORT_LINKS.opensky} target="_blank" rel="noreferrer">OpenSky</a>; indulás és cél: <a href="https://www.adsbdb.com/" target="_blank" rel="noreferrer">ADSBDB</a>. A múltbeli repülővonal csak a helyi adatgyűjtés óta mért pontokat köti össze; a jövőbeli szakasz egyenes iránybecslés, nem hivatalos útvonal.</p>
+    <p className="transport-footnote">{boundaryError ? "A megyehatárok most nem tölthetők be. " : "Szaggatott körvonal: megyehatár. "}Térkép és határok: <a href={TRANSPORT_LINKS.osm} target="_blank" rel="noreferrer">OpenStreetMap</a>. Vasút és vonatok: <a href={TRANSPORT_LINKS.bdzNap} target="_blank" rel="noreferrer">BDZ / bolgár NAP</a>. Repülőpozíció: <a href={TRANSPORT_LINKS.opensky} target="_blank" rel="noreferrer">OpenSky</a>; indulás és cél: <a href="https://www.adsbdb.com/" target="_blank" rel="noreferrer">ADSBDB</a>. Közúti események: <a href={TRANSPORT_LINKS.tomtom} target="_blank" rel="noreferrer">TomTom Traffic</a>. Határhelyzet: <a href={TRANSPORT_LINKS.mvr} target="_blank" rel="noreferrer">MVR</a>. A határjelentés nem átkelőnként mért várakozási idő; a múltbeli repülővonal mért pontokból, a jövőbeli szakasz becslésből áll.</p>
   </article>;
 }

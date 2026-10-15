@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { appendFlightTrail, normalizeBdz, normalizeFlightRoute, normalizeOpenSky } from "../scripts/transport-collect.mjs";
+import ts from "typescript";
+import { appendFlightTrail, isPlausibleFlightRoute, normalizeBdz, normalizeFlightRoute, normalizeOpenSky } from "../scripts/transport-collect.mjs";
 import { pointInCounties } from "../scripts/transport-geo.mjs";
 import { railwaysFromGtfs } from "../scripts/transport-railways.mjs";
 import { trainRoutesFromGtfs } from "../scripts/transport-timetable.mjs";
+import { findLatestBorderArticle, normalizeMvrBorders, normalizeTomTomIncidents, fetchTomTomIncidents } from "../scripts/transport-roads.mjs";
 
 const counties = { features: [{ geometry: { type: "Polygon", coordinates: [[[22, 41], [24, 41], [24, 43], [22, 43], [22, 41]]] } }] };
 
@@ -42,6 +45,28 @@ test("a járat indulási és érkezési helyét csak teljes útvonalból veszi �
   assert.equal(normalizeFlightRoute({ response: { flightroute: { origin: airport("Sofia", 23) } } }), null);
 });
 
+test("a járatszámhoz rendelt útvonalat elveti, ha a gép máshol vagy ellenkező irányban repül", () => {
+  const beauvais = { latitude: 49.4544, longitude: 2.11278 };
+  const seville = { latitude: 37.418, longitude: -5.89311 };
+  const bulgaria = { latitude: 42.1751, longitude: 22.9467, heading: 333.57 };
+  assert.equal(isPlausibleFlightRoute(bulgaria, { origin: beauvais, destination: seville }), false);
+  const sofia = { latitude: 42.7, longitude: 23.3 };
+  const vienna = { latitude: 48.1, longitude: 16.5 };
+  assert.equal(isPlausibleFlightRoute({ latitude: 45.5, longitude: 20, heading: 320 }, { origin: sofia, destination: vienna }), true);
+  assert.equal(isPlausibleFlightRoute({ latitude: 45.5, longitude: 20, heading: 140 }, { origin: sofia, destination: vienna }), false);
+});
+
+test("a térkép a régi hibás pillanatképet is szűri és a mért irány felé becsül", async () => {
+  const source = await readFile(new URL("../src/blocks/transport/transportGeometry.ts", import.meta.url), "utf8");
+  const javascript = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const { trustedFlightRoute, estimatedExit } = await import(`data:text/javascript;base64,${Buffer.from(javascript).toString("base64")}`);
+  const badRoute = { origin: { latitude: 49.4544, longitude: 2.11278 }, destination: { latitude: 37.418, longitude: -5.89311 } };
+  const plane = { latitude: 42.1751, longitude: 22.9467, heading: 333.57, route: badRoute };
+  assert.equal(trustedFlightRoute(plane), null);
+  const estimated = estimatedExit([plane.latitude, plane.longitude], [badRoute.destination.latitude, badRoute.destination.longitude], plane.heading);
+  assert.ok(estimated[0] > plane.latitude && estimated[1] < plane.longitude, "Északnyugat felé folytatja, nem Sevilla felé.");
+});
+
 test("a mért repülőnyom csak ugyanazon járat friss pontjait köti össze", () => {
   const first = { callsign: "TEST1", latitude: 42, longitude: 23, seenAt: "2026-10-15T10:00:00Z" };
   const second = { ...first, latitude: 42.1, seenAt: "2026-10-15T10:05:00Z" };
@@ -70,4 +95,45 @@ test("a BDZ járatazonosítójához a menetrend első és utolsó állomását r
   const stops = "stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon\nA,,София,,42,23\nB,,Дупница,,42,23\nC,,Благоевград,,42,23";
   const times = "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n5621-BV-20261015,20:00:00,20:00:00,B,2\n5621-BV-20261015,19:00:00,19:00:00,A,1\n5621-BV-20261015,21:00:00,21:00:00,C,3";
   assert.deepEqual(trainRoutesFromGtfs(stops, times)["5621-BV-20261015"], { origin: "София", destination: "Благоевград" });
+});
+
+test("a határjelentésből csak a hivatalos cikket választja és nem talál ki várakozási időt", () => {
+  const index = '<a href="/other" class="card__title">Más hír</a><a href="/press/aktualno/93598" class="card__title">Трафикът на българските гранични контролно-пропускателни пунктове</a>';
+  const url = findLatestBorderArticle(index);
+  assert.equal(url, "https://www.mvr.bg/press/aktualno/93598");
+  const article = `<div class="page-content__header"><small>15 Октомври 2026</small></div><div class="page-content">
+    <p><strong>Границата с&nbsp;Гърция:</strong></p><p>Трафикът е нормален на всички гранични преходи.</p>
+    <p><strong>Границата с Република Северна Македония:</strong></p><p>Трафикът е&nbsp;нормален на всички гранични контролно-пропускателни пунктове.</p>
+    <p>Трафикът е интензивен на ГКПП "Гюешево".</p></div>`;
+  const result = normalizeMvrBorders(article, url, "2026-10-15T14:00:00Z");
+  assert.equal(result.borders.length, 5);
+  assert.equal(result.borders.find((item) => item.id === "gyueshevo").status, "busy");
+  assert.equal(result.borders.find((item) => item.id === "kulata").status, "normal");
+  assert.equal(result.borders[0].reportedOn, "2026-10-15");
+  assert.equal(result.source.status, "ok");
+  assert.ok(!JSON.stringify(result).includes("waitMinutes"));
+});
+
+test("a TomTom-incidenseket megyehatárra szűri, útvonallal és késéssel", () => {
+  const payload = { incidents: [
+    { type: "Feature", geometry: { type: "LineString", coordinates: [[22.9, 42], [23, 42.1]] }, properties: { id: "a", iconCategory: "roadWorks", roadNumbers: ["I-1"], from: "A", to: "B", events: [{ description: "Útépítés" }], delayInSeconds: 420, timeValidity: "present" } },
+    { type: "Feature", geometry: { type: "Point", coordinates: [25, 44] }, properties: { id: "b", iconCategory: "jam", events: [] } },
+  ] };
+  const result = normalizeTomTomIncidents(payload, counties, "2026-10-15T14:00:00Z");
+  assert.equal(result.length, 1);
+  assert.equal(result[0].category, "roadWorks");
+  assert.equal(result[0].delayMinutes, 7);
+  assert.deepEqual(result[0].path[0], [42, 22.9]);
+  assert.throws(() => normalizeTomTomIncidents({}, counties), /Érvénytelen/);
+});
+
+test("a TomTom-kulcs csak kérésfejlécben szerepel, a három lekérési területet egyesíti", async () => {
+  const requests = [];
+  const fetcher = async (url, options) => {
+    requests.push({ url: String(url), options });
+    return { ok: true, json: async () => ({ incidents: [] }) };
+  };
+  assert.deepEqual(await fetchTomTomIncidents("titkos-tesztkulcs", counties, fetcher), []);
+  assert.equal(requests.length, 3);
+  assert.ok(requests.every(({ url, options }) => !url.includes("titkos-tesztkulcs") && options.headers["TomTom-Api-Key"] === "titkos-tesztkulcs" && options.headers["Accept-Language"] === "hu-HU"));
 });

@@ -442,7 +442,7 @@ function App() {
           <span className="sun-charm sun-charm--hero" aria-hidden="true"><i /></span>
           <div className="intro__content">
             <p className="eyebrow">{formatHeadingDate()}</p>
-            <h1>Jó napot!<br />Itthon minden rendben.</h1>
+            <h1 lang="bg">Привет!</h1>
           </div>
         </section>
 
@@ -485,7 +485,7 @@ function App() {
 
         <AirQuality endpoint={settings.endpoint} enabled={settings.live} refreshSeconds={settings.refreshSeconds} />
 
-        <RegionalTransport />
+        <RegionalTransport loading={manualRefreshBusy} refreshLabel={manualRefreshLabel} onRefresh={triggerManualRefresh} />
 
         <EnergyNews data={energyNews} onRequestTranslation={settings.githubToken && settings.live && settings.endpoint ? translateNewsItem : undefined} onCancelRun={cancelNewsRun} onTranslationStatusChange={setTranslationStatus} />
 
