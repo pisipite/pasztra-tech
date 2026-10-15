@@ -10,3 +10,4 @@ export { makeDemoEnergyNews } from "./news/newsData";
 export { ConsumptionPlanner } from "./planner/ConsumptionPlanner";
 export { SunHorizon } from "./sun-position/SunHorizon";
 export { AirQuality } from "./air-quality/AirQuality";
+export { RegionalTransport } from "./transport/RegionalTransport";

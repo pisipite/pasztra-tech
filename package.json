@@ -8,17 +8,24 @@
   },
   "scripts": {
     "dev": "vite",
+    "transport:refresh": "node scripts/transport-collect.mjs",
+    "transport:watch": "node scripts/transport-collect.mjs --watch",
+    "transport:railways": "node scripts/transport-railways.mjs",
     "build": "tsc -b && vite build",
     "test": "node --test tests/*.test.mjs",
     "preview": "vite preview",
     "lint": "eslint src"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
+    "gtfs-realtime-bindings": "^2.2.0",
+    "leaflet": "1.9.4",
     "react": "19.2.6",
     "react-dom": "19.2.6"
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
+    "@types/leaflet": "1.9.21",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
@@ -31,5 +38,6 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.59.3",
     "vite": "8.0.13"
-  }
+  },
+  "packageManager": "pnpm@11.5.0+sha512.dbfcc4f81cf48597afd4bc391ffdf12c11f1a9fb83a395bfa6b0a2d9cc2fd8ffebafdb1ccbd529632153f793904c2615b7f09fe1a345473fd1c35845172a8eb1"
 }

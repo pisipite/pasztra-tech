@@ -1,0 +1,121 @@
+{
+  "fetchedAt": "2026-10-15T19:33:11.805Z",
+  "bounds": {
+    "lamin": 41.3,
+    "lomin": 22.3,
+    "lamax": 43,
+    "lomax": 24.6
+  },
+  "sources": {
+    "aircraft": {
+      "status": "ok",
+      "name": "OpenSky Network",
+      "updatedAt": "2026-10-15T19:33:10.000Z"
+    },
+    "trains": {
+      "status": "ok",
+      "name": "BDZ GTFS-RT · bolgár NAP",
+      "updatedAt": "2026-10-15T19:33:11.000Z"
+    },
+    "roads": {
+      "status": "unavailable",
+      "name": "Bolgár közúti NAP",
+      "message": "Hitelesített élő eseményfolyam még nincs beállítva."
+    }
+  },
+  "aircraft": [
+    {
+      "id": "4baa61",
+      "callsign": "THY8TW",
+      "country": "Turkey",
+      "longitude": 23.6778,
+      "latitude": 42.0825,
+      "altitudeM": 9966.96,
+      "speedKmh": 728,
+      "heading": 353.87,
+      "seenAt": "2026-10-15T19:33:09.000Z",
+      "trail": [
+        {
+          "latitude": 41.5226,
+          "longitude": 23.7579,
+          "at": "2026-10-15T19:28:07.000Z"
+        },
+        {
+          "latitude": 42.0825,
+          "longitude": 23.6778,
+          "at": "2026-10-15T19:33:09.000Z"
+        }
+      ],
+      "route": {
+        "origin": {
+          "name": "Flughafen München-Riem",
+          "city": "Munich",
+          "code": "MUC",
+          "latitude": 48.1378,
+          "longitude": 11.6903
+        },
+        "destination": {
+          "name": "İstanbul Airport",
+          "city": "Arnavutköy, Istanbul",
+          "code": "IST",
+          "latitude": 41.2613,
+          "longitude": 28.74195
+        },
+        "flightNumber": "TK8TW"
+      },
+      "routeCheckedAt": "2026-10-15T19:28:13.355Z"
+    },
+    {
+      "id": "4baa75",
+      "callsign": "THY9VU",
+      "country": "Turkey",
+      "longitude": 23.0729,
+      "latitude": 41.9609,
+      "altitudeM": 9707.88,
+      "speedKmh": 875,
+      "heading": 92.55,
+      "seenAt": "2026-10-15T19:33:09.000Z",
+      "trail": [
+        {
+          "latitude": 41.9609,
+          "longitude": 23.0729,
+          "at": "2026-10-15T19:33:09.000Z"
+        }
+      ],
+      "route": {
+        "origin": {
+          "name": "İstanbul Airport",
+          "city": "Arnavutköy, Istanbul",
+          "code": "IST",
+          "latitude": 41.2613,
+          "longitude": 28.74195
+        },
+        "destination": {
+          "name": "Varna Airport",
+          "city": "Varna",
+          "code": "VAR",
+          "latitude": 43.2321,
+          "longitude": 27.8251
+        },
+        "flightNumber": "TK9VU"
+      },
+      "routeCheckedAt": "2026-10-15T19:33:13.185Z"
+    }
+  ],
+  "trains": [
+    {
+      "id": "50234",
+      "label": "Vonat 50234",
+      "latitude": 42.26026916503906,
+      "longitude": 23.10361671447754,
+      "seenAt": "2026-10-15T19:33:11.000Z",
+      "tripId": "50234-KPV-20261015",
+      "bearing": 14.777250289916992,
+      "route": {
+        "origin": "Благоевград",
+        "destination": "Дупница"
+      }
+    }
+  ],
+  "roads": []
+}

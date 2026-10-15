@@ -4,6 +4,7 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import {
   BulgariaEnergyMix,
   AirQuality,
+  RegionalTransport,
   ConsumptionPlanner,
   DashboardCards,
   EnergyAnalytics,
@@ -483,6 +484,8 @@ function App() {
         <SunHorizon />
 
         <AirQuality endpoint={settings.endpoint} enabled={settings.live} refreshSeconds={settings.refreshSeconds} />
+
+        <RegionalTransport />
 
         <EnergyNews data={energyNews} onRequestTranslation={settings.githubToken && settings.live && settings.endpoint ? translateNewsItem : undefined} onCancelRun={cancelNewsRun} onTranslationStatusChange={setTranslationStatus} />
 

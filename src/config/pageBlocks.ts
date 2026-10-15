@@ -15,6 +15,7 @@ export const PAGE_BLOCKS: PageBlockDefinition[] = [
   { id: "fogyasztasi-proba", navigationLabel: "Interaktív próba", codeLocation: "blocks/planner", dataFile: "dashboard-{range}.json" },
   { id: "napallas", navigationLabel: "Napállás", codeLocation: "blocks/sun-position" },
   { id: "szallo-por", navigationLabel: "Szálló por", codeLocation: "blocks/air-quality", dataFile: "air-quality.json" },
+  { id: "kozlekedes", navigationLabel: "Közlekedés", codeLocation: "blocks/transport", dataFile: "transport-live.json" },
   { id: "hirek", navigationLabel: "Hírek", codeLocation: "blocks/news", dataFile: "energy-news.json" },
   { id: "energiamix", navigationLabel: "Bulgária", codeLocation: "blocks/bulgaria-energy", dataFile: "bulgaria-energy-mix.json" },
 ];

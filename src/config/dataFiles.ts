@@ -5,4 +5,5 @@ export const DATA_FILES = Object.freeze({
   bulgariaEnergyMix: "bulgaria-energy-mix.json",
   energyNews: "energy-news.json",
   airQuality: "air-quality.json",
+  transportLive: "transport-live.json",
 });
