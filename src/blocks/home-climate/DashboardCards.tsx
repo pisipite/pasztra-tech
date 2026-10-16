@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { isValidClimateValues, type ClimateAggregation } from "../../climateData";
-import { isCurrentPeriod, periodLabel } from "../../dateUtils";
+import { dateInputValue, isCurrentPeriod, periodLabel } from "../../dateUtils";
 import { formatFixedNumber, formatNumber, formatTime } from "../../formatUtils";
 import type { ClimatePoint, DashboardData, PeriodKey } from "../../types";
 import { BackToTop } from "../../components/BackToTop";
@@ -89,7 +89,7 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
               <strong>{periodLabel(climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd)}</strong>
               <button onClick={() => onClimateStep(1)} disabled={climatePeriod !== "custom" && isCurrentPeriod(climatePeriod, climateAnchor)} aria-label="Következő klíma-időszak">→</button>
             </div>
-            {climatePeriod === "custom" && <div className="custom-range period-control-stack__custom"><label><span>Kezdőnap</span><input type="date" value={climateCustomStart} max={climateCustomEnd} onChange={(event) => onClimateCustomChange(event.target.value, climateCustomEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={climateCustomEnd} min={climateCustomStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onClimateCustomChange(climateCustomStart, event.target.value)} /></label></div>}
+            {climatePeriod === "custom" && <div className="custom-range period-control-stack__custom"><label><span>Kezdőnap</span><input type="date" value={climateCustomStart} max={climateCustomEnd} onChange={(event) => onClimateCustomChange(event.target.value, climateCustomEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={climateCustomEnd} min={climateCustomStart} max={dateInputValue(new Date())} onChange={(event) => onClimateCustomChange(climateCustomStart, event.target.value)} /></label></div>}
           </div>
         </div>
         <div className="climate-chart-controls">

@@ -59,7 +59,7 @@ jobs:
             govee-history-
       - name: Friss Sungrow és Govee adatok
         env:
-          TZ: Europe/Budapest
+          TZ: Europe/Sofia
           SUNGROW_USER: ${{ secrets.SUNGROW_USER }}
           SUNGROW_PASSWORD: ${{ secrets.SUNGROW_PASSWORD }}
           SUNGROW_PS_ID: ${{ vars.SUNGROW_PS_ID }}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "../../components/BackToTop";
 import { dateInputValue, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
 import { formatTime } from "../../formatUtils";
+import { dateTimeFormatter } from "../../timeZone";
 import type { EnergyNewsData, EnergyNewsItem, EnergyNewsSource, PeriodKey } from "../../types";
 import { usePeriodSelection } from "../../usePeriodSelection";
 import {
@@ -41,7 +42,7 @@ function readTranslationQueue(): QueuedTranslation[] {
 }
 
 function newsDate(value: string) {
-  return new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric" }).format(new Date(value));
+  return dateTimeFormatter({ year: "numeric", month: "long", day: "numeric" }).format(new Date(value));
 }
 
 function sourceStatusSymbol(source: EnergyNewsSource) {

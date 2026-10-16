@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BackToTop } from "../../components/BackToTop";
+import { addCalendarDays, dateTimeFormatter, startOfDay } from "../../timeZone";
 
 const latitude = 42.12836849354413;
 const longitude = 23.223018914073588;
@@ -102,8 +103,7 @@ function horizonElevation(azimuth: number) {
 }
 
 function formatClock(value: Date) {
-  return new Intl.DateTimeFormat("hu-HU", {
-    timeZone: "Europe/Sofia",
+  return dateTimeFormatter({
     hour: "2-digit",
     minute: "2-digit",
   }).format(value);
@@ -146,9 +146,9 @@ export function SunHorizon() {
   }, []);
 
   const model = useMemo(() => {
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-    const points = Array.from({ length: 97 }, (_, index) => {
+    const start = startOfDay(now);
+    const intervals = (addCalendarDays(start, 1).getTime() - start.getTime()) / quarterHourMs;
+    const points = Array.from({ length: intervals + 1 }, (_, index) => {
       const time = new Date(start.getTime() + index * quarterHourMs);
       return { time, ...solarPosition(time) };
     });

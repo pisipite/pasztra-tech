@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { DashboardData, SolarForecast } from "../../types";
 import { BackToTop } from "../../components/BackToTop";
 import { formatFixedNumber, formatNumber } from "../../formatUtils";
+import { addCalendarDays, dateKey, dateParts, dateTimeFormatter, dayTicks, parseLocalDateTime, startOfDay } from "../../timeZone";
 
 type DayOffset = 0 | 1 | 2;
 
@@ -61,25 +62,20 @@ const DEFAULT_BATTERY_SETTINGS: BatterySettings = {
 };
 
 function flexibleDay(): DayOffset {
-  return new Date().getHours() >= 20 ? 1 : 0;
+  return dateParts(new Date()).hour >= 20 ? 1 : 0;
 }
 
 function defaultTrial(): TrialLoad {
   return { energyKwh: 3, durationMinutes: 120, dayOffset: flexibleDay() };
 }
 
-function dateKey(value: Date | number) {
-  const date = new Date(value);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-}
-
 function formatClock(timestamp: number) {
-  return new Date(timestamp).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" });
+  return dateTimeFormatter({ hour: "2-digit", minute: "2-digit" }).format(timestamp);
 }
 
 function formatDay(date: string | undefined, fallback: string) {
   if (!date) return fallback;
-  return new Date(`${date}T12:00:00`).toLocaleDateString("hu-HU", { month: "short", day: "numeric", weekday: "short" });
+  return dateTimeFormatter({ month: "short", day: "numeric", weekday: "short" }).format(parseLocalDateTime(date));
 }
 
 function makeSlots(forecast: SolarForecast): PlannerSlot[] {
@@ -228,6 +224,9 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   }
 
   const daySlots = slots.filter((slot) => slot.dayOffset === trial.dayOffset);
+  const dayStart = startOfDay(parseLocalDateTime(forecast.days[trial.dayOffset].date));
+  const dayMinutes = (addCalendarDays(dayStart, 1).getTime() - dayStart.getTime()) / 60_000;
+  const elapsedMinutes = (timestamp: number) => (timestamp - dayStart.getTime()) / 60_000;
   const dayStartIndex = slots.findIndex((slot) => slot.dayOffset === trial.dayOffset);
   const batteryLinePoints = plan ? daySlots.map((_, index) => {
     const x = daySlots.length > 1 ? index / (daySlots.length - 1) * 100 : 0;
@@ -251,13 +250,11 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   const moveToPointer = (clientX: number, offsetMinutes: number) => {
     const bounds = timelineRef.current?.getBoundingClientRect();
     if (!bounds?.width) return;
-    const targetMinute = Math.max(0, Math.min(1440, (clientX - bounds.left) / bounds.width * 1440 - offsetMinutes));
+    const targetMinute = Math.max(0, Math.min(dayMinutes, (clientX - bounds.left) / bounds.width * dayMinutes - offsetMinutes));
     const closest = candidates.reduce<number | undefined>((best, candidate) => {
-      const date = new Date(slots[candidate].timestamp);
-      const minute = date.getHours() * 60 + date.getMinutes();
+      const minute = elapsedMinutes(slots[candidate].timestamp);
       if (best === undefined) return candidate;
-      const bestDate = new Date(slots[best].timestamp);
-      const bestMinute = bestDate.getHours() * 60 + bestDate.getMinutes();
+      const bestMinute = elapsedMinutes(slots[best].timestamp);
       return Math.abs(minute - targetMinute) < Math.abs(bestMinute - targetMinute) ? candidate : best;
     }, undefined);
     if (closest !== undefined) setManualStart(slots[closest].timestamp);
@@ -274,18 +271,16 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
     if (!start) return;
     const bounds = timelineRef.current?.getBoundingClientRect();
     if (!bounds?.width) return;
-    const startDate = new Date(start.timestamp);
-    const startMinute = startDate.getHours() * 60 + startDate.getMinutes();
-    const pointerMinute = Math.max(startMinute + 15, Math.min(1440, (clientX - bounds.left) / bounds.width * 1440));
+    const startMinute = elapsedMinutes(start.timestamp);
+    const pointerMinute = Math.max(startMinute + 15, Math.min(dayMinutes, (clientX - bounds.left) / bounds.width * dayMinutes));
     const durationMinutes = Math.max(15, Math.round((pointerMinute - startMinute) / 15) * 15);
     setTrial((current) => current.durationMinutes === durationMinutes ? current : { ...current, durationMinutes });
   };
 
   const resizeBy = (minutes: number) => {
     if (!start) return;
-    const startDate = new Date(start.timestamp);
-    const startMinute = startDate.getHours() * 60 + startDate.getMinutes();
-    setTrial((current) => ({ ...current, durationMinutes: Math.max(15, Math.min(1440 - startMinute, current.durationMinutes + minutes)) }));
+    const startMinute = elapsedMinutes(start.timestamp);
+    setTrial((current) => ({ ...current, durationMinutes: Math.max(15, Math.min(dayMinutes - startMinute, current.durationMinutes + minutes)) }));
   };
 
   const sourceRows = plan ? [
@@ -328,10 +323,10 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
               tabIndex={0}
               aria-valuetext={`${formatClock(start.timestamp)} és ${formatClock(endTimestamp ?? start.timestamp)} között`}
               aria-valuemin={0}
-              aria-valuemax={1440}
-              aria-valuenow={new Date(start.timestamp).getHours() * 60 + new Date(start.timestamp).getMinutes()}
+              aria-valuemax={dayMinutes}
+              aria-valuenow={elapsedMinutes(start.timestamp)}
               className={`planner-block planner-block--trial ${dominantSource(plan)} ${dragState ? "is-dragging" : ""}`}
-              style={{ left: `${(start.timestamp === undefined ? 0 : (new Date(start.timestamp).getHours() * 60 + new Date(start.timestamp).getMinutes())) / 1440 * 100}%`, width: `${plan.slotCount * 15 / 1440 * 100}%` }}
+              style={{ left: `${elapsedMinutes(start.timestamp) / dayMinutes * 100}%`, width: `${plan.slotCount * 15 / dayMinutes * 100}%` }}
               aria-label={`Fogyasztás kezdete ${formatClock(start.timestamp)}. Húzd az idővonalon, vagy használd a bal és jobb nyilat.`}
               onPointerDown={(event) => {
                 if (event.button !== 0) return;
@@ -361,7 +356,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
               tabIndex={0}
               aria-label="A fogyasztás időtartamának módosítása"
               aria-valuemin={15}
-              aria-valuemax={1440}
+              aria-valuemax={dayMinutes}
               aria-valuenow={trial.durationMinutes}
               aria-valuetext={`${formatFixedNumber(trial.durationMinutes / 60, 2)} óra`}
               onPointerDown={(event) => {
@@ -390,7 +385,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
               }}
             ><i aria-hidden="true" /></span></div>
           </>}
-          <div className="planner-hours" aria-hidden="true">{[0, 4, 8, 12, 16, 20, 24].map((hour) => <span key={hour} style={{ left: `${hour / 24 * 100}%` }}>{String(hour).padStart(2, "0")}</span>)}</div>
+          <div className="planner-hours" aria-hidden="true">{dayTicks(dayStart).map((tick) => <span key={tick.label} style={{ left: `${tick.ratio * 100}%` }}>{tick.label.slice(0, 2)}</span>)}</div>
         </div>
         <div className="planner-key"><span><i className="solar" />PV: élő most, előrejelzés később</span><span><i className="battery" />akku töltöttség</span><span>A blokk közepe mozgat, a csíkos jobb széle az időtartamot állítja.</span></div>
       </section>

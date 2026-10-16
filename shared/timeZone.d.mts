@@ -1,0 +1,13 @@
+type DateValue = Date | string | number;
+export declare const TIME_ZONE: "Europe/Sofia";
+export declare function dateTimeFormatter(options: Intl.DateTimeFormatOptions, locale?: string): Intl.DateTimeFormat;
+export declare function dateParts(value: DateValue): { year: number; month: number; day: number; hour: number; minute: number; second: number };
+export declare function dateKey(value: DateValue): string;
+export declare function calendarDate(year: number, month: number, day: number, hour?: number, minute?: number, second?: number, millisecond?: number): Date;
+export declare function parseLocalDateTime(value: string): Date;
+export declare function startOfDay(value: DateValue): Date;
+export declare function endOfDay(value: DateValue): Date;
+export declare function addCalendarDays(value: DateValue, days: number): Date;
+export declare function addCalendarMonths(value: DateValue, months: number): Date;
+export declare function dayFraction(value: DateValue): number;
+export declare function dayTicks(value: DateValue): Array<{ label: string; ratio: number }>;

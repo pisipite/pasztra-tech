@@ -11,6 +11,11 @@ import { fetchEnergyNews } from "./energy-news.mjs";
 import { addHungarianNewsTranslations } from "./news-translation.mjs";
 import { normalizeGoveeTemperature, repairClimateHistory } from "./govee-temperature.mjs";
 import { fetchAirQuality } from "./air-quality.mjs";
+import { TIME_ZONE, dateKey, dateTimeFormatter } from "../shared/timeZone.mjs";
+
+// Provider calendar dates and Sungrow's zone-less timestamps belong to Bulgaria,
+// including local runs on Windows. Stored ISO timestamps still represent UTC.
+process.env.TZ = TIME_ZONE;
 
 const execFileAsync = promisify(execFile);
 const outputDir = resolve("public/data");
@@ -891,12 +896,6 @@ function forecastSetting(name, fallback) {
   return Number.isFinite(configured) ? configured : fallback;
 }
 
-function timestampWithOffset(localTime, offsetSeconds) {
-  const sign = offsetSeconds >= 0 ? "+" : "-";
-  const absolute = Math.abs(offsetSeconds);
-  return `${localTime}:00${sign}${pad(Math.floor(absolute / 3600))}:${pad(Math.floor((absolute % 3600) / 60))}`;
-}
-
 function bestConsumptionWindow(points, length = 3) {
   let bestIndex = 0;
   let bestTotal = -1;
@@ -925,8 +924,10 @@ async function getSolarForecast() {
   url.searchParams.set("hourly", "global_tilted_irradiance,cloud_cover,precipitation_probability");
   url.searchParams.set("tilt", String(tiltDeg));
   url.searchParams.set("azimuth", String(azimuthDeg));
-  url.searchParams.set("timezone", "auto");
-  url.searchParams.set("forecast_days", "3");
+  url.searchParams.set("timezone", TIME_ZONE);
+  // Unix timestamps preserve both instances of the repeated autumn hour.
+  url.searchParams.set("timeformat", "unixtime");
+  url.searchParams.set("forecast_days", "4");
 
   const response = await fetch(url, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`Open-Meteo: HTTP ${response.status}`);
@@ -937,12 +938,14 @@ async function getSolarForecast() {
   const precipitation = body.hourly?.precipitation_probability ?? [];
   const groups = new Map();
 
-  times.forEach((localTime, index) => {
-    const date = localTime.slice(0, 10);
+  const forecastClock = dateTimeFormatter({ hour: "2-digit", minute: "2-digit" });
+  times.forEach((unixTime, index) => {
+    const timestamp = new Date(unixTime * 1000);
+    const date = dateKey(timestamp);
     const gti = Math.max(0, numberValue(irradiance[index]));
     const point = {
-      label: localTime.slice(11, 16),
-      timestamp: timestampWithOffset(localTime, numberValue(body.utc_offset_seconds)),
+      label: forecastClock.format(timestamp),
+      timestamp: timestamp.toISOString(),
       expectedPowerKw: Math.min(systemKwp, systemKwp * (gti / 1000) * performanceRatio),
       irradianceWm2: gti,
       cloudCoverPct: numberValue(cloudCover[index]),

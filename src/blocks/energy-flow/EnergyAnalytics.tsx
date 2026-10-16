@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { smoothPath } from "../../chartUtils";
-import { isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
+import { dateInputValue, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
+import { dateTimeFormatter } from "../../timeZone";
 import { batteryChargeValue, batteryDischargeValue, batteryNetValue, gridFeedInValue, gridNetValue, gridPurchaseValue, mergeEnergyAndClimate } from "../../energyData";
 import { formatFixedNumber } from "../../formatUtils";
 import type { DashboardData, EnergyChartPoint, PeriodKey } from "../../types";
@@ -40,12 +41,12 @@ const colors = {
   humidity: "var(--series-humidity)",
 };
 
-const shortDayFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric" });
-const weekDayFormatter = new Intl.DateTimeFormat("hu-HU", { weekday: "short", month: "short", day: "numeric" });
-const monthNameFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short" });
-const fullDayFormatter = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
-const clockFormatter = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
-const fullMonthFormatter = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long" });
+const shortDayFormatter = dateTimeFormatter({ month: "short", day: "numeric" });
+const weekDayFormatter = dateTimeFormatter({ weekday: "short", month: "short", day: "numeric" });
+const monthNameFormatter = dateTimeFormatter({ month: "short" });
+const fullDayFormatter = dateTimeFormatter({ year: "numeric", month: "long", day: "numeric", weekday: "long" });
+const clockFormatter = dateTimeFormatter({ hour: "2-digit", minute: "2-digit" });
+const fullMonthFormatter = dateTimeFormatter({ year: "numeric", month: "long" });
 
 function pointDate(point: EnergyChartPoint) {
   if (!point.timestamp) return undefined;
@@ -59,7 +60,7 @@ function axisPointLabel(point: EnergyChartPoint, period: PeriodKey) {
   if (period === "year") return monthNameFormatter.format(date);
   if (period === "week") return weekDayFormatter.format(date);
   if (period === "month" || period === "custom") return shortDayFormatter.format(date);
-  return point.label;
+  return clockFormatter.format(date);
 }
 
 function tooltipPointLabel(point: EnergyChartPoint, period: PeriodKey) {
@@ -214,7 +215,7 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
             <div className="custom-range period-control-stack__custom">
               <label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => onCustomChange(event.target.value, customEnd)} /></label>
               <span aria-hidden="true">→</span>
-              <label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={new Date().toISOString().slice(0, 10)} onChange={(event) => onCustomChange(customStart, event.target.value)} /></label>
+              <label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => onCustomChange(customStart, event.target.value)} /></label>
             </div>
           )}
         </div>

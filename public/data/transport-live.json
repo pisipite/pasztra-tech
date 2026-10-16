@@ -1,5 +1,5 @@
 {
-  "fetchedAt": "2026-10-15T20:53:11.904Z",
+  "fetchedAt": "2026-10-15T21:48:11.995Z",
   "bounds": {
     "lamin": 41.3,
     "lomin": 22.3,
@@ -10,12 +10,12 @@
     "aircraft": {
       "status": "ok",
       "name": "OpenSky Network",
-      "updatedAt": "2026-10-15T20:53:08.000Z"
+      "updatedAt": "2026-10-15T21:48:06.000Z"
     },
     "trains": {
       "status": "ok",
       "name": "BDZ GTFS-RT · bolgár NAP",
-      "updatedAt": "2026-10-15T20:53:11.000Z"
+      "updatedAt": "2026-10-15T21:48:11.000Z"
     },
     "roads": {
       "status": "unavailable",
@@ -30,7 +30,80 @@
       "url": "https://www.mvr.bg/press/%D0%B0%D0%BA%D1%82%D1%83%D0%B0%D0%BB%D0%BD%D0%B0-%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F/%D0%B0%D0%BA%D1%82%D1%83%D0%B0%D0%BB%D0%BD%D0%B0-%D0%B8%D0%BD%D1%84%D0%BE%D1%80%D0%BC%D0%B0%D1%86%D0%B8%D1%8F/%D0%B0%D0%BA%D1%82%D1%83%D0%B0%D0%BB%D0%BD%D0%BE/93598"
     }
   },
-  "aircraft": [],
+  "aircraft": [
+    {
+      "id": "4ca836",
+      "callsign": "EIN799",
+      "country": "Ireland",
+      "longitude": 23.4066,
+      "latitude": 41.6173,
+      "altitudeM": 11209.02,
+      "speedKmh": 685,
+      "heading": 331.43,
+      "seenAt": "2026-10-15T21:48:05.000Z",
+      "trail": [
+        {
+          "latitude": 41.6173,
+          "longitude": 23.4066,
+          "at": "2026-10-15T21:48:05.000Z"
+        }
+      ],
+      "route": {
+        "origin": {
+          "name": "Adnan Menderes International Airport",
+          "city": "İzmir",
+          "code": "ADB",
+          "latitude": 38.2924,
+          "longitude": 27.157
+        },
+        "destination": {
+          "name": "Dublin Airport",
+          "city": "Dublin",
+          "code": "DUB",
+          "latitude": 53.4213,
+          "longitude": -6.27007
+        },
+        "flightNumber": "EI799"
+      },
+      "routeCheckedAt": "2026-10-15T21:48:12.230Z"
+    },
+    {
+      "id": "4d2428",
+      "callsign": "WMT8438",
+      "country": "Malta",
+      "longitude": 23.1665,
+      "latitude": 42.3069,
+      "altitudeM": 10888.98,
+      "speedKmh": 744,
+      "heading": 40.86,
+      "seenAt": "2026-10-15T21:48:05.000Z",
+      "trail": [
+        {
+          "latitude": 42.3069,
+          "longitude": 23.1665,
+          "at": "2026-10-15T21:48:05.000Z"
+        }
+      ],
+      "route": {
+        "origin": {
+          "name": "Falcone–Borsellino Airport",
+          "city": "Palermo",
+          "code": "PMO",
+          "latitude": 38.176,
+          "longitude": 13.091
+        },
+        "destination": {
+          "name": "Henri Coandă International Airport",
+          "city": "Bucharest",
+          "code": "OTP",
+          "latitude": 44.57111,
+          "longitude": 26.085
+        },
+        "flightNumber": "W48438"
+      },
+      "routeCheckedAt": "2026-10-15T21:48:12.236Z"
+    }
+  ],
   "trains": [],
   "roads": [],
   "borders": [

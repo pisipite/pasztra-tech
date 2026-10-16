@@ -1,4 +1,5 @@
 import { ERM_ZAPAD_SOURCE, NEWS_FEEDS } from "./data-sources/news-sources.mjs";
+import { dateKey, parseLocalDateTime } from "../shared/timeZone.mjs";
 
 const solarPattern = /фотоволта|солар|слънчев(?:а|и|ата|ите)?\s+(?:енерг|панел|централ)|photovolta|solar/i;
 const renewablePattern = /възобнов|\bВЕИ\b|зелена\s+енерг|вятър|ветро|водноелектр|хидроенерг|батери|съхранение\s+на\s+енерг|renewable/i;
@@ -86,7 +87,7 @@ export function parseNewsFeed(xml, source) {
     const summary = trimSummary(rawSummary);
     const text = `${title} ${summary}`;
     const publishedRaw = firstTag(block, ["pubDate", "published", "updated", "dc:date"]);
-    const publishedAt = new Date(publishedRaw);
+    const publishedAt = parseLocalDateTime(publishedRaw);
     if (!title || !link || !Number.isFinite(publishedAt.getTime()) || !energyPattern.test(text)) return [];
     const category = categoryFor(text);
     const importance = importanceFor(text, category);
@@ -117,7 +118,7 @@ export function parseEconomicCategory(html, source) {
     const date = block.match(/<time\b[^>]*datetime=["']([^"']+)["']/i)?.[1];
     const summary = trimSummary(block.match(/<p\b[^>]*class=["'][^"']*article__short-text[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)?.[1] ?? "");
     if (!title || !href || !date) return [];
-    const publishedAt = new Date(`${date.trim().replace(" ", "T")}:00+03:00`);
+    const publishedAt = parseLocalDateTime(date);
     if (!Number.isFinite(publishedAt.getTime())) return [];
     const url = new URL(decodeXml(href), source.homeUrl).href;
     const text = `${title} ${summary}`;
@@ -188,7 +189,7 @@ async function fetchErmZapad(now) {
     checkedAt: now.toISOString(),
     sourceUrl: ERM_ZAPAD_SOURCE.homeUrl,
     items: hasOutage ? [{
-      id: `erm-zapad-${now.toISOString().slice(0, 10)}`,
+      id: `erm-zapad-${dateKey(now)}`,
       sourceId: ERM_ZAPAD_SOURCE.id,
       sourceName: ERM_ZAPAD_SOURCE.name,
       sourceUrl: ERM_ZAPAD_SOURCE.homeUrl,

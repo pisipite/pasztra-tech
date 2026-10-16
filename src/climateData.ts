@@ -1,8 +1,9 @@
 import { timestampInPeriod } from "./dateUtils";
+import { dateKey, dateTimeFormatter, parseLocalDateTime } from "./timeZone";
 import type { ClimatePoint, PeriodKey } from "./types";
 
-const dayLabel = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric" });
-const monthLabel = new Intl.DateTimeFormat("hu-HU", { month: "short" });
+const dayLabel = dateTimeFormatter({ month: "short", day: "numeric" });
+const monthLabel = dateTimeFormatter({ month: "short" });
 
 export type ClimateAggregation = "min" | "average" | "max";
 
@@ -29,13 +30,8 @@ export function climatePointsForPeriod(
 
   const groups = new Map<string, { timestamp: string; temperatureTotal: number; humidityTotal: number; temperatureMin: number; temperatureMax: number; humidityMin: number; humidityMax: number; count: number }>();
   for (const point of filtered) {
-    const date = new Date(point.timestamp!);
-    const key = period === "year"
-      ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`
-      : `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    const timestamp = period === "year"
-      ? new Date(date.getFullYear(), date.getMonth(), 1, 12).toISOString()
-      : new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12).toISOString();
+    const key = dateKey(point.timestamp!).slice(0, period === "year" ? 7 : 10);
+    const timestamp = parseLocalDateTime(`${key}${period === "year" ? "-01" : ""}T12:00:00`).toISOString();
     const group = groups.get(key) ?? { timestamp, temperatureTotal: 0, humidityTotal: 0, temperatureMin: point.temperature, temperatureMax: point.temperature, humidityMin: point.humidity, humidityMax: point.humidity, count: 0 };
     group.temperatureTotal += point.temperature;
     group.humidityTotal += point.humidity;

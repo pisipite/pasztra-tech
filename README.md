@@ -19,6 +19,15 @@ Az adatgyűjtés, az összeállítás és a közzététel ugyanazon a futtatón 
 
 ## Élő adatok
 
+Minden megjelenített dátum, időpont, időszűrő és naptári összesítés a bolgár
+`Europe/Sofia` időzónát használja, automatikus téli–nyári időszámítással.
+A közös megvalósítás a `shared/timeZone.mjs` fájlban található; a frontend
+a `src/timeZone.ts` modulon keresztül használja. Új blokkban dátumformázáshoz
+`dateTimeFormatter`, napi kulcshoz `dateKey`, naptári léptetéshez
+`addCalendarDays` / `addCalendarMonths` használandó, nem a böngésző helyi
+`Date.getHours()` / `setDate()` metódusai. A JSON-időbélyegek továbbra is
+valós, időzónaeltolást tartalmazó időpontok (jellemzően UTC ISO-formátumban).
+
 Az oldal alapból bemutató adatokkal indul. A GitHub Actions a GoSungrow segítségével lekéri az iSolarCloud-adatokat, a Govee Developer API-ból pedig az otthonklíma-adatokat. Az induláshoz szükséges beállítások: [docs/setup.md](docs/setup.md).
 
 API-kulcsot vagy jelszót ne írj a repositoryba: ezeket kizárólag GitHub Actions Secretsként add meg.

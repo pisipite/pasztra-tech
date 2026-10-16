@@ -1,13 +1,9 @@
 import { isValidClimateValues } from "./climateData";
+import { dateKey } from "./timeZone";
 import type { ClimatePoint, DashboardData, EnergyChartPoint, PeriodKey } from "./types";
 
 function climateBucketKey(timestamp: string, period: PeriodKey) {
-  const time = new Date(timestamp);
-  const year = time.getFullYear();
-  const month = String(time.getMonth() + 1).padStart(2, "0");
-  return period === "year"
-    ? `${year}-${month}`
-    : `${year}-${month}-${String(time.getDate()).padStart(2, "0")}`;
+  return dateKey(timestamp).slice(0, period === "year" ? 7 : 10);
 }
 
 function averageClimateByPeriod(climate: ClimatePoint[], period: PeriodKey) {

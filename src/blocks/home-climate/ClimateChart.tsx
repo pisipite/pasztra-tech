@@ -1,6 +1,7 @@
 import { useState, type MouseEvent } from "react";
 import { smoothPath } from "../../chartUtils";
 import { formatFixedNumber } from "../../formatUtils";
+import { dateTimeFormatter, dayFraction, dayTicks } from "../../timeZone";
 import type { ClimatePoint, PeriodKey } from "../../types";
 
 type Props = {
@@ -13,11 +14,7 @@ type Props = {
 const width = 1000;
 const height = 300;
 const margin = { top: 24, right: 68, bottom: 48, left: 60 };
-const timeFormatter = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
-const dayTimeTicks = Array.from({ length: 9 }, (_, index) => ({
-  ratio: index / 8,
-  label: `${String(index * 3).padStart(2, "0")}:00`,
-}));
+const timeFormatter = dateTimeFormatter({ hour: "2-digit", minute: "2-digit" });
 
 export function ClimateChart({ data, period, temperatureVisible, humidityVisible }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
@@ -41,14 +38,11 @@ export function ClimateChart({ data, period, temperatureVisible, humidityVisible
   }
 
   const firstTimestamp = data.find((point) => point.timestamp)?.timestamp;
-  const dayStart = firstTimestamp ? new Date(firstTimestamp) : undefined;
-  dayStart?.setHours(0, 0, 0, 0);
-  const dayEnd = dayStart ? new Date(dayStart) : undefined;
-  dayEnd?.setDate(dayEnd.getDate() + 1);
+  const dayTimeTicks = dayTicks(firstTimestamp ?? new Date());
   const x = (index: number) => {
     const timestamp = data[index]?.timestamp;
-    if (period === "day" && timestamp && dayStart && dayEnd) {
-      const ratio = (new Date(timestamp).getTime() - dayStart.getTime()) / Math.max(dayEnd.getTime() - dayStart.getTime(), 1);
+    if (period === "day" && timestamp) {
+      const ratio = dayFraction(timestamp);
       return margin.left + Math.min(1, Math.max(0, ratio)) * plotWidth;
     }
     return margin.left + (data.length === 1 ? plotWidth / 2 : index / (data.length - 1) * plotWidth);

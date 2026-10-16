@@ -4,6 +4,7 @@ import { DATA_FILES } from "../../config/dataFiles";
 import { dataFileUrl } from "../../dashboardApi";
 import { dateInputValue, isCurrentPeriod, periodLabel } from "../../dateUtils";
 import { usePeriodSelection } from "../../usePeriodSelection";
+import { dateTimeFormatter } from "../../timeZone";
 import type { PeriodKey } from "../../types";
 import { concentrationColor, projectPoint, summarizeStations, TOWNS } from "./airQualityData";
 import type { AirQualityData, Pollutant } from "./types";
@@ -14,7 +15,7 @@ const periods: { key: PeriodKey; label: string }[] = [
   { key: "year", label: "Év" }, { key: "custom", label: "Egyéb" },
 ];
 const number = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
-const time = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const time = dateTimeFormatter({ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const valueLabel = (value: number | null) => value === null ? "Nincs adat" : `${number.format(value)} µg/m³`;
 const dateLabel = (value: string | null | undefined) => value && Number.isFinite(Date.parse(value)) ? time.format(new Date(value)) : "–";
 

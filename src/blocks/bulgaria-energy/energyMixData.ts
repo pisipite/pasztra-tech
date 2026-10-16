@@ -1,15 +1,15 @@
 import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType } from "../../types";
+import { addCalendarDays, addCalendarMonths, dateKey, dateParts, startOfDay } from "../../timeZone";
 
 export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
   const now = new Date();
-  const start = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate() - 7);
-  start.setHours(0, 0, 0, 0);
+  const start = startOfDay(addCalendarDays(addCalendarMonths(now, -12), -7));
   const points: BulgariaEnergyMixPoint[] = [];
   const hours = Math.ceil((now.getTime() - start.getTime()) / 3_600_000);
 
   for (let index = 0; index <= hours; index += 3) {
     const timestamp = new Date(start.getTime() + index * 3_600_000);
-    const hour = timestamp.getHours();
+    const hour = dateParts(timestamp).hour;
     const day = index / 24;
     const daylight = Math.max(0, Math.sin(((hour - 6) / 13) * Math.PI));
     const nuclear = 1820 + Math.sin(day * .08) * 45;
@@ -46,7 +46,6 @@ export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
     ["bobov-dol", "Bobov Dol Hőerőmű", "coal", 42.307, 23.025, 630, .31],
     ["varna", "Várnai Hőerőmű", "gas", 43.198, 27.695, 1260, .12],
   ];
-  const dayFormatter = new Intl.DateTimeFormat("en-CA", { year: "numeric", month: "2-digit", day: "2-digit" });
   const plants: BulgariaPowerPlant[] = plantSeeds.map(([id, name, type, latitude, longitude, capacityMw, factor], plantIndex) => ({
     id,
     name,
@@ -55,11 +54,11 @@ export function makeDemoBulgariaEnergyMix(): BulgariaEnergyMixData {
     longitude,
     capacityMw,
     days: Array.from({ length: 31 }, (_, dayIndex) => {
-      const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 36 + dayIndex);
+      const date = addCalendarDays(startOfDay(now), -36 + dayIndex);
       const variation = .86 + Math.sin(dayIndex * .61 + plantIndex) * .11;
       const averageMw = capacityMw * factor * variation;
       return {
-        date: dayFormatter.format(date),
+        date: dateKey(date),
         energyMwh: Math.round(averageMw * 24 * 10) / 10,
         averageMw: Math.round(averageMw * 10) / 10,
         peakMw: Math.round(Math.min(capacityMw, averageMw * 1.18) * 10) / 10,

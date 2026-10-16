@@ -6,6 +6,7 @@ import { BackToTop } from "../../components/BackToTop";
 import { BulgariaPowerPlantMap } from "./BulgariaPowerPlantMap";
 import type { BulgariaEnergyMixData, BulgariaEnergyMixPoint, EnergyChartPoint, PeriodKey } from "../../types";
 import { usePeriodSelection } from "../../usePeriodSelection";
+import { dateKey, dateTimeFormatter, dayFraction, dayTicks as makeDayTicks } from "../../timeZone";
 
 type MixSeriesKey = "nuclear" | "coal" | "gas" | "hydro" | "solar" | "wind" | "other" | "imports";
 
@@ -37,16 +38,16 @@ const mixKeys = series.map((item) => item.key);
 const generationKeys = series.filter((item) => item.key !== "imports").map((item) => item.key);
 const loadColor = "var(--series-load)";
 const compactNumber = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 1 });
-const hourFormatter = new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" });
-const dayFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric" });
-const weekdayFormatter = new Intl.DateTimeFormat("hu-HU", { weekday: "short", day: "numeric" });
-const monthFormatter = new Intl.DateTimeFormat("hu-HU", { month: "short" });
-const fullTimeFormatter = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const hourFormatter = dateTimeFormatter({ hour: "2-digit", minute: "2-digit" });
+const dayFormatter = dateTimeFormatter({ month: "short", day: "numeric" });
+const weekdayFormatter = dateTimeFormatter({ weekday: "short", day: "numeric" });
+const monthFormatter = dateTimeFormatter({ month: "short" });
+const fullTimeFormatter = dateTimeFormatter({ year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
 function averageMixPoints(points: BulgariaEnergyMixPoint[], bucket: "day" | "month") {
   const groups = new Map<string, { timestamp: string; count: number; values: Record<string, number> }>();
   for (const point of points) {
-    const key = bucket === "month" ? point.timestamp.slice(0, 7) : point.timestamp.slice(0, 10);
+    const key = dateKey(point.timestamp).slice(0, bucket === "month" ? 7 : 10);
     const group = groups.get(key) ?? { timestamp: point.timestamp, count: 0, values: {} };
     for (const field of [...mixKeys, "load", "renewableSharePct"] as const) group.values[field] = (group.values[field] ?? 0) + point[field];
     group.count += 1;
@@ -130,12 +131,6 @@ function formatEnergyMwh(value: number) {
   return `${compactNumber.format(value)} MWh`;
 }
 
-function localHourFraction(timestamp: string) {
-  const date = new Date(timestamp);
-  if (!Number.isFinite(date.getTime())) return 0;
-  return (date.getHours() * 60 + date.getMinutes()) / 1440;
-}
-
 function formatKwh(value: number) {
   return `${compactNumber.format(value)} kWh`;
 }
@@ -198,7 +193,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const x = (index: number) => period === "day"
-    ? margin.left + localHourFraction(points[index].timestamp) * plotWidth
+    ? margin.left + dayFraction(points[index].timestamp) * plotWidth
     : margin.left + (points.length <= 1 ? plotWidth / 2 : index / (points.length - 1) * plotWidth);
   const stacks = points.map(() => 0);
   const areaSeries = visibleSeries.map((item) => {
@@ -214,7 +209,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const y = (value: number) => margin.top + (1 - value / upper) * plotHeight;
   const tickValues = Array.from({ length: 5 }, (_, index) => upper - index * upper / 4);
   const tickStep = Math.max(1, Math.ceil(points.length / 8));
-  const dayTicks = Array.from({ length: 9 }, (_, index) => index * 3);
+  const dayTicks = makeDayTicks(effectiveAnchor);
   const active = hovered === null ? undefined : points[hovered];
 
   const selectedHousehold = useMemo(() => householdPoints(data, period, anchor, customStart, customEnd, householdFallback), [data, period, anchor, customStart, customEnd, householdFallback]);
@@ -246,7 +241,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
         <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
-          <p className="bulgaria-mix__freshness"><i className={data.source === "live" ? "is-live" : ""} />{data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {new Intl.DateTimeFormat("hu-HU", { hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}</p>
+          <p className="bulgaria-mix__freshness"><i className={data.source === "live" ? "is-live" : ""} />{data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {hourFormatter.format(new Date(data.updatedAt))}</p>
           <button
             type="button"
             className={`bulgaria-mix__map-toggle${mapOpen ? " is-open" : ""}`}
@@ -321,7 +316,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
                 })}
                 {showConsumption && <polyline className="mix-load-line" points={points.map((point, index) => `${x(index)},${y(point.load)}`).join(" ")} />}
                 {period === "day"
-                  ? dayTicks.map((hour) => <text key={hour} className="mix-axis" x={margin.left + hour / 24 * plotWidth} y={height - 14} textAnchor={hour === 0 ? "start" : hour === 24 ? "end" : "middle"}>{String(hour).padStart(2, "0")}:00</text>)
+                  ? dayTicks.map((tick) => <text key={tick.label} className="mix-axis" x={margin.left + tick.ratio * plotWidth} y={height - 14} textAnchor={tick.ratio === 0 ? "start" : tick.ratio === 1 ? "end" : "middle"}>{tick.label}</text>)
                   : points.map((point, index) => (index % tickStep === 0 || index === points.length - 1) && <text key={point.timestamp} className="mix-axis" x={x(index)} y={height - 14} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{axisLabel(point, period, customStart, customEnd)}</text>)}
                 {hovered !== null && <line className="mix-hover-line" x1={x(hovered)} x2={x(hovered)} y1={margin.top} y2={height - margin.bottom} />}
               </svg>

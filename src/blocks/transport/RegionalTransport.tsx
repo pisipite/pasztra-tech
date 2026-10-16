@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { BackToTop } from "../../components/BackToTop";
+import { dateTimeFormatter, parseLocalDateTime } from "../../timeZone";
 import { clipToCounties, estimatedExit, trustedFlightRoute, type CountyData, type LatLon } from "./transportGeometry";
 import { sourceLabel, TRANSPORT_LINKS, validSnapshot, type Aircraft, type BorderCrossing, type RoadEvent, type Train, type TransportSnapshot } from "./transportData";
 import "./transport.css";
 
-const timeFormat = new Intl.DateTimeFormat("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+const timeFormat = dateTimeFormatter({ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const numberFormat = new Intl.NumberFormat("hu-HU", { maximumFractionDigits: 0 });
 const dateLabel = (value?: string) => value && Number.isFinite(Date.parse(value)) ? timeFormat.format(new Date(value)) : "–";
 type LayerKey = "aircraft" | "trains" | "roads" | "borders";
@@ -17,8 +18,8 @@ const roadCategories: Record<string, string> = {
   brokenDownVehicle: "Műszaki hiba", rain: "Eső", wind: "Erős szél", unknown: "Közúti jelzés",
 };
 const borderStatuses: Record<BorderCrossing["status"], string> = { normal: "Normál forgalom", busy: "Erős forgalom", restricted: "Korlátozás", unknown: "Nincs friss minősítés" };
-const dayFormat = new Intl.DateTimeFormat("hu-HU", { year: "numeric", month: "long", day: "numeric" });
-const borderDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? dayFormat.format(new Date(`${value}T12:00:00Z`)) : "nincs adat";
+const dayFormat = dateTimeFormatter({ year: "numeric", month: "long", day: "numeric" });
+const borderDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? dayFormat.format(parseLocalDateTime(value)) : "nincs adat";
 
 async function fetchTransportSnapshot(): Promise<TransportSnapshot> {
   const response = await fetch(`${import.meta.env.BASE_URL}data/transport-live.json?updated=${Date.now()}`, { cache: "no-store" });

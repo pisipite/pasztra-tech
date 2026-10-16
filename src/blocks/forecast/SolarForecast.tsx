@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { smoothPath } from "../../chartUtils";
 import { BackToTop } from "../../components/BackToTop";
-import { formatFixedNumber } from "../../formatUtils";
+import { formatFixedNumber, formatTime } from "../../formatUtils";
+import { dateKey, dayFraction, dayTicks, parseLocalDateTime } from "../../timeZone";
 import type { DashboardData, SolarForecastPoint } from "../../types";
 import "./forecast.css";
 
@@ -29,8 +30,8 @@ export function SolarForecast({ data }: Props) {
   const actual = useMemo(() => {
     if (!selectedDay || selectedIndex !== 0) return [];
     return (data.solar.energyChart ?? [])
-      .filter((point) => point.label.includes(":") && Number.isFinite(point.pv))
-      .map((point) => ({ label: point.label, value: Number(point.pv) }));
+      .filter((point) => Number.isFinite(point.pv) && (point.timestamp ? dateKey(point.timestamp) === selectedDay.date : point.label.includes(":")))
+      .map((point) => ({ label: point.timestamp ? formatTime(point.timestamp) : point.label, timestamp: point.timestamp, value: Number(point.pv) }));
   }, [data.solar.energyChart, selectedDay, selectedIndex]);
 
   if (!forecast || !selectedDay) {
@@ -43,10 +44,10 @@ export function SolarForecast({ data }: Props) {
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const maximum = Math.max(forecast.systemKwp, ...selectedDay.points.map((point) => point.expectedPowerKw), ...actual.map((point) => point.value), 1);
-  const x = (label: string) => margin.left + timePosition(label) * plotWidth;
+  const x = (point: { label: string; timestamp?: string }) => margin.left + (point.timestamp ? dayFraction(point.timestamp) : timePosition(point.label)) * plotWidth;
   const y = (value: number) => margin.top + (1 - value / maximum) * plotHeight;
-  const expectedCoords = selectedDay.points.map((point) => ({ x: x(point.label), y: y(point.expectedPowerKw) }));
-  const actualCoords = actual.map((point) => ({ x: x(point.label), y: y(point.value) }));
+  const expectedCoords = selectedDay.points.map((point) => ({ x: x(point), y: y(point.expectedPowerKw) }));
+  const actualCoords = actual.map((point) => ({ x: x(point), y: y(point.value) }));
   const daylightPoints = selectedDay.points.filter((point) => point.irradianceWm2 > 0);
   const averageCloud = daylightPoints.length ? daylightPoints.reduce((sum, point) => sum + point.cloudCoverPct, 0) / daylightPoints.length : 0;
   const rainChance = Math.max(0, ...selectedDay.points.map((point) => point.precipitationProbabilityPct));
@@ -89,13 +90,13 @@ export function SolarForecast({ data }: Props) {
           <path d={`${smoothPath(expectedCoords)} L${expectedCoords.at(-1)?.x},${y(0)} L${expectedCoords[0]?.x},${y(0)} Z`} fill="url(#forecast-area)" />
           <path className="forecast-line forecast-line--expected" d={smoothPath(expectedCoords)} />
           {actualCoords.length > 1 && <path className="forecast-line forecast-line--actual" d={smoothPath(actualCoords)} />}
+          {dayTicks(parseLocalDateTime(selectedDay.date)).map((tick) => <text key={tick.label} className="forecast-x-label" x={margin.left + tick.ratio * plotWidth} y={height - 15} textAnchor="middle">{tick.label.slice(0, 2)}</text>)}
           {selectedDay.points.map((point, index) => <g key={point.timestamp}>
-            {index % 3 === 0 && <text className="forecast-x-label" x={x(point.label)} y={height - 15} textAnchor="middle">{point.label.slice(0, 2)}</text>}
-            <rect className="forecast-hit" x={x(point.label) - plotWidth / 48} y={margin.top} width={plotWidth / 24} height={plotHeight} onMouseEnter={() => setHovered(index)} />
+            <rect className="forecast-hit" x={x(point) - plotWidth / (selectedDay.points.length * 2)} y={margin.top} width={plotWidth / selectedDay.points.length} height={plotHeight} onMouseEnter={() => setHovered(index)} />
           </g>)}
-          {active && <><line className="forecast-hover" x1={x(active.label)} x2={x(active.label)} y1={margin.top} y2={margin.top + plotHeight} /><circle cx={x(active.label)} cy={y(active.expectedPowerKw)} r="4" className="forecast-marker" /></>}
+          {active && <><line className="forecast-hover" x1={x(active)} x2={x(active)} y1={margin.top} y2={margin.top + plotHeight} /><circle cx={x(active)} cy={y(active.expectedPowerKw)} r="4" className="forecast-marker" /></>}
         </svg>
-        {active && <div className="forecast-tooltip"><strong>{active.label}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{formatFixedNumber(active.precipitationProbabilityPct, 0)}%</b></span></div>}
+        {active && <div className="forecast-tooltip"><strong>{formatTime(active.timestamp)}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{formatFixedNumber(active.precipitationProbabilityPct, 0)}%</b></span></div>}
       </div>
       <p className="forecast-note">Az előrejelzés időjárási modellből készült becslés; a helyi hegyoldal árnyékolása eltérést okozhat.</p>
       <ForecastSource demo={data.source === "demo"} />

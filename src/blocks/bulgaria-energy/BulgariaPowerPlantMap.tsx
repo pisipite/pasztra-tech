@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ENERGY_SOURCE_COLORS } from "../../config/energyColors";
 import { periodLabel, timestampInPeriod } from "../../dateUtils";
+import { dateKey as sofiaDateKey, parseLocalDateTime } from "../../timeZone";
 import { formatFixedNumber, formatNumber } from "../../formatUtils";
 import type { BulgariaEnergyMixPoint, BulgariaPowerPlant, BulgariaPowerPlantType, PeriodKey } from "../../types";
 
@@ -41,13 +42,7 @@ const labels: Record<BulgariaPowerPlantType, string> = {
 };
 
 function plantDateTimestamp(date: string) {
-  return new Date(`${date}T12:00:00+03:00`).toISOString();
-}
-
-const sofiaDateFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Sofia", year: "numeric", month: "2-digit", day: "2-digit" });
-
-function sofiaDateKey(timestamp: string) {
-  return sofiaDateFormatter.format(new Date(timestamp));
+  return parseLocalDateTime(`${date}T12:00:00`).toISOString();
 }
 
 function aggregatePlants(plants: BulgariaPowerPlant[], period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
@@ -117,7 +112,7 @@ function PlantRanking({ plants, onSelect }: { plants: PlantSummary[]; onSelect: 
 }
 
 export function BulgariaPowerPlantMap({ plants, nationalPoints, resolutionMinutes, period, anchor, customStart, customEnd, dataFrom, dataUntil }: Props) {
-  const latestAnchor = useMemo(() => dataUntil ? new Date(`${dataUntil}T12:00:00+03:00`) : anchor, [dataUntil, anchor]);
+  const latestAnchor = useMemo(() => dataUntil ? new Date(plantDateTimestamp(dataUntil)) : anchor, [dataUntil, anchor]);
   const selected = useMemo(() => aggregatePlants(plants, period, anchor, customStart, customEnd), [plants, period, anchor, customStart, customEnd]);
   const showingLatestAvailable = period === "day" && !selected.length && Boolean(dataUntil);
   const visiblePlants = useMemo(

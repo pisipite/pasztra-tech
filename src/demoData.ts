@@ -1,4 +1,5 @@
 import type { DashboardData, RangeKey } from "./types";
+import { addCalendarDays, calendarDate, dateKey, dateParts, dateTimeFormatter, startOfDay } from "./timeZone";
 
 const wave = (count: number, max: number, phase = 0) =>
   Array.from({ length: count }, (_, i) => {
@@ -27,15 +28,16 @@ export function makeDemoData(range: RangeKey): DashboardData {
     ? ["0", "3", "6", "9", "12", "15", "18", "21", "24"]
     : labels[range];
   const now = new Date();
+  const today = dateParts(now);
   const forecastDays = Array.from({ length: 3 }, (_, dayIndex) => {
-    const date = new Date(now);
-    date.setDate(date.getDate() + dayIndex);
-    const points = Array.from({ length: 24 }, (_, hour) => {
+    const date = addCalendarDays(startOfDay(now), dayIndex);
+    const hours = (addCalendarDays(date, 1).getTime() - date.getTime()) / 3_600_000;
+    const points = Array.from({ length: hours }, (_, index) => {
+      const timestamp = new Date(date.getTime() + index * 3_600_000);
+      const hour = dateParts(timestamp).hour;
       const daylight = Math.max(0, Math.sin(((hour - 6) / 14) * Math.PI));
       const cloudFactor = dayIndex ? .72 + Math.sin(hour * .8) * .1 : .86 + Math.sin(hour * .6) * .08;
       const expectedPowerKw = Number((Math.max(0, daylight * 5 * cloudFactor)).toFixed(2));
-      const timestamp = new Date(date);
-      timestamp.setHours(hour, 0, 0, 0);
       return {
         label: `${String(hour).padStart(2, "0")}:00`,
         timestamp: timestamp.toISOString(),
@@ -46,7 +48,7 @@ export function makeDemoData(range: RangeKey): DashboardData {
       };
     });
     return {
-      date: date.toISOString().slice(0, 10),
+      date: dateKey(date),
       label: dayIndex === 0 ? "Ma" : dayIndex === 1 ? "Holnap" : "Holnapután",
       expectedKwh: Number(points.reduce((sum, point) => sum + point.expectedPowerKw, 0).toFixed(1)),
       bestWindow: dayIndex ? "11:00–14:00" : "10:00–13:00",
@@ -55,6 +57,7 @@ export function makeDemoData(range: RangeKey): DashboardData {
   });
   const climate = climateLabels.map((label, index) => ({
     label,
+    ...(range === "today" ? { timestamp: calendarDate(today.year, today.month, today.day, index * 3).toISOString() } : {}),
     temperature: Number((22.3 + Math.sin(index * 0.72 - 1) * 1.4).toFixed(1)),
     humidity: Math.round(50 - Math.sin(index * 0.72 - 1) * 5),
   }));
@@ -64,13 +67,12 @@ export function makeDemoData(range: RangeKey): DashboardData {
     const load = isPower
       ? Number((1.2 + Math.sin(index * .83) * .35 + (index > 10 ? .4 : 0)).toFixed(2))
       : Number((pv * (.58 + Math.sin(index * .41) * .08)).toFixed(1));
-    const timestamp = new Date(now);
-    if (range === "today") timestamp.setHours(index + 6, 0, 0, 0);
-    if (range === "7d") timestamp.setDate(now.getDate() - (labels[range].length - 1 - index));
-    if (range === "30d") timestamp.setDate(index + 1);
-    if (range === "year") timestamp.setMonth(index, 1);
+    const timestamp = range === "today" ? calendarDate(today.year, today.month, today.day, index + 6)
+      : range === "7d" ? addCalendarDays(now, -(labels[range].length - 1 - index))
+      : range === "30d" ? calendarDate(today.year, today.month, index + 1, 12)
+      : calendarDate(today.year, index + 1, 1, 12);
     return {
-      label,
+      label: range === "today" ? dateTimeFormatter({ hour: "2-digit", minute: "2-digit" }).format(timestamp) : label,
       timestamp: timestamp.toISOString(),
       pv,
       load,
