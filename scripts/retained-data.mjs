@@ -10,7 +10,7 @@ export function mergeDashboard({ previous, solar, govee, forecast, now = new Dat
     ? { connected: true, updatedAt: timestamp }
     : { connected: false, stale: Boolean(retained), updatedAt: retained ? old?.connections?.[name]?.updatedAt ?? old?.updatedAt : undefined };
   const connections = {
-    solar: connection("solar", solar, now.toISOString(), old?.solar?.chart?.length || old?.solar?.energyChart?.length),
+    solar: connection("solar", solar, now.toISOString(), old?.connections?.solar?.updatedAt || old?.solar?.status === "online" || old?.solar?.chart?.length || old?.solar?.energyChart?.length),
     climate: connection("climate", govee, govee?.devices[0]?.updatedAt, old?.govee?.devices?.length || old?.govee?.chart?.length),
   };
   const timestamps = Object.values(connections).map((item) => item.updatedAt).filter((value) => Number.isFinite(Date.parse(value)));

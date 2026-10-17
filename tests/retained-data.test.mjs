@@ -65,6 +65,13 @@ test("successful collection clears retained-source flags", () => {
   assert.equal(result.connections.solar.stale, undefined);
 });
 
+test("real current counters survive a failure even without a historical curve", () => {
+  const old = { ...previous, solar: { ...previous.solar, chart: [], energyChart: [] } };
+  const result = mergeDashboard({ previous: old, now });
+  assert.equal(result.solar.todayKwh, 102.2);
+  assert.equal(result.connections.solar.stale, true);
+});
+
 test("country and house data fail independently without deleting one another", () => {
   const mix = { source: "live", updatedAt: measuredAt, points: [{ nuclear: 1900 }], household: { daily: [{ load: 102.2 }] } };
   const updated = mergeEnergyMix(mix, { source: "live", updatedAt: now.toISOString(), points: [{ nuclear: 1920 }] });

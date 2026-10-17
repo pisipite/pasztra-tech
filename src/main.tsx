@@ -35,6 +35,7 @@ const connectionStaleMs = 45 * 60 * 1000;
 const recoveryAfterMs = 40 * 60 * 1000;
 const recoveryCooldownMs = 50 * 60 * 1000;
 const recoveryAttemptKey = "solar-home-auto-recovery-at";
+const retainedTimestampFormatter = dateTimeFormatter({ year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 type ManualRefreshState = "idle" | "starting" | "waiting" | "success" | "error";
 type ThemePreference = "system" | "light" | "dark";
 const themeStorageKey = "pasztra-theme";
@@ -450,7 +451,12 @@ function App() {
         </section>
 
         {error && <div className="notice" role="status">{error}</div>}
-        {Boolean(data.warnings?.length) && <div className="notice" role="status">{data.warnings?.map((warning) => <div key={warning.source}><strong>{warning.source}:</strong> {warning.message}{warning.updatedAt ? ` Utolsó adat: ${dateTimeFormatter({ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(warning.updatedAt))}.` : ""}</div>)}</div>}
+        {Boolean(data.warnings?.length) && <div className="notice" role="status">
+          {data.warnings?.map((warning) => <div key={warning.source}>
+            <strong>{warning.source}:</strong> {warning.message}
+            {warning.updatedAt ? ` Utolsó adat: ${retainedTimestampFormatter.format(new Date(warning.updatedAt))}.` : ""}
+          </div>)}
+        </div>}
         {!manualRefreshBusy && manualRefreshMessage && <div className={`notice manual-refresh-notice is-${manualRefreshState}`} role="status">{manualRefreshMessage}</div>}
 
         <EnergyAnalytics
