@@ -22,6 +22,14 @@ A napi grafikon az időbélyeges méréseket, a heti és havi grafikon a napi á
 
 ## Válaszformátum
 
+Az `updatedAt` és a `connections.*.updatedAt` a rendelkezésre álló adat idejét
+jelöli. A `refreshedAt` az új adatgyűjtési kísérlet azonosítására szolgál akkor
+is, ha egy vagy több adatforrás nem válaszolt. Ilyenkor a `warnings` lista
+forrásnevet, üzenetet és az utolsó adat idejét tartalmazza; a megtartott
+kapcsolat `connected: false, stale: true`. A mérési idősorokat nem nullázzuk le.
+A cikkfordítás csak az `energy-news.json` fájlt módosítja, és saját
+`translation.updatedAt` időbélyeget kap; nem változtatja a hírek gyűjtési idejét.
+
 ```json
 {
   "updatedAt": "2026-08-07T12:00:00.000Z",

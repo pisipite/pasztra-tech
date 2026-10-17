@@ -114,13 +114,13 @@ export async function addHungarianNewsTranslations(data, options = {}) {
   const endpoint = options.endpoint
     ?? process.env.GEMINI_TRANSLATE_API_URL?.trim()
     ?? DATA_SOURCE_ENDPOINTS.gemini.translationApi;
-  const history = await previousNews(historyUrl, fetcher);
-  const mergedData = mergeNewsHistory(data, history);
+  const history = options.previousItems ?? await previousNews(historyUrl, fetcher);
+  const mergedData = options.preserveItems ? data : mergeNewsHistory(data, history);
   const items = mergedData.items;
   const translatedCount = items.filter((item) => item.titleHu && item.summaryHu).length;
 
   if (!apiKey) {
-    return { ...mergedData, translation: { provider: providerName, status: "not-configured", translatedCount } };
+    return { ...mergedData, translation: { provider: providerName, status: "not-configured", translatedCount, ...(requestedUrl ? { requestedUrl } : {}) } };
   }
   if (!requestedUrl) {
     return { ...mergedData, translation: { provider: providerName, status: "manual", translatedCount } };

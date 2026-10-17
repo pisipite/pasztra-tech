@@ -241,7 +241,7 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
         <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
-          <p className="bulgaria-mix__freshness"><i className={data.source === "live" ? "is-live" : ""} />{data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {hourFormatter.format(new Date(data.updatedAt))}</p>
+          <p className="bulgaria-mix__freshness"><i className={data.source === "live" && !data.stale ? "is-live" : ""} />{data.stale ? "Korábbi adat · a frissítés nem sikerült" : data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {hourFormatter.format(new Date(data.updatedAt))}</p>
           <button
             type="button"
             className={`bulgaria-mix__map-toggle${mapOpen ? " is-open" : ""}`}

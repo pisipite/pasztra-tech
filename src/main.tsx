@@ -23,6 +23,7 @@ import { rangeForPeriod } from "./dateUtils";
 import { getInitialSettings, storeSettings, type DashboardSettings } from "./dashboardSettings";
 import { makeDemoData } from "./demoData";
 import { formatHeadingDate, formatTime } from "./formatUtils";
+import { dateTimeFormatter } from "./timeZone";
 import { cancelWorkflowRun, dispatchDashboardRefresh, dispatchNewsTranslation, watchFreshDashboard, waitForNewsTranslation } from "./githubRefresh";
 import { readRefreshSession, storeRefreshSession, type RefreshSession } from "./refreshSession";
 import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, EnergyNewsItem, PeriodKey } from "./types";
@@ -238,10 +239,10 @@ function App() {
       }
       options.onRunId?.(dispatched.runId);
     }
-    const next = await waitForNewsTranslation(dataFileUrl(settings.endpoint, DATA_FILES.energyNews), item.url, energyNews.updatedAt, options.signal);
+    const next = await waitForNewsTranslation(dataFileUrl(settings.endpoint, DATA_FILES.energyNews), item.url, energyNews.translation?.updatedAt ?? energyNews.updatedAt, options.signal);
     if (options.signal?.aborted) return;
     setEnergyNews(next);
-  }, [settings, energyNews.updatedAt]);
+  }, [settings, energyNews.updatedAt, energyNews.translation?.updatedAt]);
 
   const cancelNewsRun = useCallback(async (runId: number) => {
     if (!settings.githubToken) throw new Error("A GitHub-token hiányzik; a távoli futás nem állítható le.");
@@ -295,8 +296,8 @@ function App() {
 
     setManualRefreshState("starting");
     setManualRefreshMessage("GitHub-frissítés indítása…");
-    updateRefreshSession({ previousUpdatedAt: data.updatedAt, requestedAt: new Date().toISOString(), phase: "dispatching" });
-  }, [refreshSession, settings, data.updatedAt, updateRefreshSession]);
+    updateRefreshSession({ previousUpdatedAt: data.refreshedAt ?? data.updatedAt, requestedAt: new Date().toISOString(), phase: "dispatching" });
+  }, [refreshSession, settings, data.updatedAt, data.refreshedAt, updateRefreshSession]);
 
   useEffect(() => {
     if (refreshSession?.phase !== "dispatching" || !settings.githubToken) return;
@@ -354,7 +355,9 @@ function App() {
         setClock(Date.now());
         updateRefreshSession(null);
         setManualRefreshState("success");
-        setManualRefreshMessage(`Kész: az új adatok megérkeztek (${formatTime(freshData.updatedAt)}).`);
+        setManualRefreshMessage(freshData.warnings?.length
+          ? `Kész: frissítés részleges; ${freshData.warnings.map((warning) => warning.source).join(", ")} nem frissült.`
+          : `Kész: az új adatok megérkeztek (${formatTime(freshData.refreshedAt ?? freshData.updatedAt)}).`);
         window.setTimeout(() => {
           setManualRefreshState((current) => current === "success" ? "idle" : current);
           setManualRefreshMessage((current) => current.startsWith("Kész:") ? "" : current);
@@ -406,8 +409,8 @@ function App() {
             <button type="button" className={themePreference === "dark" ? "is-active" : ""} aria-label="Sötét mód" aria-pressed={themePreference === "dark"} title="Sötét mód" onClick={() => setThemePreference("dark")}><span aria-hidden="true">☾</span><span>Sötét</span></button>
           </div>
           <div className="stream-indicators" aria-label="Adatfolyamok állapota">
-            <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
-            <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : "nincs adat"}</small></span></span>
+            <span className={`stream-indicator ${solarConnected ? "is-online" : "is-offline"}`} title={`Napelem: ${solarConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Napelem</strong><small>{solarConnected ? "kapcsolat" : data.connections?.solar.stale ? "korábbi adat" : "nincs adat"}</small></span></span>
+            <span className={`stream-indicator ${climateConnected ? "is-online" : "is-offline"}`} title={`Hőmérséklet: ${climateConnected ? "kapcsolódva" : "nincs friss adat"}`}><i /><span><strong>Hőmérséklet</strong><small>{climateConnected ? "kapcsolat" : data.connections?.climate.stale ? "korábbi adat" : "nincs adat"}</small></span></span>
           </div>
           <button className={`data-refresh-button is-${manualRefreshState}`} onClick={triggerManualRefresh} disabled={manualRefreshBusy} title="Az oldal összes adatának frissítése" aria-describedby={manualRefreshBusy ? "manual-refresh-status" : undefined}>
             <i aria-hidden="true">↻</i><span>{manualRefreshLabel}</span>
@@ -447,6 +450,7 @@ function App() {
         </section>
 
         {error && <div className="notice" role="status">{error}</div>}
+        {Boolean(data.warnings?.length) && <div className="notice" role="status">{data.warnings?.map((warning) => <div key={warning.source}><strong>{warning.source}:</strong> {warning.message}{warning.updatedAt ? ` Utolsó adat: ${dateTimeFormatter({ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(warning.updatedAt))}.` : ""}</div>)}</div>}
         {!manualRefreshBusy && manualRefreshMessage && <div className={`notice manual-refresh-notice is-${manualRefreshState}`} role="status">{manualRefreshMessage}</div>}
 
         <EnergyAnalytics

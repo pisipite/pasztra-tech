@@ -1,4 +1,5 @@
 name: Deploy to GitHub Pages
+run-name: ${{ inputs.translate_news_url != '' && 'Hírfordítás' || github.event_name == 'push' && 'Weboldal frissítése' || 'Adatfrissítés' }}
 
 on:
   push:
@@ -39,25 +40,51 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
+      - name: Legutóbbi közzétett oldal
+        uses: actions/cache/restore@v4
+        with:
+          path: dist
+          key: pages-publication-v1-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: pages-publication-v1-
+      - name: Gyors frissítés előkészítése
+        id: publication
+        env:
+          PAGES_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/
+          NEWS_TRANSLATION_URL: ${{ inputs.translate_news_url }}
+        run: node scripts/pages-publication.mjs prepare
+      # Only a rebuild or the transport collector needs npm packages.
+      - name: Függőségek gyorsítótára
+        if: steps.publication.outputs.build_required == 'true' || inputs.translate_news_url == ''
+        id: dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: dependencies-ubuntu22-node22-v1-${{ hashFiles('pnpm-lock.yaml', 'package.json') }}
+      - uses: pnpm/action-setup@v4
+        if: (steps.publication.outputs.build_required == 'true' || inputs.translate_news_url == '') && steps.dependencies.outputs.cache-hit != 'true'
+      - name: Függőségek telepítése
+        if: (steps.publication.outputs.build_required == 'true' || inputs.translate_news_url == '') && steps.dependencies.outputs.cache-hit != 'true'
+        run: pnpm install --frozen-lockfile
       - name: GoSungrow gyorsítótár
+        if: inputs.translate_news_url == ''
         uses: actions/cache@v4
         with:
           path: ~/gosungrow
           key: gosungrow-encryption-v3.0.7-linux-amd64
       - name: Mérési előzmények
+        if: inputs.translate_news_url == ''
         uses: actions/cache/restore@v4
         with:
           path: .data-history
-          key: measurement-history-${{ github.run_id }}
+          key: measurement-history-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: |
             measurement-history-
             govee-history-
       - name: Friss Sungrow és Govee adatok
+        if: inputs.translate_news_url == ''
         env:
           TZ: Europe/Sofia
           SUNGROW_USER: ${{ secrets.SUNGROW_USER }}
@@ -82,24 +109,38 @@ jobs:
           ERM_ZAPAD_ITN: ${{ secrets.ERM_ZAPAD_ITN }}
           ERM_ZAPAD_POD: ${{ secrets.ERM_ZAPAD_POD }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          NEWS_TRANSLATION_URL: ${{ inputs.translate_news_url }}
           ENERGY_NEWS_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/energy-news.json
           AIR_QUALITY_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/air-quality.json
           SUNGROW_DAY_HISTORY_DAYS: 31
         run: bash scripts/fetch-live-data.sh
       # Save collected measurements even when a later build/deployment fails.
       - name: Mérési előzmények mentése
+        if: inputs.translate_news_url == ''
         uses: actions/cache/save@v4
         with:
           path: .data-history
-          key: measurement-history-${{ github.run_id }}
-      - run: pnpm install --frozen-lockfile
+          key: measurement-history-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Közlekedési és úthelyzeti adatok
+        if: inputs.translate_news_url == ''
+        # A collector-wide failure must not discard the restored last snapshot.
+        continue-on-error: true
         env:
           TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
           TRANSPORT_HISTORY_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data/transport-live.json
-        run: pnpm transport:refresh
-      - run: pnpm build
+        run: node scripts/transport-collect.mjs
+      - name: Kiválasztott hír fordítása
+        if: inputs.translate_news_url != ''
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NEWS_TRANSLATION_URL: ${{ inputs.translate_news_url }}
+        run: node scripts/translate-news.mjs
+      - name: Weboldal build
+        if: steps.publication.outputs.build_required == 'true'
+        run: |
+          node node_modules/typescript/bin/tsc -b
+          node node_modules/vite/bin/vite.js build
+      - name: Friss adatfájlok beillesztése
+        run: node scripts/pages-publication.mjs assemble
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
@@ -111,3 +152,10 @@ jobs:
         timeout-minutes: 11
         with:
           timeout: 600000
+      # Never use an un-published snapshot as the next refresh's starting point.
+      - name: Közzétett oldal mentése
+        uses: actions/cache/save@v4
+        continue-on-error: true
+        with:
+          path: dist
+          key: pages-publication-v1-${{ github.run_id }}-${{ github.run_attempt }}

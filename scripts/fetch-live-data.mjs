@@ -11,6 +11,7 @@ import { fetchEnergyNews } from "./energy-news.mjs";
 import { addHungarianNewsTranslations } from "./news-translation.mjs";
 import { normalizeGoveeTemperature, repairClimateHistory } from "./govee-temperature.mjs";
 import { fetchAirQuality } from "./air-quality.mjs";
+import { mergeDashboard, mergeEnergyMix, retainNews, sourceWarning } from "./retained-data.mjs";
 import { TIME_ZONE, dateKey, dateTimeFormatter } from "../shared/timeZone.mjs";
 
 // Provider calendar dates and Sungrow's zone-less timestamps belong to Bulgaria,
@@ -84,6 +85,9 @@ async function readClimateHistory() {
     return JSON.parse(await readFile(historyFile, "utf8"));
   } catch { /* restore from the last published Pages deployment */ }
 
+  const published = await readPublished("govee-history");
+  if (Array.isArray(published)) return published;
+
   const historyUrl = process.env.CLIMATE_HISTORY_URL;
   if (!historyUrl) return [];
   try {
@@ -136,40 +140,9 @@ async function updateClimateHistory(govee) {
   };
 }
 
-function demoDashboard(range) {
-  const chart = range === "today"
-    ? [0, 0.2, 1.1, 2.6, 4.1, 5.2, 5.8, 5.5, 4.7, 3.3, 1.8, 0.5, 0].map((value, index) => ({ label: String(index + 6), value }))
-    : range === "7d"
-      ? [24.1, 28.7, 19.4, 31.2, 30.4, 26.8, 29.6].map((value, index) => ({ label: String(index + 1), value }))
-      : range === "30d"
-        ? [26.2, 22.4, 30.8, 27.1, 18.9, 29.7, 31.4, 25.8].map((value, index) => ({ label: String(index * 4 + 1), value }))
-        : [183, 215, 342, 428, 516, 588, 632, 410, 322, 241, 126, 71].map((value, index) => ({ label: String(index + 1), value }));
-  return {
-    source: "demo",
-    updatedAt: now.toISOString(),
-    connections: {
-      solar: { connected: false },
-      climate: { connected: false },
-    },
-    solar: {
-      status: "online",
-      currentPowerKw: 4.82,
-      batteryTemperatureC: 26.4,
-      batteryVoltageV: 391.8,
-      todayKwh: 24.7,
-      monthKwh: 428,
-      lifetimeMwh: 18.6,
-      selfConsumptionPct: 73,
-      co2SavedKg: 5.8,
-      houseLoadKw: 2.16,
-      gridPowerKw: -2.66,
-      chart,
-    },
-    govee: {
-      devices: [{ id: "demo", name: "Govee thermo-hygrometer", room: "Nappali", temperatureC: 23.4, humidityPct: 48, batteryPct: 86, updatedAt: now.toISOString() }],
-      chart: [{ label: pad(now.getHours()), temperature: 23.4, humidity: 48 }],
-    },
-  };
+async function readPublished(name) {
+  try { return JSON.parse(await readFile(resolve(outputDir, `${name}.json`), "utf8")); }
+  catch (error) { if (error.code === "ENOENT") return null; throw error; }
 }
 
 const normalizeKey = (value) => String(value).toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -1300,12 +1273,8 @@ function isCompleteEnergyMixPoint(point) {
 }
 
 async function readBulgariaMixHistory() {
-  try {
-    const stored = JSON.parse(await readFile(bulgariaMixHistoryFile, "utf8"));
-    return Array.isArray(stored?.points) ? stored.points : [];
-  } catch {
-    return [];
-  }
+  const stored = await readBulgariaMixDocument();
+  return Array.isArray(stored?.points) ? stored.points : [];
 }
 
 async function getEnergyChartsBulgariaMix() {
@@ -1323,6 +1292,7 @@ async function getEnergyChartsBulgariaMix() {
   if (!response.ok) throw new Error(`Energy-Charts: HTTP ${response.status}`);
   const body = await response.json();
   const received = (Array.isArray(body?.data) ? body.data : []).map(normalizeEnergyMixPoint).filter(Boolean);
+  if (!received.length) throw new Error("Az Energy-Charts nem küldött friss adatot; a korábbi pillanatkép marad.");
   const earliest = now.getTime() - 400 * 86_400_000;
   const points = [...new Map([...stored, ...received]
     .filter((point) => new Date(point.timestamp).getTime() >= earliest && isCompleteEnergyMixPoint(point))
@@ -1351,7 +1321,7 @@ async function readBulgariaMixDocument() {
   try {
     return JSON.parse(await readFile(bulgariaMixHistoryFile, "utf8"));
   } catch {
-    return null;
+    return readPublished("bulgaria-energy-mix");
   }
 }
 
@@ -1487,7 +1457,8 @@ async function getEntsoeBulgariaEnergyMix(token) {
   const plants = reconcileNuclearPlant(plantHistory.plants, points);
   const result = {
     source: "live",
-    updatedAt: now.toISOString(),
+    updatedAt: received.length ? now.toISOString() : previous?.updatedAt ?? points.at(-1).timestamp,
+    stale: !received.length,
     availableFrom: points[0].timestamp,
     availableUntil: points.at(-1).timestamp,
     unit: "MW",
@@ -1526,71 +1497,59 @@ async function optionalSource(name, fetcher) {
   }
 }
 
+const previousNews = await readPublished("energy-news");
+const previousMix = await readPublished("bulgaria-energy-mix");
 const [sungrow, govee, forecast, bulgariaMix, energyNews, airQuality] = await Promise.all([
   optionalSource("Sungrow", getSungrow),
   optionalSource("Govee", getGovee),
   optionalSource("Előrejelzés", getSolarForecast),
   optionalSource("Bulgária energiamix", getBulgariaEnergyMix),
-  optionalSource("Bolgár energiahírek", async () => addHungarianNewsTranslations(await fetchEnergyNews(now))),
+  optionalSource("Bolgár energiahírek", async () => addHungarianNewsTranslations(await fetchEnergyNews(now), { previousItems: previousNews?.items, requestedUrl: "" })),
   optionalSource("Szálló por", () => fetchAirQuality(now)),
 ]);
 const weatherTwins = govee?.devices[0]
   ? await optionalSource("Időjárási ikervárosok", () => getWeatherTwins(govee.devices[0].temperatureC, govee.devices[0].humidityPct))
   : null;
 
-if (!sungrow && !govee && !forecast && !bulgariaMix && !energyNews) {
-  console.log("Nincsenek beállítva élő adatforrások; a bemutató mód marad aktív.");
-  process.exit(0);
-}
-
 await mkdir(outputDir, { recursive: true });
 const climateCharts = govee ? await updateClimateHistory(govee) : null;
+const warnings = [
+  ...(!bulgariaMix || bulgariaMix.stale ? [sourceWarning("Bulgária", previousMix?.updatedAt)] : []),
+  ...(!energyNews ? [sourceWarning("Hírek", previousNews?.updatedAt)] : []),
+  ...(!airQuality ? [sourceWarning("Szálló por", (await readPublished("air-quality"))?.updatedAt)] : []),
+];
 for (const range of ["today", "7d", "30d", "year"]) {
-  const dashboard = demoDashboard(range);
-  dashboard.source = sungrow && govee ? "live" : "partial";
-  dashboard.updatedAt = now.toISOString();
-  dashboard.connections = {
-    solar: { connected: Boolean(sungrow), ...(sungrow ? { updatedAt: now.toISOString() } : {}) },
-    climate: { connected: Boolean(govee), ...(govee ? { updatedAt: govee.devices[0].updatedAt } : {}) },
-  };
-  if (sungrow) dashboard.solar = { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] };
-  if (govee) dashboard.govee = { ...govee, chart: climateCharts[range], ...(weatherTwins ? { weatherTwins } : {}) };
-  else dashboard.govee = { devices: [], chart: [] };
-  if (forecast) dashboard.forecast = forecast;
+  const dashboard = mergeDashboard({
+    previous: await readPublished(`dashboard-${range}`), now, warnings, forecast,
+    solar: sungrow && { ...sungrow.metrics, chart: sungrow.charts[range], energyChart: sungrow.energyCharts[range] },
+    govee: govee && { ...govee, chart: climateCharts[range], ...(weatherTwins ? { weatherTwins } : {}) },
+  });
   await writeFile(resolve(outputDir, `dashboard-${range}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
 }
 
 if (sungrow) {
   for (const [date, dayData] of sungrow.dayHistory) {
-    const dashboard = demoDashboard("today");
-    dashboard.source = govee ? "live" : "partial";
-    dashboard.updatedAt = now.toISOString();
-    dashboard.connections = {
-      solar: { connected: true, updatedAt: now.toISOString() },
-      climate: { connected: Boolean(govee), ...(govee ? { updatedAt: govee.devices[0].updatedAt } : {}) },
-    };
-    dashboard.solar = { ...sungrow.metrics, chart: dayData.chart, energyChart: dayData.energyChart };
-    if (govee) dashboard.govee = { ...govee, chart: climateCharts.days[date] ?? [], ...(weatherTwins ? { weatherTwins } : {}) };
-    else dashboard.govee = { devices: [], chart: [] };
-    if (forecast) dashboard.forecast = forecast;
+    const dashboard = mergeDashboard({
+      previous: await readPublished(`dashboard-day-${date}`), now, warnings, forecast,
+      solar: { ...sungrow.metrics, chart: dayData.chart, energyChart: dayData.energyChart },
+      govee: govee && { ...govee, chart: climateCharts.days[date] ?? [], ...(weatherTwins ? { weatherTwins } : {}) },
+    });
     await writeFile(resolve(outputDir, `dashboard-day-${date}.json`), `${JSON.stringify(dashboard, null, 2)}\n`, "utf8");
   }
 }
 
-if (bulgariaMix) {
-  const energyMixOutput = {
-    ...bulgariaMix,
-    household: sungrow ? {
-      hourly: sungrow.energyCharts.today,
-      daily: householdDailySeries(sungrow.energyCharts["30d"], sungrow.dayHistory),
-      monthly: sungrow.energyCharts.year,
-    } : undefined,
-  };
+const energyMixOutput = mergeEnergyMix(previousMix, bulgariaMix, sungrow ? {
+  hourly: sungrow.energyCharts.today,
+  daily: householdDailySeries(sungrow.energyCharts["30d"], sungrow.dayHistory),
+  monthly: sungrow.energyCharts.year,
+} : undefined);
+if (energyMixOutput) {
   await writeFile(resolve(outputDir, "bulgaria-energy-mix.json"), `${JSON.stringify(energyMixOutput)}\n`, "utf8");
 }
 
-if (energyNews) {
-  await writeFile(resolve(outputDir, "energy-news.json"), `${JSON.stringify(energyNews, null, 2)}\n`, "utf8");
+const newsOutput = energyNews ?? retainNews(previousNews, now);
+if (newsOutput) {
+  await writeFile(resolve(outputDir, "energy-news.json"), `${JSON.stringify(newsOutput, null, 2)}\n`, "utf8");
 }
 
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");

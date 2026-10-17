@@ -93,6 +93,7 @@ export interface BulgariaPowerPlant {
 
 export interface BulgariaEnergyMixData {
   source: "live" | "demo";
+  stale?: boolean;
   updatedAt: string;
   availableFrom?: string;
   availableUntil?: string;
@@ -156,6 +157,7 @@ export interface EnergyNewsData {
   };
   translation?: {
     provider: string;
+    updatedAt?: string;
     status: "not-configured" | "manual" | "translated" | "error";
     translatedCount?: number;
     requestedUrl?: string;
@@ -200,12 +202,15 @@ export interface WeatherTwin {
 
 export interface DataConnection {
   connected: boolean;
+  stale?: boolean;
   updatedAt?: string;
 }
 
 export interface DashboardData {
   source?: "demo" | "live" | "partial";
   updatedAt: string;
+  refreshedAt?: string;
+  warnings?: Array<{ source: string; message: string; updatedAt?: string }>;
   connections?: {
     solar: DataConnection;
     climate: DataConnection;

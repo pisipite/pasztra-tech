@@ -237,3 +237,46 @@ test("a fordítás várakozása megszakításra azonnal feloldódik", async (t) 
   await assert.rejects(waitForNewsTranslation(new URL("https://example.com/news.json"), "https://example.com/article", "2026-10-05T12:00:00Z", controller.signal), /megszakadt/);
   assert.equal(fetchMock.mock.callCount(), 1);
 });
+
+test("a csak fordító futást nem tekinti érzékelő-adatfrissítésnek", async (t) => {
+  const requests = mockRuns(t, [{ ...recentRun, status: "in_progress", display_title: "Hírfordítás" }]);
+  const result = await dispatchDashboardRefresh("test-token");
+  assert.equal(result.owned, true);
+  assert.equal(requests.length, 2);
+  assert.deepEqual(JSON.parse(requests[1].options.body), { ref: "main" });
+});
+
+test("a részleges sikertelenséggel befejezett frissítést a refreshedAt is lezárja", async (t) => {
+  mockBrowser(t);
+  t.mock.method(globalThis, "fetch", async (url) => String(url).includes("api.github.com")
+    ? Response.json({ workflow_runs: [] })
+    : Response.json({ updatedAt: "2026-10-05T11:00:00Z", refreshedAt: "2026-10-05T12:01:00Z", warnings: [{ source: "Govee" }] }));
+  const result = await watchFreshDashboard("data/{range}.json", "2026-10-05T12:00:00Z", "test-token", () => {});
+  assert.equal(result.updatedAt, "2026-10-05T11:00:00Z");
+  assert.equal(result.warnings[0].source, "Govee");
+});
+
+for (const status of ["error", "not-configured"]) {
+  test(`a fordítás saját időbélyege alapján azonnal jelzi: ${status}`, async (t) => {
+    mockBrowser(t);
+    t.mock.method(globalThis, "fetch", async () => Response.json({
+      updatedAt: "2026-10-05T11:00:00Z", items: [],
+      translation: { status, updatedAt: "2026-10-05T12:01:00Z", requestedUrl: "https://example.com/article" },
+    }));
+    await assert.rejects(waitForNewsTranslation(new URL("https://example.com/news.json"), "https://example.com/article", "2026-10-05T12:00:00Z"), /Gemini|GEMINI_API_KEY/);
+  });
+}
+
+test("régi fordítási hibát újrapróbáláskor nem vesz új hibának", async (t) => {
+  mockBrowser(t);
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls += 1;
+    return Response.json(calls === 1 ? {
+      updatedAt: "2026-10-05T11:00:00Z", items: [], translation: { status: "error", updatedAt: "2026-10-05T12:00:00Z", requestedUrl: "https://example.com/article" },
+    } : { items: [{ url: "https://example.com/article", titleHu: "Cím", summaryHu: "Ajánló" }] });
+  });
+  const result = await waitForNewsTranslation(new URL("https://example.com/news.json"), "https://example.com/article", "2026-10-05T12:00:00Z");
+  assert.equal(result.items[0].titleHu, "Cím");
+  assert.equal(calls, 2);
+});

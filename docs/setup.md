@@ -1,6 +1,6 @@
 # Élő adatok beállítása
 
-Az oldal 20 percenként ütemezett GitHub Actions-futással frissíti a publikus adatfájlokat, majd újratelepíti a GitHub Pages oldalt. Az ütemezés szolgáltatási terhelés vagy üzemzavar esetén késhet. A felhasználónevek, jelszavak és API-kulcsok nem kerülnek bele a weboldalba vagy a build eredményébe.
+Az oldal 20 percenként ütemezett GitHub Actions-futással frissíti a publikus adatfájlokat, majd újra közzéteszi a GitHub Pages oldalt. Változatlan kódnál a kész weboldal újrahasználható, nem fut teljes build. Első alkalommal vagy hiányzó gyorsítótárnál automatikus teljes build történik. Az ütemezés szolgáltatási terhelés vagy üzemzavar esetén késhet. A felhasználónevek, jelszavak és API-kulcsok nem kerülnek bele a weboldalba vagy a build eredményébe.
 
 ## 1. GitHub Pages bekapcsolása
 
@@ -20,7 +20,7 @@ A **Settings → Secrets and variables → Actions → Secrets** részen hozd l�
 | `SOLAR_LONGITUDE` | A rendszer pontos földrajzi hosszúsága az időjárási előrejelzéshez |
 | `ERM_ZAPAD_ITN` | Nem kötelező: 12 jegyű ügyfélszám a személyre szabott tervezettáramszünet-figyeléshez |
 | `ERM_ZAPAD_POD` | Nem kötelező: 16 jegyű mérési pont azonosító; ha ezt megadod, ezt használja az ITN helyett |
-| `GEMINI_API_KEY` | Nem kötelező: Google AI Studio API-kulcs a bolgár hírcímek és ajánlók automatikus magyar fordításához |
+| `GEMINI_API_KEY` | Nem kötelező: Google AI Studio API-kulcs a kiválasztott bolgár hírcím és ajánló magyar fordításához |
 
 A Govee API-kulcsot a Govee Home alkalmazásban lehet igényelni. A kulcsot soha ne írd fájlba vagy commitba.
 
@@ -54,7 +54,7 @@ GoSungrow show ps list
 
 ## 4. Egykattintásos kézi frissítés
 
-Az **Adatok frissítése** gomb először ellenőrzi a GitHubon aktív frissítéseket. A már futó vagy várakozó frissítést megvárja; csak akkor indít újat, ha nincs ilyen. A 30 percnél régebbi beragadt futás helyett kifejezett helyreállítást kér, kivéve, ha közben már ténylegesen dolgozik egy újabb futás. Az új adatfájl megjelenésekor automatikusan újratölti a dashboardot.
+Az **Adatok frissítése** gomb először ellenőrzi a GitHubon aktív adatfrissítéseket. A már futó vagy várakozó adatfrissítést megvárja; csak akkor indít újat, ha nincs ilyen. A kizárólag cikkfordító futás nem számít mérési adatfrissítésnek. A 30 percnél régebbi beragadt futás helyett kifejezett helyreállítást kér, kivéve, ha közben már ténylegesen dolgozik egy újabb futás. Az új adatfájl megjelenésekor automatikusan újratölti a dashboardot. Ha valamelyik adatforrás hibázott, a korábbi adatot és annak valódi időbélyegét tartja meg, és jelzi a részleges frissítést.
 
 GitHub-üzemzavar idején az ismételt kattintás nem gyorsítja a futtatógép kiosztását. Kézi helyreállításhoz az **Actions → Deploy to GitHub Pages → Run workflow** alatt a `force_refresh` kapcsolóval lehet a beragadt futást lecserélni. A szolgáltató futtatógép-kiosztási hibáját ez sem tudja megszüntetni.
 

@@ -10,6 +10,7 @@ const activeRunMaxAgeMs = 30 * 60_000;
 type WorkflowRun = {
   id?: number;
   head_branch?: string;
+  display_title?: string;
   status?: string;
   created_at?: string;
   run_started_at?: string;
@@ -90,7 +91,12 @@ export async function dispatchDashboardRefresh(token: string) {
   const hasRecentRunning = activeRuns.some((run) => run.status === "in_progress" && !isStalled(run));
   // Protect a recent running build, but fresh queued requests must not hide an
   // older blocker indefinitely (the schedule can keep creating pending runs).
-  if (activeRuns.length > 0 && (!hasStalledRun || hasRecentRunning)) return { runId: undefined, owned: false };
+  if (activeRuns.length > 0 && (!hasStalledRun || hasRecentRunning)) {
+    // A translation now changes only the news JSON, not dashboard measurements.
+    // Waiting for it as if it collected sensors would never finish.
+    if (activeRuns.some((run) => !run.display_title?.startsWith("Hírfordítás"))) return { runId: undefined, owned: false };
+    return { ...await dispatchWorkflow(token), owned: true };
+  }
 
   // The workflow only permits this explicit recovery request to replace a run.
   const dispatched = await dispatchWorkflow(token, hasStalledRun ? { force_refresh: "true" } : undefined);
@@ -113,6 +119,13 @@ export async function cancelWorkflowRun(token: string, runId: number) {
 }
 
 const stepLabels: Array<[string, string]> = [
+  ["Legutóbbi közzétett oldal", "Kész oldal visszaállítása"],
+  ["Gyors frissítés előkészítése", "Korábbi adatok visszaállítása"],
+  ["Függőségek", "Adatgyűjtő eszközök előkészítése"],
+  ["Kiválasztott hír fordítása", "Kiválasztott hír fordítása"],
+  ["Közlekedési és úthelyzeti adatok", "Közlekedési és úthelyzeti adatok lekérése"],
+  ["Weboldal build", "Kódváltozás: weboldal összeállítása"],
+  ["Friss adatfájlok beillesztése", "Friss adatok beillesztése a kész oldalba"],
   ["Friss Sungrow és Govee adatok", "Sungrow, Govee, ENTSO-E és hírek gyűjtése"],
   ["Mérési előzmények mentése", "Mérési előzmények mentése"],
   ["pnpm install", "Weboldal függőségeinek előkészítése"],
@@ -151,7 +164,7 @@ export async function watchFreshDashboard(endpoint: string, previousUpdatedAt: s
       const response = await fetch(dashboardUrl, { cache: "no-store", signal });
       if (response.ok) {
         const candidate = await response.json() as DashboardData;
-        const candidateTime = new Date(candidate.updatedAt).getTime();
+        const candidateTime = new Date(candidate.refreshedAt ?? candidate.updatedAt).getTime();
         if (Number.isFinite(candidateTime) && candidateTime > previousTime) return candidate;
       }
     } catch { /* Temporary connection errors must not interrupt a running refresh. */ }
@@ -178,9 +191,9 @@ export async function waitForNewsTranslation(newsUrl: URL, articleUrl: string, p
       const candidate = await response.json() as EnergyNewsData;
       const translated = candidate.items?.find((item) => comparableArticleUrl(item.url) === requestedUrl);
       if (translated?.titleHu && translated.summaryHu) return candidate;
-      const candidateTime = new Date(candidate.updatedAt).getTime();
-      if (Number.isFinite(candidateTime) && candidateTime > previousTime && candidate.translation?.status === "error" && candidate.translation.requestedUrl && comparableArticleUrl(candidate.translation.requestedUrl) === requestedUrl) {
-        throw new Error(candidate.translation.error ?? "A Gemini nem tudta lefordítani a cikket.");
+      const candidateTime = new Date(candidate.translation?.updatedAt ?? candidate.updatedAt).getTime();
+      if (Number.isFinite(candidateTime) && candidateTime > previousTime && candidate.translation && ["error", "not-configured"].includes(candidate.translation.status) && candidate.translation.requestedUrl && comparableArticleUrl(candidate.translation.requestedUrl) === requestedUrl) {
+        throw new Error(candidate.translation.error ?? (candidate.translation.status === "not-configured" ? "A GEMINI_API_KEY nincs beállítva a GitHub Secretsben." : "A Gemini nem tudta lefordítani a cikket."));
       }
     }
     await wait(5_000, signal);
