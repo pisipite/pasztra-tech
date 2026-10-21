@@ -14,6 +14,32 @@ GET ./data/dashboard-today.json
 
 A `range` értéke `today`, `7d`, `30d` vagy `year`. A frontend az aktív napot, hetet, hónapot, évet vagy egyedi intervallumot dátum alapján szűri az `energyChart` idősorából.
 
+## Sungrow teljesítmény és napi gyorsítótár
+
+A `scripts/sungrow-power.mjs` a forrás által megadott mértékegységből alakít
+kW-ra. Nincs értéknagyságon alapuló egységbecslés: 80 W mindig 0,08 kW,
+80 kW viszont 80 kW marad. A PV/fogyasztás görbéknél a `getPowerStationData`
+`p83033_unit` / `p83106_unit` mezője az irányadó.
+
+A hálózati és akkumulátor-méréseket a `getDevicePointMinuteDataList` végpontból
+kérjük, amely minden értékhez mértékegységet is ad. A korábbi
+`queryMutiPointDataList` puszta számaihoz sem a napi maximum, sem az aktuális
+eszköz kijelzési egysége nem biztonságos átváltási alap. Hiányzó/ismeretlen
+teljesítményegységnél hibát jelzünk, nem találunk ki értéket.
+
+A `.data-history/sungrow-days` napi gyorsítótár verziója `flowSchema: 3`.
+A régi verziót a következő sikeres adatgyűjtés újrakéri az eredeti forrásból
+(alapértelmezésben az utolsó 31 napot, így az október 19–20-i görbéket is).
+A részletes mérés naponta kerül lekérésre, nem az éves, órás sorból készül.
+A frissítés egyszeri visszatöltése több lekérést igényel; utána a már
+újragenerált lezárt napok ismét használhatók a gyorsítótárból.
+Sikertelen részletes lekérés nem rögzít véglegesen hiányos új napi gyorsítótárat.
+
+Helyi ellenőrzés: `node --test tests/sungrow-power.test.mjs`.
+Valós adatok újragyűjtéséhez a GoSungrow kliens és a meglévő Sungrow
+hozzáférési beállítások szükségesek. A javítás GitHubra feltöltése önmagában
+nem írja át a már publikált JSON-fájlokat: sikeres adatgyűjtés és közzététel is kell.
+
 ## Govee mérési előzmények
 
 A 20 percenként ütemezett munkafolyamat minden Govee-mérést időbélyeggel hozzáfűz a `.data-history/govee-history.json` előzményhez. A fájlt a GitHub Actions gyorsítótára őrzi meg a futások között; mentése az összeállítás és közzététel előtt történik. A legutóbbi Pages-kiadásban található `data/govee-history.json` tartalék visszaállítási forrás. Az előzmény legfeljebb 370 napot tart meg.
