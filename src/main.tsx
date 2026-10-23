@@ -28,8 +28,10 @@ import { cancelWorkflowRun, dispatchDashboardRefresh, dispatchNewsTranslation, w
 import { readRefreshSession, storeRefreshSession, type RefreshSession } from "./refreshSession";
 import type { BulgariaEnergyMixData, DashboardData, DataConnection, EnergyNewsData, EnergyNewsItem, PeriodKey } from "./types";
 import { usePeriodSelection } from "./usePeriodSelection";
+import { useActiveSection } from "./useActiveSection";
 import "./styles.css";
 import "./theme.css";
+import "./design-system.css";
 
 const connectionStaleMs = 45 * 60 * 1000;
 const recoveryAfterMs = 40 * 60 * 1000;
@@ -86,6 +88,7 @@ function App() {
   const [energyNews, setEnergyNews] = useState(makeDemoEnergyNews);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const activeSection = useActiveSection();
   const [error, setError] = useState("");
   const [clock, setClock] = useState(() => Date.now());
   const [refreshSession, setRefreshSession] = useState<RefreshSession | null>(readRefreshSession);
@@ -203,7 +206,10 @@ function App() {
   useEffect(() => {
     if (!navigationOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setNavigationOpen(false);
+      if (event.key === "Escape") {
+        setNavigationOpen(false);
+        document.querySelector<HTMLButtonElement>(".section-nav__toggle")?.focus();
+      }
     };
     document.addEventListener("keydown", closeOnEscape);
     return () => document.removeEventListener("keydown", closeOnEscape);
@@ -398,6 +404,7 @@ function App() {
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main">Ugrás a tartalomhoz</a>
       <header className="topbar" id="oldal-teteje">
         <a href="#main" className="brand" aria-label="Pasztra tech: Napfény kezdőlap">
           <span className="brand__mark"><i /></span>
@@ -430,7 +437,7 @@ function App() {
         <button className="section-nav__refresh" type="button" onClick={triggerManualRefresh} disabled={manualRefreshBusy} title="Az oldal összes adatának frissítése" aria-label={manualRefreshBusy ? "Adatfrissítés folyamatban" : "Adatok frissítése"}>↻</button>
         </div>
         <div className="section-nav__track" id="section-menu-links">
-          {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id} onClick={() => setNavigationOpen(false)}>{block.navigationLabel}</a>)}
+          {PAGE_BLOCKS.map((block) => <a href={`#${block.id}`} key={block.id} aria-current={activeSection === block.id ? "location" : undefined} onClick={() => setNavigationOpen(false)}>{block.navigationLabel}</a>)}
         </div>
       </nav>
       {(manualRefreshBusy || translationStatus) && <div className="activity-bar" id="manual-refresh-status" role="status" aria-live="polite">
