@@ -143,15 +143,18 @@ jobs:
         run: node scripts/pages-publication.mjs assemble
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
+        id: pages-artifact
         with:
           path: dist
       # Reuse this runner: a successful build must not wait for a second one.
       - name: Deploy
         id: deployment
-        uses: actions/deploy-pages@v4
         timeout-minutes: 11
-        with:
-          timeout: 600000
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PAGES_ARTIFACT_ID: ${{ steps.pages-artifact.outputs.artifact_id }}
+        # Use the uploaded ID directly; an immediate name lookup can return empty.
+        run: node scripts/pages-deploy.mjs
       # Never use an un-published snapshot as the next refresh's starting point.
       - name: Közzétett oldal mentése
         uses: actions/cache/save@v4

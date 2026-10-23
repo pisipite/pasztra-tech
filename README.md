@@ -27,7 +27,9 @@ Az első futáskor, új kódverziónál vagy hiányzó/sérült weboldal-gyorsí
 
 A Pages artifact feltöltése és a deploy továbbra is szükséges: ez nem külön adat-API. Emiatt a GitHub várakozási ideje nem szűnik meg, de a felesleges újraépítés és fordításkori teljes adatgyűjtés igen. Új szolgáltatás, secret vagy jogosultság nem szükséges.
 
-Kapcsolódó fájlok: `scripts/pages-publication.mjs` (visszaállítás és összeállítás), `scripts/translate-news.mjs` (célzott fordítás), `scripts/retained-data.mjs` (hibatűrő adatösszefésülés), `src/githubRefresh.ts` (böngészős követés). Ellenőrzés: `pnpm test`, `pnpm lint`, `pnpm build`.
+A közzététel a feltöltési lépésből kapott `artifact_id` értékét közvetlenül használja a GitHub Pages API-ban. Nem keresi újra név alapján a csomagot: a GitHub átmenetileg üres listája így nem okoz `No artifacts named "github-pages"` hibát. Az OIDC-hitelesítés és a `github-pages` környezet védelme megmarad. Csak az állapotlekérdezés próbálkozik újra átmeneti hibánál; a közzététel indítását nem ismétli meg vakon. A 10 perces időkorlát vagy megszakítás a már azonosított függő közzétételt is megpróbálja leállítani. GitHub-szolgáltatáskiesést ez nem tud kiküszöbölni.
+
+Kapcsolódó fájlok: `scripts/pages-publication.mjs` (visszaállítás és összeállítás), `scripts/pages-deploy.mjs` (azonosító-alapú Pages-közzététel), `scripts/translate-news.mjs` (célzott fordítás), `scripts/retained-data.mjs` (hibatűrő adatösszefésülés), `src/githubRefresh.ts` (böngészős követés). Ellenőrzés: `pnpm test`, `pnpm lint`, `pnpm build`.
 
 ## Élő adatok
 

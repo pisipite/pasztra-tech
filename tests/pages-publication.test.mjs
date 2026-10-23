@@ -137,6 +137,12 @@ test("workflow keeps collection/build conditional and caches only after deployme
   assert.equal(findRun("scripts/translate-news.mjs").if, "inputs.translate_news_url != ''");
   assert.equal(findRun("vite.js build").if, "steps.publication.outputs.build_required == 'true'");
   assert.ok(steps.findIndex((step) => step.name === "Közzétett oldal mentése") > steps.findIndex((step) => step.id === "deployment"));
-  assert.equal(steps.filter((step) => step.uses?.startsWith("actions/deploy-pages@")).length, 1);
+  const upload = steps.find((step) => step.uses?.startsWith("actions/upload-pages-artifact@"));
+  const deploy = steps.find((step) => step.id === "deployment");
+  assert.equal(upload.id, "pages-artifact");
+  assert.equal(deploy.env.PAGES_ARTIFACT_ID, "${{ steps.pages-artifact.outputs.artifact_id }}");
+  assert.equal(deploy.run, "node scripts/pages-deploy.mjs");
+  assert.equal(deploy["continue-on-error"], undefined);
+  assert.equal(steps.filter((step) => step.run?.includes("scripts/pages-deploy.mjs")).length, 1);
   assert.deepEqual(workflow.permissions, { contents: "read", pages: "write", "id-token": "write" });
 });
