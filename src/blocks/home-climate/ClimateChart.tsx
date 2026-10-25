@@ -28,8 +28,7 @@ export function ClimateChart({ data, period, temperatureVisible, humidityVisible
     setHovered(Math.abs(x(index) - cursor) <= (daily ? plotWidth / 96 : 30) ? index : null);
   };
   return <div className="climate-history-chart" onMouseMove={move} onMouseLeave={() => setHovered(null)}>
-    {!daily && <p className="chart-explanation">Vonal: átlag · halvány sáv: mért minimum–maximum. A sáv nem előrejelzési bizonytalanság.</p>}
-    {!panels.length ? <p>Kapcsolj vissza egy adatsort a jelmagyarázatban.</p> : <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Hőmérséklet és páratartalom külön grafikonon, közös időtengellyel">
+    {!panels.length ? <p>Kapcsolj vissza egy adatsort a jelmagyarázatban.</p> : <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Hőmérséklet és páratartalom külön grafikonon, közös időtengellyel; a halvány összekötések adathiányt jelölnek">
       {panels.map((panel, panelIndex) => {
         const top = panelIndex * 170 + 30, bottom = top + 120;
         const amounts = data.flatMap((p) => [mean(p, panel.key), p[`${panel.key}Min`], p[`${panel.key}Max`]]).filter((v): v is number => Number.isFinite(v));
@@ -40,6 +39,11 @@ export function ClimateChart({ data, period, temperatureVisible, humidityVisible
         return <g key={panel.key}>
           <text className="energy-axis-title" x={left} y={top - 12}>{panel.label} ({panel.unit}){daily ? "" : " · átlag és tartomány"}</text>
           {[min, (min + max) / 2, max].map((v) => <g key={v}><line className="climate-gridline" x1={left} x2={width - right} y1={y(v)} y2={y(v)} /><text className="climate-axis" x={left - 12} y={y(v) + 4} textAnchor="end">{formatFixedNumber(v, 1)}</text></g>)}
+          {segments.slice(1).map((segment, index) => {
+            const previous = segments[index].at(-1)!;
+            const next = segment[0];
+            return <line key={`gap-${index}`} className="climate-gap-line" x1={x(previous.index)} y1={y(previous.value)} x2={x(next.index)} y2={y(next.value)} stroke={panel.color} vectorEffect="non-scaling-stroke"><title>Adathiány: halvány összekötés, nem mért köztes érték.</title></line>;
+          })}
           {segments.map((segment, i) => {
             const upper = segment.map(({ point, index }) => `${x(index)},${y(point[`${panel.key}Max`] ?? mean(point, panel.key))}`);
             const lower = [...segment].reverse().map(({ point, index }) => `${x(index)},${y(point[`${panel.key}Min`] ?? mean(point, panel.key))}`);

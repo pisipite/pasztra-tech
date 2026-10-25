@@ -1145,6 +1145,7 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .climate-history-chart { position: relative; min-height: 300px; transition: opacity .2s ease; }
 .climate-history-chart svg { display: block; width: 100%; height: auto; min-height: 270px; overflow: visible; }
 .climate-gridline { stroke: #dde0d8; stroke-width: 1; stroke-dasharray: 2 5; }
+.climate-gap-line { stroke-width: 2; opacity: .38; }
 .climate-line { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .climate-line--temperature { stroke: var(--terracotta); }
 .climate-line--humidity { stroke: #557b9c; }
@@ -1156,10 +1157,10 @@ main { max-width: 1480px; margin: 0 auto; padding: 55px clamp(20px, 4vw, 64px) 3
 .climate-point { stroke: var(--paper); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .climate-point--temperature { fill: var(--terracotta); }
 .climate-point--humidity { fill: #557b9c; }
-.climate-tooltip { position: absolute; z-index: 2; top: 16px; right: 20px; display: grid; min-width: 210px; gap: 8px; padding: 13px 15px; border: 1px solid rgba(20,32,29,.12); border-radius: 12px 7px 13px 8px; background: rgba(251,250,245,.94); box-shadow: 0 14px 34px rgba(20,32,29,.12); backdrop-filter: blur(8px); pointer-events: none; }
+.climate-tooltip { position: absolute; z-index: 2; top: 16px; right: 20px; display: grid; min-width: 210px; max-width: min(280px, calc(100vw - 40px)); gap: 8px; padding: 13px 15px; border: 1px solid rgba(20,32,29,.12); border-radius: 12px 7px 13px 8px; background: rgba(251,250,245,.94); box-shadow: 0 14px 34px rgba(20,32,29,.12); backdrop-filter: blur(8px); pointer-events: none; }
 .climate-tooltip strong { font-size: 11px; }
-.climate-tooltip span { display: grid; grid-template-columns: 18px 1fr auto; color: var(--muted); font-size: 9px; }
-.climate-tooltip b { color: var(--ink); font-family: "DM Mono", monospace; font-weight: 500; }
+.climate-tooltip span { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; color: var(--muted); font-size: 9px; }
+.climate-tooltip b { color: var(--ink); font-family: "DM Mono", monospace; font-weight: 500; line-height: 1.45; overflow-wrap: anywhere; }
 .climate-chart-empty { min-height: 260px; display: grid; place-content: center; color: var(--muted); font-size: 12px; }
 .climate-lines-hidden { position: absolute; inset: 0; display: grid; place-content: center; color: var(--muted); font-size: 11px; pointer-events: none; }
 .is-climate-loading { opacity: .55; }
@@ -2169,7 +2170,6 @@ section[id] { scroll-margin-top: 76px; }
 .chart-details .forecast-summary { margin: 12px 0; }
 .forecast-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .chart-details input { max-width: 72px; margin: 0 4px; }
-.chart-explanation { color: var(--muted); font-size: 12px; }
 .climate-other-devices { margin-top: 15px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; }
 .climate-other-devices summary { cursor: pointer; font-weight: 700; }
 .planner-battery-profile polyline.planner-baseline { stroke: #d38b36; stroke-width: 1.5; stroke-dasharray: 4 3; }
