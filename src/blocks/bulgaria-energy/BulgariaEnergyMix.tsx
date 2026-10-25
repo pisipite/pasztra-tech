@@ -279,16 +279,15 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
               {donutItems.map((item) => <circle key={item.key} className="mix-donut__slice" cx="50" cy="50" r="39" pathLength="100" stroke={item.color} strokeDasharray={`${item.percentage} ${100 - item.percentage}`} strokeDashoffset={-item.offset} tabIndex={0} onMouseEnter={() => setHoveredDonut(item.key)} onMouseLeave={() => setHoveredDonut(null)} onFocus={() => setHoveredDonut(item.key)} onBlur={() => setHoveredDonut(null)}><title>{item.label}: {formatEnergyMwh(item.value)}</title></circle>)}
             </svg>
             <div className="mix-donut__center">
-              <svg className="mix-donut__renewable-ring" viewBox="0 0 100 100" aria-hidden="true">
-                <circle className="mix-donut__renewable-track" cx="50" cy="50" r="43" pathLength="100" />
-                <circle className="mix-donut__renewable-value" cx="50" cy="50" r="43" pathLength="100" strokeDasharray={`${renewableShareDisplay} ${100 - renewableShareDisplay}`} />
-              </svg>
               <strong>{rawPoints.length ? `${compactNumber.format(renewableShareDisplay)}%` : "–"}</strong><span>{rawPoints.length ? "megújuló" : "nincs adat"}</span>
             </div>
             {activeDonut && <div className="mix-donut__tooltip"><span>{activeDonut.label}</span><strong>{formatEnergyMwh(activeDonut.value)}</strong></div>}
           </div>
           <strong>Országos fogyasztás: {rawPoints.length ? formatEnergyMwh(consumption) : "nincs adat"}</strong>
           <span>Beérkezett termelési összeg: {rawPoints.length ? formatEnergyMwh(generation) : "nincs adat"} · {periodLabel(period, effectiveAnchor, customStart, customEnd)}</span>
+          <ol className="mix-value-list" aria-label="Termelési források csökkenő sorrendben">
+            {[...donutItems].sort((a, b) => b.value - a.value).map((item) => <li key={item.key}><i style={{ background: item.color }} /><span>{item.label}</span><strong>{compactNumber.format(item.value)} MWh</strong><small>{compactNumber.format(item.percentage)}%</small></li>)}
+          </ol>
         </section>
 
         <section className="bulgaria-mix__history" aria-label="A bolgár energiamix alakulása">

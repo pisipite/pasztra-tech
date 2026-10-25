@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { BackToTop } from "../../components/BackToTop";
 import { DATA_FILES } from "../../config/dataFiles";
 import { dataFileUrl } from "../../dashboardApi";
-import { dateInputValue, isCurrentPeriod, periodLabel } from "../../dateUtils";
+import { dateFromInput, dateInputValue, endOfWeek, isCurrentPeriod, periodLabel, startOfWeek, timestampInPeriod } from "../../dateUtils";
 import { usePeriodSelection } from "../../usePeriodSelection";
-import { dateTimeFormatter } from "../../timeZone";
+import { addCalendarDays, dateKey, dateParts, dateTimeFormatter, startOfDay } from "../../timeZone";
+import { observationSegments } from "../../observationQuality";
 import type { PeriodKey } from "../../types";
 import { concentrationColor, projectPoint, summarizeStations, TOWNS } from "./airQualityData";
-import type { AirQualityData, Pollutant } from "./types";
+import type { AirQualityData, AirQualityStation, Pollutant } from "./types";
 import "./airQuality.css";
 
 const periods: { key: PeriodKey; label: string }[] = [
@@ -21,6 +22,38 @@ const dateLabel = (value: string | null | undefined) => value && Number.isFinite
 
 function mapPath(points: number[][]) {
   return points.map(([lat, lon], index) => { const p = projectPoint(lat, lon); return `${index ? "L" : "M"}${p.x},${p.y}`; }).join(" ");
+}
+
+function periodBounds(period: PeriodKey, anchor: Date, from: string, to: string) {
+  if (period === "custom" && from && to) return [dateFromInput(from).getTime(), dateFromInput(to, true).getTime()] as const;
+  if (period === "week") return [startOfWeek(anchor).getTime(), endOfWeek(anchor).getTime()] as const;
+  const start = period === "year" ? dateFromInput(`${dateParts(anchor).year}-01-01`)
+    : period === "month" ? dateFromInput(dateKey(anchor).slice(0, 7) + "-01") : startOfDay(anchor);
+  const end = period === "year" ? dateFromInput(`${dateParts(anchor).year + 1}-01-01`)
+    : period === "month" ? dateFromInput(dateKey(addCalendarDays(start, 34)).slice(0, 7) + "-01") : addCalendarDays(start, 1);
+  return [start.getTime(), end.getTime()] as const;
+}
+
+export function townAirTrend(stations: AirQualityStation[], townId: string, pollutant: Pollutant, period: PeriodKey, anchor: Date, from: string, to: string, now = Date.now(), samplingMinutes = 20) {
+  const local = stations.filter((station) => TOWNS.reduce((best, town) =>
+    Math.hypot(station.latitude - town.latitude, station.longitude - town.longitude) < Math.hypot(station.latitude - best.latitude, station.longitude - best.longitude) ? town : best).id === townId);
+  const [start, end] = periodBounds(period, anchor, from, to);
+  const groups = new Map<string, { timestamp: string; sensors: Map<string, { total: number; count: number }> }>();
+  let sampleCount = 0;
+  for (const station of local) for (const point of station.points) {
+    const time = Date.parse(point.timestamp), value = point[pollutant];
+    if (!Number.isFinite(time) || time > now || !Number.isFinite(value) || value! < 0 || !timestampInPeriod(point.timestamp, period, anchor, from, to)) continue;
+    const key = period === "day" ? `${dateKey(point.timestamp)}-${String(dateParts(point.timestamp).hour).padStart(2, "0")}`
+      : period === "year" ? dateKey(point.timestamp).slice(0, 7) : dateKey(point.timestamp);
+    const group = groups.get(key) ?? { timestamp: point.timestamp, sensors: new Map<string, { total: number; count: number }>() };
+    const sensor = group.sensors.get(station.id) ?? { total: 0, count: 0 };
+    sensor.total += value!; sensor.count++; group.sensors.set(station.id, sensor); sampleCount++;
+    if (time < Date.parse(group.timestamp)) group.timestamp = point.timestamp;
+    groups.set(key, group);
+  }
+  const points = [...groups.values()].map((group) => ({ timestamp: group.timestamp, value: [...group.sensors.values()].reduce((sum, sensor) => sum + sensor.total / sensor.count, 0) / group.sensors.size, count: [...group.sensors.values()].reduce((sum, sensor) => sum + sensor.count, 0), sensorCount: group.sensors.size })).sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp));
+  const expected = Math.max(0, Math.ceil((Math.min(now, end) - start) / (samplingMinutes * 60_000))) * local.length;
+  return { points, sampleCount, sensorCount: local.length, coveragePct: expected ? Math.min(100, sampleCount / expected * 100) : undefined };
 }
 
 export function AirQuality({ endpoint, enabled, refreshSeconds }: { endpoint: string; enabled: boolean; refreshSeconds: number }) {
@@ -70,6 +103,13 @@ export function AirQuality({ endpoint, enabled, refreshSeconds }: { endpoint: st
   });
   const selected = towns.find((town) => town.id === selectedTown) ?? towns[0];
   const selectedStations = stations.filter((station) => station.townId === selected.id);
+  const trend = townAirTrend(enabled && !invalidRange ? data?.stations ?? [] : [], selected.id, pollutant, period, anchor, customStart, customEnd, clock, data?.samplingIntervalMinutes ?? 20);
+  const trendValues = trend.points.map((point) => point.value);
+  const trendUpper = Math.max(1, ...trendValues) * 1.15;
+  const [trendStart, trendEnd] = periodBounds(period, anchor, customStart, customEnd);
+  const trendX = (timestamp: string) => 35 + (Date.parse(timestamp) - trendStart) / Math.max(1, trendEnd - trendStart) * 280;
+  const trendY = (value: number) => 92 - value / trendUpper * 75;
+  const trendSegments = observationSegments(trend.points, (point) => point.value, period === "day" ? 90 * 60_000 : period === "year" ? 45 * 86_400_000 : 40 * 3_600_000);
   const measured = stations.filter((station) => station.value !== null);
   const first = measured.map((station) => station.first!).sort()[0];
   const last = measured.map((station) => station.last!).sort().at(-1);
@@ -152,6 +192,20 @@ export function AirQuality({ endpoint, enabled, refreshSeconds }: { endpoint: st
           <h3>{selected.name}<small>környéke</small></h3>
           <strong className="air-quality__value">{selected.value === null ? "–" : number.format(selected.value)}<small>µg/m³</small></strong>
           {selected.value === null ? <p>Nincs mérési adat a kijelölt időszakra. A hiányzó érték nem jelent tiszta levegőt.</p> : <p>{selected.stations.length} mérőállomás átlaga. Az állomások azonos súllyal szerepelnek.</p>}
+          <section className="air-quality__trend" aria-label={`${selected.name} ${pollutantLabel} időbeli alakulása`}>
+            <h4>Romlik vagy javul?</h4>
+            {trend.points.length ? <svg viewBox="0 0 350 122" role="img" aria-label={`${pollutantLabel} időszaki trend; ${trend.points.length} megfigyelt idősáv`}>
+              <line x1="35" x2="315" y1="92" y2="92" stroke="currentColor" opacity=".5" />
+              {trendSegments.map((segment, index) => <g key={index}>
+                <polyline points={segment.map(({ point, value }) => `${trendX(point.timestamp)},${trendY(value)}`).join(" ")} fill="none" stroke="#f1c76d" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
+                {segment.length === 1 && <circle cx={trendX(segment[0].point.timestamp)} cy={trendY(segment[0].value)} r="3" fill="#f1c76d" />}
+              </g>)}
+              <text x="35" y="114" fill="currentColor" fontSize="11">{periodLabel(period, anchor, customStart, customEnd)}</text>
+              <text x="315" y="14" fill="currentColor" fontSize="11" textAnchor="end">µg/m³</text>
+            </svg> : <p>Nincs megfigyelt idősáv ehhez a településhez.</p>}
+            <small>{trend.sensorCount} hozzárendelt mérő · {number.format(trend.sampleCount)} érvényes minta · becsült lefedettség: {trend.coveragePct === undefined ? "nem számítható" : `${number.format(trend.coveragePct)}%`}.</small>
+            <small>A pontok a rendelkezésre álló mérők idősávátlagai; hiányzó idősávok nem kapnak nulla értéket. A lefedettség becslése a {data?.samplingIntervalMinutes ?? 20} perces névleges mintaközt feltételezi.</small>
+          </section>
           <div className="air-quality__stations">
             {selectedStations.map((station) => <div key={station.id}>
               <a href={`https://maps.sensor.community/#16/${station.latitude}/${station.longitude}`} target="_blank" rel="noreferrer">Mérő #{station.id}</a>

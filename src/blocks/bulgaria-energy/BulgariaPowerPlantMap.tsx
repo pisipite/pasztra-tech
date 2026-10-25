@@ -74,7 +74,6 @@ function mapY(latitude: number) {
 }
 
 function formatEnergy(value: number) {
-  if (value >= 1000) return `${formatNumber(value / 1000, 1)} GWh`;
   return `${formatNumber(value, 1)} MWh`;
 }
 

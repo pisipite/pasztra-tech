@@ -16,6 +16,16 @@ export function latestObservation<T extends TimedPoint>(points: T[], valid: (poi
     .reduce<string | undefined>((latest, point) => !latest || Date.parse(point.timestamp!) > Date.parse(latest) ? point.timestamp : latest, undefined);
 }
 
+// A provider may report every 5 minutes, hourly or (for climate) every few
+// hours. Infer the normal cadence from the middle of its observed intervals,
+// while keeping a hard ceiling so a long outage never becomes a drawn line.
+export function connectedSampleGap(points: TimedPoint[], minimumMs: number, maximumMs: number) {
+  const intervals = points.slice(1).map((point, index) => Date.parse(point.timestamp ?? "") - Date.parse(points[index].timestamp ?? ""))
+    .filter((gap) => Number.isFinite(gap) && gap > 0).sort((a, b) => a - b);
+  const typical = intervals.length ? intervals[Math.floor((intervals.length - 1) / 2)] : 0;
+  return Math.min(maximumMs, Math.max(minimumMs, typical * 1.5));
+}
+
 // Missing entries split paths; absent time slots split them too. Never bridge
 // outages just because the provider omitted those rows from its response.
 export function observationSegments<T extends TimedPoint>(points: T[], value: (point: T) => number | undefined, maxGapMs: number) {

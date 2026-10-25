@@ -3,7 +3,7 @@ import type { EnergyChartPoint } from "../../types";
 export function householdSummary(points: EnergyChartPoint[], powerValues: boolean) {
   let load = 0, grid = 0, battery = 0;
   let hasLoad = false;
-  let complete = points.length > 0;
+  let complete = points.length > 0 && !points.some((point) => point.estimated);
   for (const [index, point] of points.entries()) {
     // Integrate only adjacent observed intervals, never across an outage or past
     // the final reading. Aggregated kWh counters are used without integration.
@@ -19,8 +19,10 @@ export function householdSummary(points: EnergyChartPoint[], powerValues: boolea
     const imported = powerValues ? point.grid : point.gridPurchase;
     const discharged = powerValues ? point.battery : point.batteryDischarge;
     if (!Number.isFinite(imported) || !Number.isFinite(discharged)) { complete = false; continue; }
-    grid += Math.min(demand, Math.max(0, imported!) * factor);
-    battery += Math.min(Math.max(0, demand - Math.max(0, imported!) * factor), Math.max(0, discharged!) * factor);
+    const gridEnergy = imported! * factor, batteryEnergy = discharged! * factor;
+    if (gridEnergy < 0 || batteryEnergy < 0 || gridEnergy + batteryEnergy > demand + .05) { complete = false; continue; }
+    grid += gridEnergy;
+    battery += batteryEnergy;
   }
   return { load, grid, battery, directPv: Math.max(0, load - grid - battery), hasLoad, hasBreakdown: hasLoad && complete, estimated: powerValues || points.some((point) => point.estimated) };
 }

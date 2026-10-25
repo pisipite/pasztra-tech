@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { smoothPath } from "../../chartUtils";
 import { BackToTop } from "../../components/BackToTop";
 import { formatFixedNumber, formatTime } from "../../formatUtils";
@@ -7,6 +7,8 @@ import type { DashboardData, SolarForecastPoint } from "../../types";
 import "./forecast.css";
 import { observedPoints, observationSegments } from "../../observationQuality";
 import { DataFreshness } from "../../components/DataFreshness";
+
+import { remainingForecast } from "./forecastSummary";
 
 type Props = { data: DashboardData };
 
@@ -26,6 +28,9 @@ function ForecastSource({ demo = false }: { demo?: boolean }) {
 export function SolarForecast({ data }: Props) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [hovered, setHovered] = useState<number | null>(null);
+  const [baseLoad, setBaseLoad] = useState(.25);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => { const timer = window.setInterval(() => setClock(Date.now()), 60_000); return () => window.clearInterval(timer); }, []);
   const forecast = data.forecast;
   const selectedDay = forecast?.days[Math.min(selectedIndex, Math.max(0, forecast.days.length - 1))];
 
@@ -40,6 +45,8 @@ export function SolarForecast({ data }: Props) {
     return <article className="forecast-card card" id="elojelzes"><div className="forecast-head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div><h2>Termelési előrejelzés</h2><p className="forecast-subtitle">Az időjárási becslés a következő frissítéssel érkezik.</p></div></div><ForecastSource demo={data.source === "demo"} /></article>;
   }
 
+  const remainder = remainingForecast(selectedDay.points, clock, baseLoad);
+  const today = selectedDay.date === dateKey(clock);
   const width = 1000;
   const height = 300;
   const margin = { top: 25, right: 26, bottom: 42, left: 58 };
@@ -72,12 +79,19 @@ export function SolarForecast({ data }: Props) {
       </div>
 
       <div className="forecast-summary">
-        <div><span>Várható termelés</span><strong>{formatFixedNumber(selectedDay.expectedKwh, 1)} <small>kWh</small></strong></div>
-        <div><span>Legjobb fogyasztási időszak</span><strong>{selectedDay.bestWindow}</strong></div>
-        <div><span>Nappali felhőzet</span><strong>{formatFixedNumber(averageCloud, 0)}<small>%</small></strong></div>
-        <div><span>Csapadék esélye</span><strong>{formatFixedNumber(rainChance, 0)}<small>%</small></strong></div>
-        <div><span>Csúcsbesugárzás</span><strong>{formatFixedNumber(peakIrradiance, 0)} <small>W/m²</small></strong></div>
+        <div><span>{today ? "Ma még várható termelés" : "Várható termelés"}</span><strong>{remainder.hours ? formatFixedNumber(remainder.energyKwh, 1) : "–"} <small>kWh</small></strong></div>
+        <div><span>Becsült többlet · akkutöltés előtt</span><strong>{remainder.hours ? formatFixedNumber(remainder.surplusKwh, 1) : "–"} <small>kWh</small></strong><small>{formatFixedNumber(baseLoad, 2)} kW állandó háttérfogyasztással; az akkutöltés ebből még levonandó.</small></div>
+        <div><span>Ajánlott fogyasztási ablak</span><strong>{remainder.best ? `${formatTime(new Date(remainder.best.from).toISOString())}–${formatTime(new Date(remainder.best.end).toISOString())}` : "Nincs becsült többlet"}</strong><small>A hátralévő órás modellintervallumok közül a legtöbb többletet adó.</small></div>
       </div>
+      <details className="chart-details"><summary>Meteorológiai részletek és feltételezések</summary>
+        <div className="forecast-summary">
+          <div><span>Nappali felhőzet</span><strong>{formatFixedNumber(averageCloud, 0)}%</strong></div>
+          <div><span>Csapadék esélye</span><strong>{formatFixedNumber(rainChance, 0)}%</strong></div>
+          <div><span>Csúcsbesugárzás</span><strong>{formatFixedNumber(peakIrradiance, 0)} W/m²</strong></div>
+        </div>
+        <label>Feltételezett háttérfogyasztás <input type="number" min="0" max="20" step="0.05" value={baseLoad} onChange={(event) => setBaseLoad(Math.max(0, Math.min(20, Number(event.target.value) || 0)))} /> kW</label>
+        <p>A többlet nem garantáltan szabad energia: nem tartalmazza az akku feltöltését, a külön bekapcsolt fogyasztókat és a helyi árnyékolást.</p>
+      </details>
 
       <div className="forecast-legend">
         {actual.length > 1 && <span><i className="actual" />Tényleges termelés</span>}

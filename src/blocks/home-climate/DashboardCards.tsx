@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { isValidClimateValues, type ClimateAggregation } from "../../climateData";
+import { isValidClimateValues } from "../../climateData";
 import { dateInputValue, isCurrentPeriod, periodLabel } from "../../dateUtils";
-import { formatFixedNumber, formatNumber, formatTime } from "../../formatUtils";
+import { formatFixedNumber, formatNumber } from "../../formatUtils";
 import type { ClimatePoint, DashboardData, PeriodKey } from "../../types";
 import { BackToTop } from "../../components/BackToTop";
 import { ClimateChart } from "./ClimateChart";
@@ -14,12 +14,10 @@ type Props = {
   climateAnchor: Date;
   climateCustomStart: string;
   climateCustomEnd: string;
-  climateAggregation: ClimateAggregation;
   climateLoading: boolean;
   onClimatePeriodChange: (period: PeriodKey) => void;
   onClimateStep: (direction: -1 | 1) => void;
   onClimateCustomChange: (start: string, end: string) => void;
-  onClimateAggregationChange: (aggregation: ClimateAggregation) => void;
   loading: boolean;
   refreshLabel: string;
   onRefresh: () => void;
@@ -33,7 +31,7 @@ const climatePeriods: { key: PeriodKey; label: string }[] = [
   { key: "custom", label: "Egyéb" },
 ];
 
-function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation, climateLoading, loading, refreshLabel, onRefresh, onClimatePeriodChange, onClimateStep, onClimateCustomChange, onClimateAggregationChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateAggregation" | "climateLoading" | "loading" | "refreshLabel" | "onRefresh" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange" | "onClimateAggregationChange">) {
+function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateLoading, loading, refreshLabel, onRefresh, onClimatePeriodChange, onClimateStep, onClimateCustomChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateLoading" | "loading" | "refreshLabel" | "onRefresh" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange">) {
   const [temperatureVisible, setTemperatureVisible] = useState(true);
   const [humidityVisible, setHumidityVisible] = useState(true);
   const validDevices = data.govee.devices.filter((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
@@ -46,7 +44,6 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
     );
   }
 
-  const aggregationAvailable = climatePeriod !== "day";
   const weatherTwins = data.govee.weatherTwins ?? [];
   const closestWeatherTwin = weatherTwins[0];
   const tooltipWeatherTwins = weatherTwins.slice(0, 6);
@@ -97,21 +94,14 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
         </div>
         <div className="climate-chart-controls">
           <div className="climate-chart-options">
-            {aggregationAvailable && <div className="climate-aggregation" role="group" aria-label="Megjelenített klímaérték"><button className={climateAggregation === "min" ? "active" : ""} aria-pressed={climateAggregation === "min"} onClick={() => onClimateAggregationChange("min")}>Minimum</button><button className={climateAggregation === "average" ? "active" : ""} aria-pressed={climateAggregation === "average"} onClick={() => onClimateAggregationChange("average")}>Átlag</button><button className={climateAggregation === "max" ? "active" : ""} aria-pressed={climateAggregation === "max"} onClick={() => onClimateAggregationChange("max")}>Maximum</button></div>}
             <div className="climate-legend" aria-label="Jelmagyarázat"><button className={temperatureVisible ? "" : "is-hidden"} aria-pressed={temperatureVisible} onClick={() => setTemperatureVisible((value) => !value)}><i className="is-temperature" />Hőmérséklet</button><button className={humidityVisible ? "" : "is-hidden"} aria-pressed={humidityVisible} onClick={() => setHumidityVisible((value) => !value)}><i className="is-humidity" />Páratartalom</button></div>
           </div>
         </div>
         <div className={climateLoading ? "is-climate-loading" : ""}><ClimateChart data={climateSeries} period={climatePeriod} temperatureVisible={temperatureVisible} humidityVisible={humidityVisible} /></div>
       </div>
-      <div className="device-list">
-        {validDevices.map((device) => (
-          <div className="device-row" key={device.id}>
-            <span className="device-icon"><i /><i /></span>
-            <div><strong>{device.room}</strong><span>{device.name} · {formatTime(device.updatedAt)}</span></div>
-            <div className="device-row__values"><strong>{formatFixedNumber(device.temperatureC, 1)}°</strong><span>{formatNumber(device.humidityPct, 1)}% · {formatNumber(device.batteryPct, 1)}% akku</span></div>
-          </div>
-        ))}
-      </div>
+      {validDevices.length > 1 && <details className="climate-other-devices"><summary>További mérők ({validDevices.length - 1})</summary>
+        {validDevices.slice(1).map((device) => <p key={device.id}>{device.room}: {formatFixedNumber(device.temperatureC, 1)} °C · {formatFixedNumber(device.humidityPct, 0)}% páratartalom</p>)}
+      </details>}
     </article>
   );
 }

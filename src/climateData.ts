@@ -43,6 +43,13 @@ export function climatePointsForPeriod(
       label: period === "year" ? monthLabel.format(timestamp) : dayLabel.format(timestamp),
       temperature: aggregation === "min" ? group.temperatureMin : aggregation === "max" ? group.temperatureMax : group.temperatureTotal / group.count,
       humidity: aggregation === "min" ? group.humidityMin : aggregation === "max" ? group.humidityMax : group.humidityTotal / group.count,
+      temperatureMean: group.temperatureTotal / group.count,
+      temperatureMin: group.temperatureMin,
+      temperatureMax: group.temperatureMax,
+      humidityMean: group.humidityTotal / group.count,
+      humidityMin: group.humidityMin,
+      humidityMax: group.humidityMax,
+      sampleCount: group.count,
     };
   });
 }

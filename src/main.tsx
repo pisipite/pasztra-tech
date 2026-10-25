@@ -14,7 +14,7 @@ import {
   SolarForecast,
   SunHorizon,
 } from "./blocks";
-import { climatePointsForPeriod, isValidClimateValues, type ClimateAggregation } from "./climateData";
+import { climatePointsForPeriod, isValidClimateValues } from "./climateData";
 import { PAGE_BLOCKS } from "./config/pageBlocks";
 import { DATA_FILES } from "./config/dataFiles";
 import { repairClimateHistory } from "../scripts/govee-temperature.mjs";
@@ -79,7 +79,6 @@ function App() {
   const { period, anchor, customStart, customEnd } = energySelection;
   const climateSelection = usePeriodSelection();
   const { period: climatePeriod, anchor: climateAnchor, customStart: climateCustomStart, customEnd: climateCustomEnd } = climateSelection;
-  const [climateAggregation, setClimateAggregation] = useState<ClimateAggregation>("average");
   const [climateHistory, setClimateHistory] = useState(() => makeDemoData("today").govee.chart);
   const [climateLoading, setClimateLoading] = useState(false);
   const [settings, setSettings] = useState<DashboardSettings>(getInitialSettings);
@@ -216,8 +215,8 @@ function App() {
   }, [navigationOpen]);
 
   const climateSeries = useMemo(
-    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climatePeriod === "day" ? "average" : climateAggregation),
-    [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateAggregation],
+    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
+    [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd],
   );
   const activeDevice = data.govee.devices.find((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
   const source = data.source ?? (!settings.live || !settings.endpoint ? "demo" : "live");
@@ -485,12 +484,10 @@ function App() {
           climateAnchor={climateAnchor}
           climateCustomStart={climateCustomStart}
           climateCustomEnd={climateCustomEnd}
-          climateAggregation={climateAggregation}
           climateLoading={climateLoading}
           onClimatePeriodChange={climateSelection.selectPeriod}
           onClimateStep={climateSelection.step}
           onClimateCustomChange={climateSelection.setCustomRange}
-          onClimateAggregationChange={setClimateAggregation}
           loading={manualRefreshBusy}
           refreshLabel={manualRefreshLabel}
           onRefresh={triggerManualRefresh}

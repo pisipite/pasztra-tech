@@ -37,6 +37,10 @@
 .air-quality__detail h3 small { display: block; margin-top: 3px; color: #d7dfa9; font: 500 14px "Manrope", sans-serif; }
 .air-quality__value { display: block; margin: 20px 0 16px; font: 500 49px "Oswald", sans-serif; line-height: 1; }
 .air-quality__value small { margin-left: 8px; font: 500 16px "DM Mono", monospace; }
+.air-quality__trend { display: grid; gap: 7px; margin-top: 16px; padding: 12px 0; border-top: 1px solid #c6d1b833; border-bottom: 1px solid #c6d1b833; }
+.air-quality__trend h4 { margin: 0; font: 600 17px "Oswald", sans-serif; }
+.air-quality__trend svg { width: 100%; height: auto; }
+.air-quality__trend small { color: #dbe1c5; font-size: 11px; line-height: 1.5; }
 .air-quality__detail > p:not(.eyebrow) { font-size: 14px; line-height: 1.6; color: #dbe1c5; }
 .air-quality__stations { display: grid; gap: 16px; margin-top: 22px; max-height: 260px; overflow-y: auto; }
 .air-quality__stations > div { display: grid; grid-template-columns: 1fr auto; gap: 6px; padding-top: 12px; border-top: 1px solid #c6d1b833; font-size: 13px; }

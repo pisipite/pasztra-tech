@@ -28,6 +28,13 @@ export interface ClimatePoint {
   timestamp?: string;
   temperature: number;
   humidity: number;
+  temperatureMean?: number;
+  temperatureMin?: number;
+  temperatureMax?: number;
+  humidityMean?: number;
+  humidityMin?: number;
+  humidityMax?: number;
+  sampleCount?: number;
 }
 
 export interface SolarForecastPoint {

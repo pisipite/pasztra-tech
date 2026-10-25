@@ -33,6 +33,7 @@ type Simulation = {
   testPvKwh: number;
   testBatteryKwh: number;
   testGridKwh: number;
+  totalGridKwh: number;
   testStoredBatteryKwh: number;
 };
 
@@ -112,6 +113,7 @@ function simulate(slots: PlannerSlot[], baseLoadKw: number, battery: BatterySett
   let testPvKwh = 0;
   let testBatteryKwh = 0;
   let testGridKwh = 0;
+  let totalGridKwh = 0;
   let testStoredBatteryKwh = 0;
   const socSeries: number[] = [];
 
@@ -138,13 +140,14 @@ function simulate(slots: PlannerSlot[], baseLoadKw: number, battery: BatterySett
     testBatteryKwh += batteryForTest;
     testStoredBatteryKwh += batteryForTest / efficiency;
     testGridKwh += testShortfall - batteryForTest;
+    totalGridKwh += baseShortfall - batteryForBase + testShortfall - batteryForTest;
 
     const acceptedPv = Math.min(pvAvailable, maximumSlotEnergy, Math.max(0, capacityKwh - storedKwh) / efficiency);
     storedKwh += acceptedPv * efficiency;
     socSeries.push(Math.max(0, Math.min(100, storedKwh / capacityKwh * 100)));
   });
 
-  return { socSeries, testPvKwh, testBatteryKwh, testGridKwh, testStoredBatteryKwh };
+  return { socSeries, testPvKwh, testBatteryKwh, testGridKwh, totalGridKwh, testStoredBatteryKwh };
 }
 
 function makePlan(trial: TrialLoad, slots: PlannerSlot[], baseLoadKw: number, battery: BatterySettings, startSocPct: number, manualStart?: number): Plan | undefined {
@@ -160,14 +163,14 @@ function makePlan(trial: TrialLoad, slots: PlannerSlot[], baseLoadKw: number, ba
     : candidates.reduce((best, candidate) => {
       const current = evaluate(candidate);
       const previous = evaluate(best);
-      if (current.testGridKwh < previous.testGridKwh - .001) return candidate;
-      if (Math.abs(current.testGridKwh - previous.testGridKwh) < .001 && current.testBatteryKwh < previous.testBatteryKwh - .001) return candidate;
+      if (current.totalGridKwh < previous.totalGridKwh - .001) return candidate;
+      if (Math.abs(current.totalGridKwh - previous.totalGridKwh) < .001 && current.testBatteryKwh < previous.testBatteryKwh - .001) return candidate;
       return best;
     });
   const simulation = evaluate(startIndex);
   const endIndex = startIndex + slotCount - 1;
-  const rechargeIndex = simulation.testBatteryKwh > .01
-    ? slots.findIndex((_, index) => index > endIndex && simulation.socSeries[index] >= baseline.socSeries[index] - .1)
+  const rechargeIndex = simulation.socSeries.some((soc, index) => soc < baseline.socSeries[index] - .1)
+    ? slots.findIndex((_, index) => index > endIndex && simulation.socSeries.slice(index).every((soc, offset) => soc >= baseline.socSeries[index + offset] - .1))
     : undefined;
   return { startIndex, slotCount, powerKw, simulation, baseline, rechargeIndex: rechargeIndex !== -1 ? rechargeIndex : undefined };
 }
@@ -240,6 +243,10 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
     const soc = plan.simulation.socSeries[dayStartIndex + index] ?? startSocPct;
     return `${x.toFixed(3)},${(100 - soc).toFixed(3)}`;
   }).join(" ") : "";
+  const baselineLinePoints = plan ? daySlots.map((slot, index) => `${(elapsedMinutes(slot.timestamp) / dayMinutes * 100).toFixed(3)},${(100 - plan.baseline.socSeries[dayStartIndex + index]).toFixed(3)}`).join(" ") : "";
+  const eveningIndex = slots.reduce((last, slot, index) => slot.dayOffset === trial.dayOffset ? index : last, -1);
+  const eveningDrop = plan && eveningIndex >= 0 ? Math.max(0, plan.baseline.socSeries[eveningIndex] - plan.simulation.socSeries[eveningIndex]) : undefined;
+  const additionalGrid = plan ? Math.max(0, plan.simulation.totalGridKwh - plan.baseline.totalGridKwh) : undefined;
   const maximum = Math.max(5, plan?.powerKw ?? 0, ...daySlots.map((slot) => slot.expectedPowerKw));
   const start = plan ? slots[plan.startIndex] : undefined;
   const endTimestamp = plan ? slots[plan.startIndex + plan.slotCount - 1].timestamp + 15 * 60_000 : undefined;
@@ -323,7 +330,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
           {plan && start && <>
             <div className="planner-battery-profile" aria-hidden="true">
               <span className="planner-battery-reserve" style={{ bottom: `${batterySettings.reservePct}%` }} />
-              <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false"><polyline points={batteryLinePoints} vectorEffect="non-scaling-stroke" /></svg>
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false"><polyline className="planner-baseline" points={baselineLinePoints} vectorEffect="non-scaling-stroke" /><polyline points={batteryLinePoints} vectorEffect="non-scaling-stroke" /></svg>
             </div>
             <div
               role="slider"
@@ -394,7 +401,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
           </>}
           <div className="planner-hours" aria-hidden="true">{dayTicks(dayStart).map((tick) => <span key={tick.label} style={{ left: `${tick.ratio * 100}%` }}>{tick.label.slice(0, 2)}</span>)}</div>
         </div>
-        <div className="planner-key"><span><i className="solar" />PV-becslés, friss mérés esetén azzal pontosítva</span><span><i className="battery" />becsült akkutöltöttség</span><span>A blokk közepe mozgat, a csíkos jobb széle az időtartamot állítja.</span></div>
+        <div className="planner-key"><span><i className="solar" />PV-becslés, friss mérés esetén azzal pontosítva</span><span><i className="battery" />akku próbával · folytonos</span><span><i className="battery baseline" />akku próba nélkül · szaggatott</span><span>A blokk közepe mozgat, a csíkos jobb széle az időtartamot állítja.</span></div>
       </section>
 
       {plan && start && endTimestamp && <div className="planner-simple-result">
@@ -403,6 +410,11 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
           Kezdő töltöttség: {formatFixedNumber(startSocPct, 0)}% — {socObservation?.timestamp ? `Sungrow-minta: ${formatClock(Date.parse(socObservation.timestamp))}` : "feltételezett, a beállításokból; nincs friss akkumérés"}.{" "}
           Háttérfogyasztás: {formatFixedNumber(baseLoadKw, 2)} kW; akku: {formatFixedNumber(batterySettings.capacityKwh, 1)} kWh; tartalék: {formatNumber(batterySettings.reservePct)}%; hatásfok: {formatNumber(batterySettings.efficiencyPct)}%; üresjárati veszteség: {formatNumber(batterySettings.idleLossPctPerDay)}%/nap.{" "}
           A PV-termelés időjárási becslés, a töltöttség és a visszatöltési idő is ettől függ.
+        </div>
+        <div className="comparison-metrics">
+          <div><span>Többlet-hálózat · teljes előrejelzési időtáv</span><strong>{formatFixedNumber(additionalGrid!, 2)} kWh</strong></div>
+          <div><span>Nap végi töltöttségkülönbség</span><strong>{formatFixedNumber(eveningDrop!, 1)} százalékpont</strong><small>A kiválasztott nap végén, próba nélkülhöz képest.</small></div>
+          <div><span>Visszatérés a próba nélküli akkupályához</span><strong>{plan.rechargeIndex !== undefined ? `${formatDay(dateKey(slots[plan.rechargeIndex].timestamp), forecast.days[slots[plan.rechargeIndex].dayOffset].label)} · ${formatClock(slots[plan.rechargeIndex].timestamp)}` : plan.simulation.socSeries.some((soc, i) => soc < plan.baseline.socSeries[i] - .1) ? "Az időtávon belül nem látszik" : "Nincs töltöttséghiány"}</strong></div>
         </div>
         <section className="planner-source-panel">
           <div className="planner-result-head"><div><p className="eyebrow">Forrásmegoszlás</p><h3>{formatClock(start.timestamp)}–{formatClock(endTimestamp)}</h3></div><strong>{formatFixedNumber(plan.powerKw, 2)} <small>kW átlag</small></strong></div>
