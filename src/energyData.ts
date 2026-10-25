@@ -1,5 +1,6 @@
 import { isValidClimateValues } from "./climateData";
 import { dateKey } from "./timeZone";
+import { observedPoints } from "./observationQuality";
 import type { ClimatePoint, DashboardData, EnergyChartPoint, PeriodKey } from "./types";
 
 function climateBucketKey(timestamp: string, period: PeriodKey) {
@@ -67,14 +68,18 @@ function closestEnergyPoint(points: EnergyChartPoint[], climatePoint: ClimatePoi
 }
 
 export function mergeEnergyAndClimate(data: DashboardData, period: PeriodKey) {
-  const climate = averageClimateByPeriod(data.govee.chart, period);
+  const climateSamples = period === "day"
+    ? observedPoints(data.govee.chart, data.connections?.climate.updatedAt ?? data.updatedAt)
+    : data.govee.chart.filter((point) => point.timestamp && dateKey(point.timestamp).slice(0, period === "year" ? 7 : 10) <= dateKey(new Date()).slice(0, period === "year" ? 7 : 10));
+  const climate = averageClimateByPeriod(climateSamples, period);
   const energy: EnergyChartPoint[] = data.solar.energyChart ?? data.solar.chart.map((point, index) => ({
     label: point.label,
     pv: point.value,
     temperature: climate[index]?.temperature,
     humidity: climate[index]?.humidity,
   }));
-  const merged = energy.map((point) => ({ ...point }));
+  const measuredEnergy = period === "day" ? observedPoints(energy, data.connections?.solar.updatedAt ?? data.updatedAt) : energy;
+  const merged = measuredEnergy.map((point) => ({ ...point }));
 
   climate.forEach((climatePoint, climateIndex) => {
     let match = closestEnergyPoint(merged, climatePoint, period);
@@ -116,7 +121,7 @@ export function gridNetValue(point: EnergyChartPoint) {
   const hasFeedIn = Number.isFinite(point.gridFeedIn);
   const purchase = hasPurchase ? Math.abs(point.gridPurchase!) : 0;
   const feedIn = hasFeedIn ? Math.abs(point.gridFeedIn!) : 0;
-  return hasPurchase || hasFeedIn ? purchase - feedIn : undefined;
+  return hasPurchase && hasFeedIn ? purchase - feedIn : undefined;
 }
 
 export function batteryNetValue(point: EnergyChartPoint) {
@@ -125,5 +130,5 @@ export function batteryNetValue(point: EnergyChartPoint) {
   const hasDischarge = Number.isFinite(point.batteryDischarge);
   const charge = hasCharge ? Math.abs(point.batteryCharge!) : 0;
   const discharge = hasDischarge ? Math.abs(point.batteryDischarge!) : 0;
-  return hasCharge || hasDischarge ? discharge - charge : undefined;
+  return hasCharge && hasDischarge ? discharge - charge : undefined;
 }

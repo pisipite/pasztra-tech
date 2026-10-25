@@ -1,7 +1,7 @@
 // Historical readings need their own units, not the current device's display
 // unit. getDevicePointMinuteDataList supplies units per value;
 // getPowerStationData supplies p83033_unit / p83106_unit for its power lists.
-export const SUNGROW_FLOW_SCHEMA = 3;
+export const SUNGROW_FLOW_SCHEMA = 4;
 
 function scalar(value) {
   if (value && typeof value === "object") {
@@ -62,10 +62,30 @@ export function extractDeviceSamples(root, pointFields, parseTimestamp) {
 }
 
 export function batteryFlowKw(pv, load, grid, measuredBattery) {
-  return Number.isFinite(grid) ? load - pv - grid : measuredBattery;
+  return [pv, load, grid].every(Number.isFinite) ? load - pv - grid : measuredBattery;
 }
 
 export function isCurrentSungrowDay(value) {
   return value?.flowSchema === SUNGROW_FLOW_SCHEMA
     && Array.isArray(value.energyChart) && value.energyChart.length > 0;
+}
+
+// Only observed adjacent intervals contribute; a shortened current-day series
+// must never be stretched to 24 hours. Omit incomplete counters, not zero-fill.
+export function integratePowerDay(points) {
+  const fields = { pv: ["pv", 1], load: ["load", 1], gridPurchase: ["grid", 1], gridFeedIn: ["grid", -1], batteryCharge: ["battery", -1], batteryDischarge: ["battery", 1] };
+  const totals = {};
+  if (points.length < 2) return totals;
+  for (const [output, [field, sign]] of Object.entries(fields)) {
+    let total = 0;
+    let complete = true;
+    for (let index = 0; index < points.length - 1; index++) {
+      const point = points[index], next = points[index + 1];
+      const hours = (Date.parse(next.timestamp) - Date.parse(point.timestamp)) / 3_600_000;
+      if (!(hours > 0 && hours <= .5) || !Number.isFinite(point[field]) || !Number.isFinite(next[field])) { complete = false; break; }
+      total += Math.max(0, sign * point[field]) * hours;
+    }
+    if (complete) totals[output] = Math.round(total * 1000) / 1000;
+  }
+  return totals;
 }

@@ -1,6 +1,8 @@
 import { useMemo, useState, type MouseEvent } from "react";
 import { dateFromInput, dateInputValue, DAY_MS, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
-import { batteryNetValue, gridNetValue } from "../../energyData";
+import { householdSummary } from "./householdSummary";
+import { latestObservation, observedPoints, observationSegments } from "../../observationQuality";
+import { DataFreshness } from "../../components/DataFreshness";
 import { ENERGY_SOURCE_COLORS } from "../../config/energyColors";
 import { BackToTop } from "../../components/BackToTop";
 import { BulgariaPowerPlantMap } from "./BulgariaPowerPlantMap";
@@ -60,11 +62,12 @@ function averageMixPoints(points: BulgariaEnergyMixPoint[], bucket: "day" | "mon
 }
 
 function isCompleteMixPoint(point: BulgariaEnergyMixPoint) {
-  return point.load > 0 && generationKeys.reduce((sum, key) => sum + Math.max(0, point[key] ?? 0), 0) > 0;
+  return Number.isFinite(point.load) && generationKeys.every((key) => Number.isFinite(point[key]))
+    && point.load > 0 && generationKeys.reduce((sum, key) => sum + point[key], 0) > 0;
 }
 
 function selectedMixPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
-  const filtered = data.points.filter((point) => isCompleteMixPoint(point) && timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+  const filtered = rawMixPoints(data, period, anchor, customStart, customEnd);
   if (period === "day") return filtered;
   if (period === "year") return averageMixPoints(filtered, "month");
   if (period === "custom" && customStart && customEnd) {
@@ -76,47 +79,28 @@ function selectedMixPoints(data: BulgariaEnergyMixData, period: PeriodKey, ancho
 }
 
 function rawMixPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string) {
-  return data.points.filter((point) => isCompleteMixPoint(point) && timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+  return observedPoints(data.points, data.updatedAt).filter((point) => isCompleteMixPoint(point) && timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
 }
 
 function householdPoints(data: BulgariaEnergyMixData, period: PeriodKey, anchor: Date, customStart: string, customEnd: string, fallback: EnergyChartPoint[] = []) {
   const sources = period === "day"
-    ? [data.household?.hourly ?? [], data.household?.daily ?? []]
+    ? [data.household?.daily ?? [], data.household?.hourly ?? []]
     : period === "year"
       ? [data.household?.monthly ?? []]
       : period === "custom" && customStart && customEnd && (dateFromInput(customEnd).getTime() - dateFromInput(customStart).getTime()) / DAY_MS > 90
         ? [data.household?.monthly ?? []]
         : [data.household?.daily ?? []];
   for (const source of sources) {
-    const filtered = source.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
-    if (filtered.length) return { points: filtered, powerValues: source === data.household?.hourly };
+    const measured = source === data.household?.hourly ? observedPoints(source, data.updatedAt) : source;
+    const filtered = measured.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+    if (filtered.some((point) => Number.isFinite(point.load))) return { points: filtered, powerValues: source === data.household?.hourly };
   }
-  const fallbackPoints = fallback.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
+  const fallbackPoints = (period === "day" ? observedPoints(fallback, data.updatedAt) : fallback).filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
   if (fallbackPoints.length) {
-    const powerValues = fallbackPoints.some((point) => Number.isFinite(point.grid) && !Number.isFinite(point.gridPurchase));
+    const powerValues = period === "day";
     return { points: fallbackPoints, powerValues };
   }
   return { points: [] as EnergyChartPoint[], powerValues: false };
-}
-
-function householdSummary(points: EnergyChartPoint[], powerValues: boolean) {
-  const fallbackStep = powerValues && points.length > 1
-    ? Math.min(.5, Math.max(1 / 60, (new Date(points[1].timestamp!).getTime() - new Date(points[0].timestamp!).getTime()) / 3_600_000))
-    : 1;
-  let load = 0;
-  let grid = 0;
-  let battery = 0;
-  for (const point of points) {
-    const factor = powerValues ? fallbackStep : 1;
-    const pointLoad = Math.max(0, point.load ?? 0) * factor;
-    const pointGrid = powerValues ? Math.max(0, gridNetValue(point) ?? 0) * factor : Math.max(0, point.gridPurchase ?? 0);
-    const pointBattery = powerValues ? Math.max(0, batteryNetValue(point) ?? 0) * factor : Math.max(0, point.batteryDischarge ?? 0);
-    load += pointLoad;
-    grid += Math.min(pointLoad, pointGrid);
-    battery += Math.min(Math.max(0, pointLoad - pointGrid), pointBattery);
-  }
-  const directPv = Math.max(0, load - grid - battery);
-  return { load, grid, battery, directPv };
 }
 
 function formatPower(value: number, unit: "MW" | "GW") {
@@ -210,6 +194,8 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
   const tickValues = Array.from({ length: 5 }, (_, index) => upper - index * upper / 4);
   const tickStep = Math.max(1, Math.ceil(points.length / 8));
   const dayTicks = makeDayTicks(effectiveAnchor);
+  const mixSegments = observationSegments(points, (point) => point.load,
+    period === "day" ? data.resolutionMinutes * 60_000 * 1.5 : period === "year" ? 32 * DAY_MS : 36 * 3_600_000);
   const active = hovered === null ? undefined : points[hovered];
 
   const selectedHousehold = useMemo(() => householdPoints(data, period, anchor, customStart, customEnd, householdFallback), [data, period, anchor, customStart, customEnd, householdFallback]);
@@ -241,7 +227,10 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
         <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
-          <p className="bulgaria-mix__freshness"><i className={data.source === "live" && !data.stale ? "is-live" : ""} />{data.stale ? "Korábbi adat · a frissítés nem sikerült" : data.source === "live" ? "Élő adat" : "Mintaadat"} · frissítve {hourFormatter.format(new Date(data.updatedAt))}</p>
+          <p className="bulgaria-mix__freshness"><i className={data.source === "live" && !data.stale ? "is-live" : ""} />{data.stale ? "Korábbi adat · a frissítés nem sikerült" : data.source === "live" ? "ENTSO-E adatok" : "Mintaadat"}</p>
+          <DataFreshness collectedAt={data.updatedAt} observedAt={latestObservation(rawPoints, isCompleteMixPoint)}
+            observationLabel="A kiválasztott időszak utolsó mintája"
+            note={period === "day" && isCurrentPeriod("day", effectiveAnchor) ? "Részleges nap · csak a beérkezett időszak összege." : "Az összesítés a rendelkezésre álló mintákból készült."} />
           <button
             type="button"
             className={`bulgaria-mix__map-toggle${mapOpen ? " is-open" : ""}`}
@@ -294,12 +283,12 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
                 <circle className="mix-donut__renewable-track" cx="50" cy="50" r="43" pathLength="100" />
                 <circle className="mix-donut__renewable-value" cx="50" cy="50" r="43" pathLength="100" strokeDasharray={`${renewableShareDisplay} ${100 - renewableShareDisplay}`} />
               </svg>
-              <strong>{compactNumber.format(renewableShareDisplay)}%</strong><span>megújuló</span>
+              <strong>{rawPoints.length ? `${compactNumber.format(renewableShareDisplay)}%` : "–"}</strong><span>{rawPoints.length ? "megújuló" : "nincs adat"}</span>
             </div>
             {activeDonut && <div className="mix-donut__tooltip"><span>{activeDonut.label}</span><strong>{formatEnergyMwh(activeDonut.value)}</strong></div>}
           </div>
-          <strong>Országos fogyasztás: {formatEnergyMwh(consumption)}</strong>
-          <span>Összes termelés: {formatEnergyMwh(generation)} · {periodLabel(period, effectiveAnchor, customStart, customEnd)}</span>
+          <strong>Országos fogyasztás: {rawPoints.length ? formatEnergyMwh(consumption) : "nincs adat"}</strong>
+          <span>Beérkezett termelési összeg: {rawPoints.length ? formatEnergyMwh(generation) : "nincs adat"} · {periodLabel(period, effectiveAnchor, customStart, customEnd)}</span>
         </section>
 
         <section className="bulgaria-mix__history" aria-label="A bolgár energiamix alakulása">
@@ -309,12 +298,12 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
               <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Rétegezett területdiagram, ${periodLabel(period, effectiveAnchor, customStart, customEnd)}`}>
                 {tickValues.map((value) => <g key={value}><line className="mix-gridline" x1={margin.left} x2={width - margin.right} y1={y(value)} y2={y(value)} /><text className="mix-axis" x={margin.left - 10} y={y(value) + 4} textAnchor="end">{compactNumber.format(value / powerDivisor)}</text></g>)}
                 <text className="mix-axis mix-axis__title" x={margin.left} y={13}>{powerUnit}</text>
-                {areaSeries.map((item) => {
-                  const upperPoints = item.upper.map((value, index) => `${x(index)},${y(value)}`);
-                  const lowerPoints = item.lower.map((value, index) => ({ value, index })).reverse().map(({ value, index }) => `${x(index)},${y(value)}`);
-                  return <polygon key={item.key} points={[...upperPoints, ...lowerPoints].join(" ")} fill={item.color} opacity=".9" />;
-                })}
-                {showConsumption && <polyline className="mix-load-line" points={points.map((point, index) => `${x(index)},${y(point.load)}`).join(" ")} />}
+                {areaSeries.flatMap((item) => mixSegments.map((segment, key) => {
+                  const upperPoints = segment.map(({ index }) => `${x(index)},${y(item.upper[index])}`);
+                  const lowerPoints = [...segment].reverse().map(({ index }) => `${x(index)},${y(item.lower[index])}`);
+                  return <polygon key={`${item.key}-${key}`} points={[...upperPoints, ...lowerPoints].join(" ")} fill={item.color} opacity=".9" />;
+                }))}
+                {showConsumption && mixSegments.map((segment, key) => <polyline key={key} className="mix-load-line" points={segment.map(({ point, index }) => `${x(index)},${y(point.load)}`).join(" ")} />)}
                 {period === "day"
                   ? dayTicks.map((tick) => <text key={tick.label} className="mix-axis" x={margin.left + tick.ratio * plotWidth} y={height - 14} textAnchor={tick.ratio === 0 ? "start" : tick.ratio === 1 ? "end" : "middle"}>{tick.label}</text>)
                   : points.map((point, index) => (index % tickStep === 0 || index === points.length - 1) && <text key={point.timestamp} className="mix-axis" x={x(index)} y={height - 14} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{axisLabel(point, period, customStart, customEnd)}</text>)}
@@ -328,19 +317,20 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
       </div>
 
       <section className="bulgaria-mix__home">
-        <div className="bulgaria-mix__home-head"><div><p className="eyebrow">Kapcsolat az otthonoddal</p><h3>A házfogyasztás eredete</h3></div><strong>{formatKwh(home.load)}</strong></div>
-        {home.load > 0 ? <div className="bulgaria-mix__home-grid">
+        <div className="bulgaria-mix__home-head"><div><p className="eyebrow">Kapcsolat az otthonoddal</p><h3>A házfogyasztás eredete</h3></div><strong>{home.hasLoad ? formatKwh(home.load) : "–"}</strong></div>
+        {home.hasLoad && <p className="bulgaria-mix__note">{home.estimated ? "Becsült fogyasztás a megfigyelt időszakaszokból; a hézagokat nem pótoljuk." : "Fogyasztás a rendelkezésre álló energiaszámlálókból."}</p>}
+        {home.hasBreakdown && home.load > 0 ? <div className="bulgaria-mix__home-grid">
           <div className="bulgaria-mix__home-supply">
             <div className="bulgaria-mix__bar-title"><span>Mi látta el a házat?</span><b>teljes fogyasztás</b></div>
             <div className="bulgaria-mix__stack">{homeSegments.filter((item) => item.value > 0).map((item) => <i key={item.label} style={{ width: `${item.value / home.load * 100}%`, background: item.color }} />)}</div>
             <div className="bulgaria-mix__source-list">{homeSegments.map((item) => <span key={item.label}><i style={{ background: item.color }} />{item.label} {formatKwh(item.value)}</span>)}</div>
           </div>
-          {home.grid > 0 && <div className="bulgaria-mix__grid-detail">
+          {home.grid > 0 && supplyTotal > 0 && <div className="bulgaria-mix__grid-detail">
             <div className="bulgaria-mix__bar-title"><span>A hálózatból vett {formatKwh(home.grid)} becsült összetétele</span><b>időszaki mix</b></div>
             <div className="bulgaria-mix__grid-scale" style={{ width: `${home.grid / home.load * 100}%` }}><div className="bulgaria-mix__stack">{gridMix.map((item) => <i key={item.key} style={{ width: `${item.value / home.grid * 100}%`, background: item.color }} />)}</div></div>
             <div className="bulgaria-mix__source-list">{gridMix.map((item) => <span key={item.key}><i style={{ background: item.color }} />{item.label} {formatKwh(item.value)}</span>)}</div>
           </div>}
-        </div> : <p className="bulgaria-mix__home-empty">Erre az időszakra még nincs házfogyasztási adat.</p>}
+        </div> : <p className="bulgaria-mix__home-empty">{!home.hasLoad ? "Erre az időszakra még nincs házfogyasztási adat." : !home.hasBreakdown ? "A forrásmegoszlás nem állapítható meg: hiányos a fogyasztási, hálózati vagy akkumulátoros adatsor. A hiányzó érték nem nulla." : "A rendelkezésre álló mérések szerint nincs fogyasztás."}</p>}
         <p className="bulgaria-mix__note">A hálózati bontás az időszak országos mixével súlyozott becslés. Az akkumulátor töltési eredetének naplózását egy következő adatgyűjtési lépésben pontosítjuk.</p>
       </section>
 

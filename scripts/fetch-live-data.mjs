@@ -10,10 +10,11 @@ import { repairNuclearDropouts } from "./energy-mix-repair.mjs";
 import { fetchEnergyNews } from "./energy-news.mjs";
 import { addHungarianNewsTranslations } from "./news-translation.mjs";
 import { normalizeGoveeTemperature, repairClimateHistory } from "./govee-temperature.mjs";
+import { isValidClimateValues } from "../shared/climateValidity.mjs";
 import { fetchAirQuality } from "./air-quality.mjs";
 import { mergeDashboard, mergeEnergyMix, retainNews, sourceWarning } from "./retained-data.mjs";
 import { TIME_ZONE, dateKey, dateTimeFormatter } from "../shared/timeZone.mjs";
-import { SUNGROW_FLOW_SCHEMA, powerKwList, extractDeviceSamples, batteryFlowKw, isCurrentSungrowDay } from "./sungrow-power.mjs";
+import { SUNGROW_FLOW_SCHEMA, powerKwList, extractDeviceSamples, batteryFlowKw, isCurrentSungrowDay, integratePowerDay } from "./sungrow-power.mjs";
 
 // Provider calendar dates and Sungrow's zone-less timestamps belong to Bulgaria,
 // including local runs on Windows. Stored ISO timestamps still represent UTC.
@@ -51,10 +52,7 @@ function localMonthKey(value) {
 }
 
 function isValidClimateSample(sample) {
-  return Number.isFinite(sample?.temperature)
-    && sample.temperature !== 0
-    && Number.isFinite(sample?.humidity)
-    && sample.humidity !== 0;
+  return isValidClimateValues(sample?.temperature, sample?.humidity);
 }
 
 function averageClimate(samples, keyType) {
@@ -301,12 +299,12 @@ function buildDayCharts(date, production, load, batterySamples = [], gridSamples
     const timestamp = new Date(date.getFullYear(), date.getMonth(), date.getDate());
     const minute = Math.floor((index / Math.max(chart.length - 1, 1)) * 1439);
     timestamp.setHours(Math.floor(minute / 60), minute % 60, 0, 0);
-    const loadValue = load[index] ?? 0;
+    const loadValue = load[index];
     const batterySample = nearestSample(batterySamples, timestamp);
     const gridSample = nearestSample(gridSamples, timestamp);
     const grid = gridSample?.gridKw;
-    const measuredBattery = Number.isFinite(batterySample?.chargeKw) || Number.isFinite(batterySample?.dischargeKw)
-      ? (batterySample?.dischargeKw ?? 0) - (batterySample?.chargeKw ?? 0)
+    const measuredBattery = Number.isFinite(batterySample?.chargeKw) && Number.isFinite(batterySample?.dischargeKw)
+      ? batterySample.dischargeKw - batterySample.chargeKw
       : undefined;
     // Positive grid means import, positive battery means discharge. With a real
     // grid-meter value the battery flow follows directly from the power balance.
@@ -314,8 +312,8 @@ function buildDayCharts(date, production, load, batterySamples = [], gridSamples
     return {
       label: point.label,
       timestamp: timestamp.toISOString(),
-      pv: point.value,
-      load: loadValue,
+      ...(Number.isFinite(point.value) ? { pv: point.value } : {}),
+      ...(Number.isFinite(loadValue) ? { load: loadValue } : {}),
       ...(Number.isFinite(grid) ? { grid } : {}),
       ...(Number.isFinite(battery) ? { battery } : {}),
       ...(batterySample ? {
@@ -324,30 +322,22 @@ function buildDayCharts(date, production, load, batterySamples = [], gridSamples
         batterySoc: batterySample.soc,
       } : {}),
     };
-  });
-  return { flowSchema: SUNGROW_FLOW_SCHEMA, chart, energyChart };
+  }).filter((point) => Date.parse(point.timestamp) <= now.getTime());
+  return { flowSchema: SUNGROW_FLOW_SCHEMA, chart: chart.slice(0, energyChart.length), energyChart };
 }
 
 function summarizeHouseholdDay(dateKey, dayData) {
   const points = dayData?.energyChart ?? [];
   if (!points.length) return null;
-  const hoursPerPoint = 24 / points.length;
-  const totals = { pv: 0, load: 0, gridPurchase: 0, gridFeedIn: 0, batteryCharge: 0, batteryDischarge: 0 };
-  for (const point of points) {
-    totals.pv += Math.max(0, Number(point.pv) || 0) * hoursPerPoint;
-    totals.load += Math.max(0, Number(point.load) || 0) * hoursPerPoint;
-    totals.gridPurchase += Math.max(0, Number(point.grid) || 0) * hoursPerPoint;
-    totals.gridFeedIn += Math.max(0, -(Number(point.grid) || 0)) * hoursPerPoint;
-    totals.batteryCharge += Math.max(0, -(Number(point.battery) || 0)) * hoursPerPoint;
-    totals.batteryDischarge += Math.max(0, Number(point.battery) || 0) * hoursPerPoint;
-  }
+  const totals = integratePowerDay(points);
   const [year, month, day] = dateKey.split("-").map(Number);
   const rounded = Object.fromEntries(Object.entries(totals).map(([key, value]) => [key, Math.round(value * 1000) / 1000]));
   return {
     label: `${day}.${month}.`,
     timestamp: new Date(year, month - 1, day, 12).toISOString(),
     ...rounded,
-    grid: Math.round((totals.gridPurchase - totals.gridFeedIn) * 1000) / 1000,
+    estimated: true,
+    ...(Number.isFinite(totals.gridPurchase) && Number.isFinite(totals.gridFeedIn) ? { grid: Math.round((totals.gridPurchase - totals.gridFeedIn) * 1000) / 1000 } : {}),
   };
 }
 
@@ -572,8 +562,8 @@ function energyMapFromReport(report, listName, period, points) {
       return Number.isFinite(value) ? [[name, value]] : [];
     }));
     if (!Object.keys(values).length) return [];
-    if (Number.isFinite(values.gridPurchase) || Number.isFinite(values.gridFeedIn)) {
-      values.grid = (values.gridPurchase ?? 0) - (values.gridFeedIn ?? 0);
+    if (Number.isFinite(values.gridPurchase) && Number.isFinite(values.gridFeedIn)) {
+      values.grid = values.gridPurchase - values.gridFeedIn;
     }
     return [[key, values]];
   });
@@ -875,7 +865,7 @@ async function getGovee() {
   const battery = capabilities.find((item) => /battery/i.test(item.instance ?? ""));
 
   if (!isValidClimateSample({ temperature: temperatureC, humidity: humidityPct })) {
-    throw new Error("A mérő 0 értéket adott vissza; a hibás minta kihagyva.");
+    throw new Error("Hiányzó vagy érvénytelen klímamérés; a hibás minta kihagyva.");
   }
 
   return {

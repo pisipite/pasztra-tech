@@ -3,6 +3,7 @@ import type { DashboardData, SolarForecast } from "../../types";
 import { BackToTop } from "../../components/BackToTop";
 import { formatFixedNumber, formatNumber } from "../../formatUtils";
 import { addCalendarDays, dateKey, dateParts, dateTimeFormatter, dayTicks, parseLocalDateTime, startOfDay } from "../../timeZone";
+import { recentSoc } from "../../observationQuality";
 
 type DayOffset = 0 | 1 | 2;
 
@@ -199,19 +200,25 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   const [batterySettings, setBatterySettings] = useState(initial.batterySettings);
   const [baseLoadKw, setBaseLoadKw] = useState(initial.baseLoadKw);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const [clock, setClock] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
   const timelineRef = useRef<HTMLDivElement>(null);
   const forecast = data.forecast;
   const slots = useMemo(() => {
     if (!forecast) return [];
-    const forecastSlots = makeSlots(forecast);
+    const forecastSlots = makeSlots(forecast).filter((slot) => slot.timestamp >= Math.floor(clock / 900_000) * 900_000);
     if (!forecastSlots.length) return forecastSlots;
-    if (!data.connections?.solar.connected || !Number.isFinite(data.solar.currentPowerKw)) return forecastSlots;
+    if (!data.connections?.solar.connected || data.connections.solar.stale || !Number.isFinite(data.solar.currentPowerKw)) return forecastSlots;
     const now = new Date(data.updatedAt).getTime();
     const closestIndex = forecastSlots.reduce((best, slot, index) => Math.abs(slot.timestamp - now) < Math.abs(forecastSlots[best].timestamp - now) ? index : best, 0);
     if (Math.abs(forecastSlots[closestIndex].timestamp - now) > 30 * 60_000) return forecastSlots;
     return forecastSlots.map((slot, index) => index === closestIndex ? { ...slot, expectedPowerKw: data.solar.currentPowerKw } : slot);
-  }, [data.connections?.solar.connected, data.solar.currentPowerKw, data.updatedAt, forecast]);
-  const latestSoc = [...(data.solar.energyChart ?? [])].reverse().find((point) => Number.isFinite(point.batterySoc))?.batterySoc;
+  }, [clock, data.connections, data.solar.currentPowerKw, data.updatedAt, forecast]);
+  const socObservation = data.connections?.solar.connected && !data.connections.solar.stale ? recentSoc(data.solar.energyChart ?? [], clock) : undefined;
+  const latestSoc = socObservation?.batterySoc;
   const startSocPct = Number.isFinite(latestSoc) ? Math.max(0, Math.min(100, latestSoc!)) : batterySettings.fallbackSocPct;
   const plan = useMemo(() => makePlan(trial, slots, baseLoadKw, batterySettings, startSocPct, manualStart), [baseLoadKw, batterySettings, manualStart, slots, startSocPct, trial]);
 
@@ -228,8 +235,8 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   const dayMinutes = (addCalendarDays(dayStart, 1).getTime() - dayStart.getTime()) / 60_000;
   const elapsedMinutes = (timestamp: number) => (timestamp - dayStart.getTime()) / 60_000;
   const dayStartIndex = slots.findIndex((slot) => slot.dayOffset === trial.dayOffset);
-  const batteryLinePoints = plan ? daySlots.map((_, index) => {
-    const x = daySlots.length > 1 ? index / (daySlots.length - 1) * 100 : 0;
+  const batteryLinePoints = plan ? daySlots.map((slot, index) => {
+    const x = elapsedMinutes(slot.timestamp) / dayMinutes * 100;
     const soc = plan.simulation.socSeries[dayStartIndex + index] ?? startSocPct;
     return `${x.toFixed(3)},${(100 - soc).toFixed(3)}`;
   }).join(" ") : "";
@@ -311,7 +318,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
       <section className="planner-timeline-wrap" aria-label={`${forecast.days[trial.dayOffset].label} fogyasztási idővonala`}>
         <div ref={timelineRef} className={`planner-timeline planner-timeline--simple ${dragState ? "is-dragging" : ""}`}>
           <div className="planner-solar-profile" aria-hidden="true">
-            {daySlots.map((slot, index) => <i key={slot.timestamp} style={{ left: `${index / daySlots.length * 100}%`, width: `${100 / daySlots.length + .1}%`, height: `${slot.expectedPowerKw / maximum * 100}%` }} />)}
+            {daySlots.map((slot) => <i key={slot.timestamp} style={{ left: `${elapsedMinutes(slot.timestamp) / dayMinutes * 100}%`, width: `${15 / dayMinutes * 100 + .1}%`, height: `${slot.expectedPowerKw / maximum * 100}%` }} />)}
           </div>
           {plan && start && <>
             <div className="planner-battery-profile" aria-hidden="true">
@@ -387,10 +394,16 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
           </>}
           <div className="planner-hours" aria-hidden="true">{dayTicks(dayStart).map((tick) => <span key={tick.label} style={{ left: `${tick.ratio * 100}%` }}>{tick.label.slice(0, 2)}</span>)}</div>
         </div>
-        <div className="planner-key"><span><i className="solar" />PV: élő most, előrejelzés később</span><span><i className="battery" />akku töltöttség</span><span>A blokk közepe mozgat, a csíkos jobb széle az időtartamot állítja.</span></div>
+        <div className="planner-key"><span><i className="solar" />PV-becslés, friss mérés esetén azzal pontosítva</span><span><i className="battery" />becsült akkutöltöttség</span><span>A blokk közepe mozgat, a csíkos jobb széle az időtartamot állítja.</span></div>
       </section>
 
       {plan && start && endTimestamp && <div className="planner-simple-result">
+        <div className="data-quality-note planner-assumptions">
+          <strong>Becsült eredmény, nem mért fogyasztás.</strong>{" "}
+          Kezdő töltöttség: {formatFixedNumber(startSocPct, 0)}% — {socObservation?.timestamp ? `Sungrow-minta: ${formatClock(Date.parse(socObservation.timestamp))}` : "feltételezett, a beállításokból; nincs friss akkumérés"}.{" "}
+          Háttérfogyasztás: {formatFixedNumber(baseLoadKw, 2)} kW; akku: {formatFixedNumber(batterySettings.capacityKwh, 1)} kWh; tartalék: {formatNumber(batterySettings.reservePct)}%; hatásfok: {formatNumber(batterySettings.efficiencyPct)}%; üresjárati veszteség: {formatNumber(batterySettings.idleLossPctPerDay)}%/nap.{" "}
+          A PV-termelés időjárási becslés, a töltöttség és a visszatöltési idő is ettől függ.
+        </div>
         <section className="planner-source-panel">
           <div className="planner-result-head"><div><p className="eyebrow">Forrásmegoszlás</p><h3>{formatClock(start.timestamp)}–{formatClock(endTimestamp)}</h3></div><strong>{formatFixedNumber(plan.powerKw, 2)} <small>kW átlag</small></strong></div>
           <div className="planner-source-bar" aria-label="Az energia forrás szerinti megoszlása">

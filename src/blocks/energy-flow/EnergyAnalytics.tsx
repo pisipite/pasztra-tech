@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { smoothPath } from "../../chartUtils";
 import { dateInputValue, isCurrentPeriod, periodLabel, timestampInPeriod } from "../../dateUtils";
-import { dateTimeFormatter } from "../../timeZone";
+import { dateKey, dateTimeFormatter, dayFraction, dayTicks } from "../../timeZone";
+import { latestObservation, observedPoints, observationSegments } from "../../observationQuality";
+import { DataFreshness } from "../../components/DataFreshness";
 import { batteryChargeValue, batteryDischargeValue, batteryNetValue, gridFeedInValue, gridNetValue, gridPurchaseValue, mergeEnergyAndClimate } from "../../energyData";
 import { formatFixedNumber } from "../../formatUtils";
 import type { DashboardData, EnergyChartPoint, PeriodKey } from "../../types";
@@ -109,7 +111,8 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
   const rawPoints = useMemo(() => mergeEnergyAndClimate(data, period), [data, period]);
 
   const points = useMemo(
-    () => rawPoints.filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd)),
+    () => (period === "day" ? observedPoints(rawPoints) : rawPoints.filter((point) => point.timestamp && dateKey(point.timestamp).slice(0, period === "year" ? 7 : 10) <= dateKey(new Date()).slice(0, period === "year" ? 7 : 10)))
+      .filter((point) => timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd)),
     [rawPoints, period, anchor, customStart, customEnd],
   );
 
@@ -161,10 +164,19 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
       ? -energyStep
       : 0;
   const range = Math.max(upper - lower, 1);
-  const lineX = (index: number) => margin.left + (points.length <= 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
+  const lineX = (index: number) => margin.left + (points[index]?.timestamp ? dayFraction(points[index].timestamp!) : 0) * plotWidth;
   const bucketLeft = (index: number) => margin.left + index * bucketWidth;
   const bucketCenter = (index: number) => bucketLeft(index) + bucketWidth / 2;
   const pointX = (index: number) => isLine ? lineX(index) : bucketCenter(index);
+  const maxGap = isLine ? 15 * 60_000 : period === "year" ? 32 * 86_400_000 : 36 * 3_600_000;
+  const pathsFor = (value: (point: EnergyChartPoint) => number | undefined, projectY: (value: number) => number, gap = maxGap) =>
+    observationSegments(points, value, gap).map((segment) => segment.map(({ index, value }) => ({ x: pointX(index), y: projectY(value) })));
+  // Climate is sampled independently: empty PV rows are not missing climate
+  // measurements. Connect only nearby climate observations, never long outages.
+  const climatePathsFor = (key: "temperature" | "humidity") => observationSegments(
+    points.map((point, sourceIndex) => ({ ...point, sourceIndex })).filter((point) => Number.isFinite(point[key])),
+    (point) => point[key], isLine ? 30 * 60_000 : maxGap,
+  ).map((segment) => segment.map(({ point, value }) => ({ x: pointX(point.sourceIndex), y: climateY(value, key) })));
   const y = (value: number) => margin.top + ((upper - value) / range) * plotHeight;
   const zeroY = y(0);
   const tempStep = niceStep(Math.max(tempObservedMax - tempObservedMin, 25) / 4);
@@ -235,6 +247,10 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
         <button type="button" className={humidityVisible ? "" : "is-hidden"} aria-pressed={humidityVisible} onClick={() => setHumidityVisible((value) => !value)}><i style={{ background: colors.humidity }} />Páratartalom{climateIsAverage ? " (átlag)" : ""}</button>
       </div>
 
+      <DataFreshness collectedAt={data.refreshedAt ?? data.updatedAt}
+        observedAt={isLine ? latestObservation(points, (point) => Number.isFinite(point.pv) || Number.isFinite(point.load)) : undefined}
+        observationLabel={isLine ? "Utolsó energiaminta" : "Mérési időpont"}
+        note={isLine ? "A hiányzó és a jövőbeli mérések helye üres." : "Időszaki energiaszámlálók; a folyamatban levő időszak részleges."} />
       <div className="energy-chart" onMouseLeave={() => setHovered(null)}>
         {points.length ? (
           <>
@@ -250,11 +266,10 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
 
               {hovered !== null && !isLine && <rect className="hover-band" x={bucketLeft(hovered)} y={margin.top} width={bucketWidth} height={plotHeight} />}
 
-              {isLine ? lineSeries.map((series) => {
-                const coords = points.flatMap((point, index) => Number.isFinite(series.value(point)) ? [{ x: lineX(index), y: y(Number(series.value(point))) }] : []);
+              {isLine ? lineSeries.map((series) => <g key={series.key}>{pathsFor(series.value, y).map((coords, segmentIndex) => {
                 const path = smoothPath(coords);
-                return <g key={series.key}>{series.key === "pv" && coords.length > 1 && <path d={`${path} L${coords.at(-1)?.x},${zeroY} L${coords[0]?.x},${zeroY} Z`} fill="url(#pv-area)" />}<path d={path} fill="none" stroke={series.color} strokeWidth="2.4" vectorEffect="non-scaling-stroke" /></g>;
-              }) : points.map((point, index) => {
+                return <g key={segmentIndex}>{series.key === "pv" && coords.length > 1 && <path d={`${path} L${coords.at(-1)?.x},${zeroY} L${coords[0]?.x},${zeroY} Z`} fill="url(#pv-area)" />}<path d={path} fill="none" stroke={series.color} strokeWidth="2.4" vectorEffect="non-scaling-stroke" />{coords.length === 1 && <circle cx={coords[0].x} cy={coords[0].y} r="2.5" fill={series.color} />}</g>;
+              })}</g>) : points.map((point, index) => {
                 const groupWidth = Math.min(92, bucketWidth * .82);
                 const available = lineSeries.filter((series) => Number.isFinite(series.value(point)));
                 const slotFor = (key: string) => {
@@ -275,16 +290,17 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
                 })}</g>;
               })}
 
-              {temperatureVisible && temperatureCoords.length > 1 && <path d={smoothPath(temperatureCoords)} fill="none" stroke={colors.temperature} strokeWidth="2" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />}
+              {temperatureVisible && climatePathsFor("temperature").map((coords, index) => <path key={index} d={smoothPath(coords)} fill="none" stroke={colors.temperature} strokeWidth="2" strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />)}
               {temperatureVisible && temperatureCoords.map((point, index) => <circle key={`temperature-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.temperature} />)}
-              {humidityVisible && humidityCoords.length > 1 && <path d={smoothPath(humidityCoords)} fill="none" stroke={colors.humidity} strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />}
+              {humidityVisible && climatePathsFor("humidity").map((coords, index) => <path key={index} d={smoothPath(coords)} fill="none" stroke={colors.humidity} strokeWidth="2" strokeDasharray="3 4" vectorEffect="non-scaling-stroke" />)}
               {humidityVisible && humidityCoords.map((point, index) => <circle key={`humidity-${index}`} cx={point.x} cy={point.y} r="3" fill={colors.humidity} />)}
-              {showBatterySoc && <path d={smoothPath(points.flatMap((point, index) => Number.isFinite(point.batterySoc) ? [{ x: pointX(index), y: climateY(point.batterySoc!, "humidity") }] : []))} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />}
+              {showBatterySoc && pathsFor((point) => point.batterySoc, (value) => climateY(value, "humidity")).map((coords, index) => <path key={index} d={smoothPath(coords)} fill="none" stroke={colors.batterySoc} strokeWidth="2.2" vectorEffect="non-scaling-stroke" />)}
 
+              {isLine && dayTicks(anchor).map((tick) => <text key={tick.label} className="energy-x-label" x={margin.left + tick.ratio * plotWidth} y={height - 16} textAnchor={tick.ratio === 0 ? "start" : tick.ratio === 1 ? "end" : "middle"}>{tick.label}</text>)}
               {points.map((point, index) => (
                 <g key={`tick-${point.label}-${index}`}>
-                  {(index % tickStep === 0 || index === points.length - 1) && <text className="energy-x-label" x={pointX(index)} y={height - 16} textAnchor="middle">{axisPointLabel(point, period)}</text>}
-                  <rect className="chart-hit" x={isLine ? lineX(index) - Math.max(10, bucketWidth / 2) : bucketLeft(index)} y={margin.top} width={isLine ? Math.max(20, bucketWidth) : bucketWidth} height={plotHeight} onMouseEnter={() => setHovered(index)} />
+                  {!isLine && (index % tickStep === 0 || index === points.length - 1) && <text className="energy-x-label" x={pointX(index)} y={height - 16} textAnchor="middle">{axisPointLabel(point, period)}</text>}
+                  <rect className="chart-hit" x={isLine ? lineX(index) - 2 : bucketLeft(index)} y={margin.top} width={isLine ? 4 : bucketWidth} height={plotHeight} onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)} />
                 </g>
               ))}
               {hovered !== null && isLine && <line className="hover-line" x1={lineX(hovered)} x2={lineX(hovered)} y1={margin.top} y2={margin.top + plotHeight} />}

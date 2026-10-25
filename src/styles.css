@@ -2154,3 +2154,6 @@ section[id] { scroll-margin-top: 76px; }
   article[id],
   section[id] { scroll-margin-top: 84px; }
 }
+.data-freshness { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 12px 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.data-quality-note { margin: 12px 0; padding: 12px 16px; border-left: 3px solid var(--series-solar, #d8902f); background: var(--surface, transparent); color: var(--ink); font-size: 13px; line-height: 1.6; }
+.planner-assumptions { grid-column: 1 / -1; }

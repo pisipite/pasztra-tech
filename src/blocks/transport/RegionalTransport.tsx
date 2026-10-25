@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { BackToTop } from "../../components/BackToTop";
-import { dateTimeFormatter, parseLocalDateTime } from "../../timeZone";
+import { dateKey, dateTimeFormatter, parseLocalDateTime } from "../../timeZone";
+import { DataFreshness } from "../../components/DataFreshness";
+import { latestObservation } from "../../observationQuality";
 import { clipToCounties, estimatedExit, trustedFlightRoute, type CountyData, type LatLon } from "./transportGeometry";
 import { sourceLabel, TRANSPORT_LINKS, validSnapshot, type Aircraft, type BorderCrossing, type RoadEvent, type Train, type TransportSnapshot } from "./transportData";
 import "./transport.css";
@@ -20,6 +22,9 @@ const roadCategories: Record<string, string> = {
 const borderStatuses: Record<BorderCrossing["status"], string> = { normal: "Normál forgalom", busy: "Erős forgalom", restricted: "Korlátozás", unknown: "Nincs friss minősítés" };
 const dayFormat = dateTimeFormatter({ year: "numeric", month: "long", day: "numeric" });
 const borderDate = (value: string) => /^\d{4}-\d{2}-\d{2}$/.test(value) ? dayFormat.format(parseLocalDateTime(value)) : "nincs adat";
+const borderIsOld = (border: BorderCrossing, now: number) => border.reportedOn !== dateKey(now);
+const borderStatusLabel = (border: BorderCrossing, now: number) => borderIsOld(border, now)
+  ? `Korábbi közlés — akkor: ${borderStatuses[border.status]}` : borderStatuses[border.status];
 
 async function fetchTransportSnapshot(): Promise<TransportSnapshot> {
   const response = await fetch(`${import.meta.env.BASE_URL}data/transport-live.json?updated=${Date.now()}`, { cache: "no-store" });
@@ -231,13 +236,13 @@ export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
     }
     borderMarkers.current.clear();
     if (visible.borders) for (const border of snapshot?.borders ?? []) {
-      const fillColor = border.status === "normal" ? "#3f9984" : border.status === "busy" ? "#e4a529" : border.status === "restricted" ? "#d15d44" : "#9fa8a1";
+      const fillColor = borderIsOld(border, clock) ? "#9fa8a1" : border.status === "normal" ? "#3f9984" : border.status === "busy" ? "#e4a529" : border.status === "restricted" ? "#d15d44" : "#9fa8a1";
       const marker = L.circleMarker([border.latitude, border.longitude], { radius: 9, color: "#063832", fillColor, fillOpacity: .95, weight: 2 })
-        .bindPopup(popup(border.name, [borderStatuses[border.status], border.description, `Hivatalos jelentés: ${borderDate(border.reportedOn)}`, "Nem percben mért várakozási idő."], border.sourceUrl ? { url: border.sourceUrl, label: "Eredeti MVR-jelentés ↗" } : undefined))
+        .bindPopup(popup(border.name, [borderStatusLabel(border, clock), border.description, `Hivatalos jelentés: ${borderDate(border.reportedOn)}`, "Nem percben mért várakozási idő."], border.sourceUrl ? { url: border.sourceUrl, label: "Eredeti MVR-jelentés ↗" } : undefined))
         .addTo(layers.borders);
       borderMarkers.current.set(border.id, marker);
     }
-  }, [counties, snapshot, visible]);
+  }, [counties, snapshot, visible, clock]);
 
   useEffect(() => {
     const overlay = routeLayer.current;
@@ -265,7 +270,7 @@ export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
   const roadAge = snapshot?.sources.roads.updatedAt ? clock - Date.parse(snapshot.sources.roads.updatedAt) : Infinity;
   const roadStale = !Number.isFinite(roadAge) || roadAge > 45 * 60_000;
   const borderAge = snapshot?.sources.borders?.updatedAt ? clock - Date.parse(snapshot.sources.borders.updatedAt) : Infinity;
-  const borderStale = !Number.isFinite(borderAge) || borderAge > 4 * 60 * 60_000;
+  const borderStale = !Number.isFinite(borderAge) || borderAge > 4 * 60 * 60_000 || (snapshot?.borders ?? []).some((border) => borderIsOld(border, clock));
   const planes = snapshot?.aircraft ?? [];
   const trains = snapshot?.trains ?? [];
   const roads = snapshot?.roads ?? [];
@@ -332,6 +337,9 @@ export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
       </div>
     </div>
 
+    <DataFreshness collectedAt={snapshot?.fetchedAt}
+      observedAt={latestObservation([...planes, ...trains].map((item) => ({ timestamp: item.seenAt })), () => true, clock)}
+      observationLabel="Legutóbbi járműpozíció" note="A határátkelőknél a közlés saját dátuma érvényes." />
     <div className="transport-layers" aria-label="Térképrétegek">
       {([ ["aircraft", "Repülők", planes.length], ["trains", "Vonatok", trains.length], ["roads", "Úthelyzet", roads.length], ["borders", "Határátkelők", borders.length] ] as const).map(([key, label, count]) =>
         <button key={key} type="button" aria-pressed={visible[key]} disabled={key === "roads" && snapshot?.sources.roads.status === "unavailable" || key === "borders" && !borders.length} onClick={() => toggle(key)} className={`transport-layers__button transport-layers__button--${key}`}>
@@ -383,7 +391,7 @@ export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
           {(snapshot?.sources.borders?.status !== "ok" || borderStale) && <p className="transport-side__warning">{snapshot?.sources.borders?.status === "stale" || borderStale && borders.some((border) => border.reportedOn) ? "A határjelentés korábbi; indulás előtt ellenőrizd az új közlést." : "A hivatalos határjelentés most nem érhető el."}</p>}
           <div className="transport-side__list transport-side__list--borders">
             {visible.borders && borders.length ? borders.map((border) => <button type="button" key={border.id} onClick={() => focusBorder(border)}>
-              <span><b>⇄</b><strong>{border.name}</strong><small>{borderStatuses[border.status]} · {borderDate(border.reportedOn)}</small></span><em>↗</em>
+              <span><b>⇄</b><strong>{border.name}</strong><small>{borderStatusLabel(border, clock)} · {borderDate(border.reportedOn)}</small></span><em>↗</em>
             </button>) : <p>{visible.borders ? "A határátkelők még nem töltődtek be." : "A határréteg ki van kapcsolva."}</p>}
           </div>
         </div>

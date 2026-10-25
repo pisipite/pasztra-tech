@@ -5,6 +5,7 @@ import { formatFixedNumber, formatNumber, formatTime } from "../../formatUtils";
 import type { ClimatePoint, DashboardData, PeriodKey } from "../../types";
 import { BackToTop } from "../../components/BackToTop";
 import { ClimateChart } from "./ClimateChart";
+import { DataFreshness } from "../../components/DataFreshness";
 
 type Props = {
   data: DashboardData;
@@ -67,6 +68,8 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
           <div><strong>{formatNumber(activeDevice.humidityPct, 1)}%</strong><span>pára</span></div>
         </div>
       </div>
+      <DataFreshness collectedAt={data.refreshedAt ?? data.updatedAt} observedAt={activeDevice.updatedAt}
+        observationLabel="Utolsó szenzorlekérdezés" note="Az eszköz külön mérési időbélyeget nem közöl." />
       {closestWeatherTwin && <div className="weather-twins">
         <span>Éppen mint</span>
         <button type="button" aria-describedby={tooltipWeatherTwins.length ? "weather-twins-tooltip" : undefined}>

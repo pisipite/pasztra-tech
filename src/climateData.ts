@@ -1,20 +1,13 @@
 import { timestampInPeriod } from "./dateUtils";
 import { dateKey, dateTimeFormatter, parseLocalDateTime } from "./timeZone";
 import type { ClimatePoint, PeriodKey } from "./types";
+import { isValidClimateValues } from "../shared/climateValidity.mjs";
+export { isValidClimateValues } from "../shared/climateValidity.mjs";
 
 const dayLabel = dateTimeFormatter({ month: "short", day: "numeric" });
 const monthLabel = dateTimeFormatter({ month: "short" });
 
 export type ClimateAggregation = "min" | "average" | "max";
-
-export function isValidClimateValues(temperature: unknown, humidity: unknown) {
-  return typeof temperature === "number"
-    && Number.isFinite(temperature)
-    && temperature !== 0
-    && typeof humidity === "number"
-    && Number.isFinite(humidity)
-    && humidity !== 0;
-}
 
 export function climatePointsForPeriod(
   history: ClimatePoint[],
@@ -24,7 +17,7 @@ export function climatePointsForPeriod(
   customEnd: string,
   aggregation: ClimateAggregation = "average",
 ) {
-  const filtered = history.filter((point) => isValidClimateValues(point.temperature, point.humidity)
+  const filtered = history.filter((point) => (!point.timestamp || Date.parse(point.timestamp) <= Date.now()) && isValidClimateValues(point.temperature, point.humidity)
     && timestampInPeriod(point.timestamp, period, anchor, customStart, customEnd));
   if (period === "day" || filtered.some((point) => !point.timestamp)) return filtered;
 

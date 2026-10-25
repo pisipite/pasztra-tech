@@ -8,6 +8,7 @@ export interface ChartPoint {
 
 export interface EnergyChartPoint {
   label: string;
+  estimated?: boolean;
   timestamp?: string;
   pv?: number;
   grid?: number;

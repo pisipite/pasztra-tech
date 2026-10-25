@@ -5,6 +5,8 @@ import { formatFixedNumber, formatTime } from "../../formatUtils";
 import { dateKey, dayFraction, dayTicks, parseLocalDateTime } from "../../timeZone";
 import type { DashboardData, SolarForecastPoint } from "../../types";
 import "./forecast.css";
+import { observedPoints, observationSegments } from "../../observationQuality";
+import { DataFreshness } from "../../components/DataFreshness";
 
 type Props = { data: DashboardData };
 
@@ -29,10 +31,10 @@ export function SolarForecast({ data }: Props) {
 
   const actual = useMemo(() => {
     if (!selectedDay || selectedIndex !== 0) return [];
-    return (data.solar.energyChart ?? [])
-      .filter((point) => Number.isFinite(point.pv) && (point.timestamp ? dateKey(point.timestamp) === selectedDay.date : point.label.includes(":")))
-      .map((point) => ({ label: point.timestamp ? formatTime(point.timestamp) : point.label, timestamp: point.timestamp, value: Number(point.pv) }));
-  }, [data.solar.energyChart, selectedDay, selectedIndex]);
+    return observedPoints(data.solar.energyChart ?? [], data.connections?.solar.updatedAt ?? data.updatedAt)
+      .filter((point) => point.timestamp && dateKey(point.timestamp) === selectedDay.date)
+      .map((point) => ({ label: point.timestamp ? formatTime(point.timestamp) : point.label, timestamp: point.timestamp, value: Number.isFinite(point.pv) ? point.pv! : Number.NaN }));
+  }, [data.solar.energyChart, data.connections?.solar.updatedAt, data.updatedAt, selectedDay, selectedIndex]);
 
   if (!forecast || !selectedDay) {
     return <article className="forecast-card card" id="elojelzes"><div className="forecast-head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div><h2>Termelési előrejelzés</h2><p className="forecast-subtitle">Az időjárási becslés a következő frissítéssel érkezik.</p></div></div><ForecastSource demo={data.source === "demo"} /></article>;
@@ -43,11 +45,11 @@ export function SolarForecast({ data }: Props) {
   const margin = { top: 25, right: 26, bottom: 42, left: 58 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
-  const maximum = Math.max(forecast.systemKwp, ...selectedDay.points.map((point) => point.expectedPowerKw), ...actual.map((point) => point.value), 1);
+  const maximum = Math.max(forecast.systemKwp, ...selectedDay.points.map((point) => point.expectedPowerKw), ...actual.map((point) => point.value).filter(Number.isFinite), 1);
   const x = (point: { label: string; timestamp?: string }) => margin.left + (point.timestamp ? dayFraction(point.timestamp) : timePosition(point.label)) * plotWidth;
   const y = (value: number) => margin.top + (1 - value / maximum) * plotHeight;
   const expectedCoords = selectedDay.points.map((point) => ({ x: x(point), y: y(point.expectedPowerKw) }));
-  const actualCoords = actual.map((point) => ({ x: x(point), y: y(point.value) }));
+  const actualSegments = observationSegments(actual, (point) => point.value, 15 * 60_000);
   const daylightPoints = selectedDay.points.filter((point) => point.irradianceWm2 > 0);
   const averageCloud = daylightPoints.length ? daylightPoints.reduce((sum, point) => sum + point.cloudCoverPct, 0) / daylightPoints.length : 0;
   const rainChance = Math.max(0, ...selectedDay.points.map((point) => point.precipitationProbabilityPct));
@@ -89,7 +91,7 @@ export function SolarForecast({ data }: Props) {
           <text className="forecast-axis-title" x={margin.left} y={14}>Teljesítmény (kW)</text>
           <path d={`${smoothPath(expectedCoords)} L${expectedCoords.at(-1)?.x},${y(0)} L${expectedCoords[0]?.x},${y(0)} Z`} fill="url(#forecast-area)" />
           <path className="forecast-line forecast-line--expected" d={smoothPath(expectedCoords)} />
-          {actualCoords.length > 1 && <path className="forecast-line forecast-line--actual" d={smoothPath(actualCoords)} />}
+          {actualSegments.map((segment, key) => <path key={key} className="forecast-line forecast-line--actual" d={smoothPath(segment.map(({ point, value }) => ({ x: x(point), y: y(value) })))} />)}
           {dayTicks(parseLocalDateTime(selectedDay.date)).map((tick) => <text key={tick.label} className="forecast-x-label" x={margin.left + tick.ratio * plotWidth} y={height - 15} textAnchor="middle">{tick.label.slice(0, 2)}</text>)}
           {selectedDay.points.map((point, index) => <g key={point.timestamp}>
             <rect className="forecast-hit" x={x(point) - plotWidth / (selectedDay.points.length * 2)} y={margin.top} width={plotWidth / selectedDay.points.length} height={plotHeight} onMouseEnter={() => setHovered(index)} />
@@ -99,6 +101,7 @@ export function SolarForecast({ data }: Props) {
         {active && <div className="forecast-tooltip"><strong>{formatTime(active.timestamp)}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{formatFixedNumber(active.precipitationProbabilityPct, 0)}%</b></span></div>}
       </div>
       <p className="forecast-note">Az előrejelzés időjárási modellből készült becslés; a helyi hegyoldal árnyékolása eltérést okozhat.</p>
+      <DataFreshness collectedAt={forecast.updatedAt} showObservation={false} note="Modellbecslés, nem mérés; a szaggatott vonal a jövőre is kiterjed." />
       <ForecastSource demo={data.source === "demo"} />
     </article>
   );

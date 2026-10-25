@@ -6,7 +6,10 @@ import { addCalendarDays, addCalendarMonths, calendarDate, dateKey, dateParts, d
 import { parseEconomicCategory } from "../scripts/energy-news.mjs";
 
 // Exercise the real frontend selectors/aggregators without a browser or build.
-const moduleUrls = { "./timeZone": new URL("../shared/timeZone.mjs", import.meta.url).href };
+const moduleUrls = {
+  "./timeZone": new URL("../shared/timeZone.mjs", import.meta.url).href,
+  "../shared/climateValidity.mjs": new URL("../shared/climateValidity.mjs", import.meta.url).href,
+};
 async function importSource(name) {
   const source = await readFile(new URL(`../src/${name}.ts`, import.meta.url), "utf8");
   let { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
@@ -19,6 +22,22 @@ const dates = await importSource("dateUtils");
 const climate = await importSource("climateData");
 const formats = await importSource("formatUtils");
 const demo = await importSource("demoData");
+
+test("zero Celsius contributes to min/mean/max; outage pairs and future samples do not", () => {
+  const history = [
+    { timestamp: "2026-01-01T10:00:00Z", temperature: 0, humidity: 60, label: "" },
+    { timestamp: "2026-01-01T11:00:00Z", temperature: 4, humidity: 40, label: "" },
+    { timestamp: "2026-01-01T12:00:00Z", temperature: 0, humidity: 0, label: "" },
+    { timestamp: "2099-01-01T12:00:00Z", temperature: 99, humidity: 99, label: "" },
+  ];
+  const anchor = calendarDate(2026, 1, 1);
+  for (const [mode, expected] of [["min", 0], ["average", 2], ["max", 4]]) {
+    const result = climate.climatePointsForPeriod(history, "custom", anchor, "2026-01-01", "2099-01-02", mode);
+    assert.equal(result.length, 1);
+    assert.equal(result[0].temperature, expected);
+  }
+  assert.equal(climate.climatePointsForPeriod(history, "day", anchor, "", "").length, 2);
+});
 
 test("all display and calendar helpers stay in Sofia regardless of the visitor/runner zone", () => {
   const previous = process.env.TZ;
