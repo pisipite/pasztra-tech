@@ -319,7 +319,6 @@ export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
       <div className="section-header__lead">
         <div className="section-kicker"><p className="eyebrow">Közlekedés · Délnyugat-Bulgária</p><BackToTop /></div>
         <h2>Mi mozog a környéken?</h2>
-        <p>Kjusztendil és Blagoevgrad megye · Pasztra körül</p>
       </div>
       <div className="transport-header-tools section-header__tools">
         <button className="refresh-button" type="button" onClick={() => void refresh()} disabled={loading || localRefreshing} title={import.meta.env.DEV ? "Közlekedési források azonnali lekérése a helyi gépen" : "Az oldal összes adatának frissítése, a közlekedési adatokkal együtt"} aria-describedby={loading ? "manual-refresh-status" : undefined}><span aria-hidden="true">↻ </span>{localRefreshing ? "Közlekedés frissítése…" : localRefreshed ? "Frissítve" : refreshLabel}</button>
@@ -337,16 +336,12 @@ export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
       </div>
     </div>
 
-    <DataFreshness collectedAt={snapshot?.fetchedAt}
-      observedAt={latestObservation([...planes, ...trains].map((item) => ({ timestamp: item.seenAt })), () => true, clock)}
-      observationLabel="Legutóbbi járműpozíció" note="A határátkelőknél a közlés saját dátuma érvényes." />
     <div className="transport-layers" aria-label="Térképrétegek">
       {([ ["aircraft", "Repülők", planes.length], ["trains", "Vonatok", trains.length], ["roads", "Úthelyzet", roads.length], ["borders", "Határátkelők", borders.length] ] as const).map(([key, label, count]) =>
         <button key={key} type="button" aria-pressed={visible[key]} disabled={key === "roads" && snapshot?.sources.roads.status === "unavailable" || key === "borders" && !borders.length} onClick={() => toggle(key)} className={`transport-layers__button transport-layers__button--${key}`}>
           <span className="transport-layers__symbol" aria-hidden="true">{key === "aircraft" ? "✈" : key === "trains" ? "▰" : key === "borders" ? "⇄" : "!"}</span>
           <strong>{label}</strong><span>{key === "trains" ? `${count} vonat · ${railwayCount} vasúti szakasz` : key === "roads" && snapshot?.sources.roads.status === "unavailable" ? "API-kulcs szükséges" : key === "borders" ? `${count} átkelő` : `${count} jelzés`}</span>
         </button>)}
-      <span className="transport-layers__hint">A térkép görgő helyett a + / − gombbal nagyítható.</span>
     </div>
 
     <div className="transport-layout">
@@ -404,6 +399,9 @@ export function RegionalTransport({ loading, refreshLabel, onRefresh }: Props) {
         </div>
       </aside>
     </div>
+    <div className="chart-footnotes"><DataFreshness collectedAt={snapshot?.fetchedAt}
+      observedAt={latestObservation([...planes, ...trains].map((item) => ({ timestamp: item.seenAt })), () => true, clock)}
+      observationLabel="Legutóbbi járműpozíció" note="A határátkelőknél a közlés saját dátuma érvényes." /></div>
     <p className="transport-footnote">{boundaryError ? "A megyehatárok most nem tölthetők be. " : "Szaggatott körvonal: megyehatár. "}Térkép és határok: <a href={TRANSPORT_LINKS.osm} target="_blank" rel="noreferrer">OpenStreetMap</a>. Vasút és vonatok: <a href={TRANSPORT_LINKS.bdzNap} target="_blank" rel="noreferrer">BDZ / bolgár NAP</a>. Repülőpozíció: <a href={TRANSPORT_LINKS.opensky} target="_blank" rel="noreferrer">OpenSky</a>; indulás és cél: <a href="https://www.adsbdb.com/" target="_blank" rel="noreferrer">ADSBDB</a>. Közúti események: <a href={TRANSPORT_LINKS.tomtom} target="_blank" rel="noreferrer">TomTom Traffic</a>. Határhelyzet: <a href={TRANSPORT_LINKS.mvr} target="_blank" rel="noreferrer">MVR</a>. A határjelentés nem átkelőnként mért várakozási idő; a múltbeli repülővonal mért pontokból, a jövőbeli szakasz becslésből áll.</p>
   </article>;
 }

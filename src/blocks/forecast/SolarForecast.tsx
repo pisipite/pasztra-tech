@@ -71,7 +71,6 @@ export function SolarForecast({ data }: Props) {
         <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Előrejelzés</p><BackToTop /></div>
           <h2>Termelési előrejelzés</h2>
-          <p className="forecast-subtitle">5 kWp rendszer · becsült 27° dőlés · dél–délnyugati tájolás</p>
         </div>
         <div className="forecast-tabs section-header__tools" role="tablist" aria-label="Előrejelzési nap">
           {forecast.days.map((day, index) => <button key={day.date} role="tab" aria-selected={selectedIndex === index} className={selectedIndex === index ? "active" : ""} onClick={() => { setSelectedIndex(index); setHovered(null); }}>{day.label}</button>)}
@@ -114,6 +113,7 @@ export function SolarForecast({ data }: Props) {
         </svg>
         {active && <div className="forecast-tooltip"><strong>{formatTime(active.timestamp)}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{formatFixedNumber(active.precipitationProbabilityPct, 0)}%</b></span></div>}
       </div>
+      <p className="chart-footnote">5 kWp rendszer · becsült 27° dőlés · dél–délnyugati tájolás</p>
       <p className="forecast-note">Az előrejelzés időjárási modellből készült becslés; a helyi hegyoldal árnyékolása eltérést okozhat.</p>
       <DataFreshness collectedAt={forecast.updatedAt} showObservation={false} note="Modellbecslés, nem mérés; a szaggatott vonal a jövőre is kiterjed." />
       <ForecastSource demo={data.source === "demo"} />

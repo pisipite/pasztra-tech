@@ -65,8 +65,6 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
           <div><strong>{formatNumber(activeDevice.humidityPct, 1)}%</strong><span>pára</span></div>
         </div>
       </div>
-      <DataFreshness collectedAt={data.refreshedAt ?? data.updatedAt} observedAt={activeDevice.updatedAt}
-        observationLabel="Utolsó szenzorlekérdezés" note="Az eszköz külön mérési időbélyeget nem közöl." />
       {closestWeatherTwin && <div className="weather-twins">
         <span>Éppen mint</span>
         <button type="button" aria-describedby={tooltipWeatherTwins.length ? "weather-twins-tooltip" : undefined}>
@@ -99,6 +97,8 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
         </div>
         <div className={climateLoading ? "is-climate-loading" : ""}><ClimateChart data={climateSeries} period={climatePeriod} temperatureVisible={temperatureVisible} humidityVisible={humidityVisible} /></div>
       </div>
+      <div className="chart-footnotes"><DataFreshness collectedAt={data.refreshedAt ?? data.updatedAt} observedAt={activeDevice.updatedAt}
+        observationLabel="Utolsó szenzorlekérdezés" note="Az eszköz külön mérési időbélyeget nem közöl." /></div>
       {validDevices.length > 1 && <details className="climate-other-devices"><summary>További mérők ({validDevices.length - 1})</summary>
         {validDevices.slice(1).map((device) => <p key={device.id}>{device.room}: {formatFixedNumber(device.temperatureC, 1)} °C · {formatFixedNumber(device.humidityPct, 0)}% páratartalom</p>)}
       </details>}

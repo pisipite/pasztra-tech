@@ -212,11 +212,6 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
         {availableSeries.map((series) => <button type="button" key={series.key} className={isEnergySeriesVisible(series.key) ? "" : "is-hidden"} aria-pressed={isEnergySeriesVisible(series.key)} onClick={() => toggleEnergySeries(series.key)}><i style={{ background: series.color }} />{series.label}</button>)}
         {hasBatterySoc && <button type="button" className={showBatterySoc ? "" : "is-hidden"} aria-pressed={showBatterySoc} onClick={() => toggleEnergySeries("batterySoc")}><i style={{ background: colors.batterySoc }} />Akkutöltöttség · külön sáv</button>}
       </div>
-      {stacked && <p className="data-quality-note">Csak ismert fogyasztás, hálózati vételezés és akkuleadás esetén készül bontás. A közvetlen PV ezek maradéka; hiányos vagy becsült bontás helye üres.</p>}
-      <DataFreshness collectedAt={data.refreshedAt ?? data.updatedAt}
-        observedAt={isLine ? latestObservation(points, (point) => Number.isFinite(point.pv) || Number.isFinite(point.load)) : undefined}
-        observationLabel={isLine ? "Utolsó energiaminta" : "Mérési időpont"}
-        note={isLine ? "A hiányzó és a jövőbeli mérések helye üres." : "Időszaki energiaszámlálók; a folyamatban levő időszak részleges."} />
       <div className="energy-chart" onMouseLeave={() => setHovered(null)}>
         {points.length ? (
           <>
@@ -269,6 +264,13 @@ export function EnergyAnalytics({ data, period, anchor, customStart, customEnd, 
             </div>}
           </>
         ) : <div className="chart-empty"><strong>Nincs adat ebben az időszakban</strong><span>Válassz másik dátumot, vagy várd meg a következő adatfrissítést.</span></div>}
+      </div>
+      <div className="chart-footnotes">
+        <DataFreshness collectedAt={data.refreshedAt ?? data.updatedAt}
+          observedAt={isLine ? latestObservation(points, (point) => Number.isFinite(point.pv) || Number.isFinite(point.load)) : undefined}
+          observationLabel={isLine ? "Utolsó energiaminta" : "Mérési időpont"}
+          note={isLine ? "A hiányzó és a jövőbeli mérések helye üres." : "Időszaki energiaszámlálók; a folyamatban levő időszak részleges."} />
+        {stacked && <p className="data-quality-note">Csak ismert fogyasztás, hálózati vételezés és akkuleadás esetén készül bontás. A közvetlen PV ezek maradéka; hiányos vagy becsült bontás helye üres.</p>}
       </div>
     </article>
   );

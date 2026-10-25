@@ -228,9 +228,6 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
           <div className="section-kicker"><p className="eyebrow">Bulgária</p><BackToTop /></div>
           <h2>Bulgária energiamixe</h2>
           <p className="bulgaria-mix__freshness"><i className={data.source === "live" && !data.stale ? "is-live" : ""} />{data.stale ? "Korábbi adat · a frissítés nem sikerült" : data.source === "live" ? "ENTSO-E adatok" : "Mintaadat"}</p>
-          <DataFreshness collectedAt={data.updatedAt} observedAt={latestObservation(rawPoints, isCompleteMixPoint)}
-            observationLabel="A kiválasztott időszak utolsó mintája"
-            note={period === "day" && isCurrentPeriod("day", effectiveAnchor) ? "Részleges nap · csak a beérkezett időszak összege." : "Az összesítés a rendelkezésre álló mintákból készült."} />
           <button
             type="button"
             className={`bulgaria-mix__map-toggle${mapOpen ? " is-open" : ""}`}
@@ -314,6 +311,10 @@ export function BulgariaEnergyMix({ data, householdFallback = [] }: Props) {
           <div className="bulgaria-mix__legend" aria-label="Kapcsolható energiaforrások">{availableSeries.map((item) => <button type="button" key={item.key} className={hiddenSeries.has(item.key) ? "is-hidden" : ""} aria-pressed={!hiddenSeries.has(item.key)} onClick={() => setHiddenSeries((current) => { const next = new Set(current); if (next.has(item.key)) next.delete(item.key); else next.add(item.key); return next; })}><i style={{ background: item.color }} />{item.label}</button>)}<button type="button" className={showConsumption ? "" : "is-hidden"} aria-pressed={showConsumption} onClick={() => setShowConsumption((current) => !current)}><i className="mix-legend-line" style={{ borderColor: loadColor }} />Fogyasztás</button></div>
         </section>
       </div>
+
+      <div className="chart-footnotes"><DataFreshness collectedAt={data.updatedAt} observedAt={latestObservation(rawPoints, isCompleteMixPoint)}
+        observationLabel="A kiválasztott időszak utolsó mintája"
+        note={period === "day" && isCurrentPeriod("day", effectiveAnchor) ? "Részleges nap · csak a beérkezett időszak összege." : "Az összesítés a rendelkezésre álló mintákból készült."} /></div>
 
       <section className="bulgaria-mix__home">
         <div className="bulgaria-mix__home-head"><div><p className="eyebrow">Kapcsolat az otthonoddal</p><h3>A házfogyasztás eredete</h3></div><strong>{home.hasLoad ? formatKwh(home.load) : "–"}</strong></div>

@@ -180,7 +180,6 @@ export function SunHorizon() {
         <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Napállás</p><BackToTop /></div>
           <h2 id="sun-horizon-title">Nap és horizont</h2>
-          <p>A nap pillanatnyi helyzete a pasztrai hegyoldal vázlatos körvonala fölött.</p>
         </div>
         <span className={`sun-horizon-status section-header__tools${model.visible ? " is-visible" : ""}`}>
           <i aria-hidden="true" />{status}

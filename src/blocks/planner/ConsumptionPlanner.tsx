@@ -309,7 +309,6 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
         <div className="section-header__lead">
           <div className="section-kicker"><p className="eyebrow">Interaktív próba</p><BackToTop /></div>
           <h2>Honnan jön majd az energia?</h2>
-          <p>Egyetlen próba-fogyasztás energiaigényét és időtartamát vizsgálhatod. A blokk mozgatható, a jobb széle pedig kihúzható.</p>
         </div>
         <button className="planner-auto section-header__tools" onClick={() => setManualStart(undefined)}>Legjobb időpont keresése</button>
       </header>
@@ -403,6 +402,7 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
         </div>
         <div className="planner-key"><span><i className="solar" />PV-becslés, friss mérés esetén azzal pontosítva</span><span><i className="battery" />akku próbával · folytonos</span><span><i className="battery baseline" />akku próba nélkül · szaggatott</span><span>A blokk közepe mozgat, a csíkos jobb széle az időtartamot állítja.</span></div>
       </section>
+      <p className="chart-footnote">Egyetlen próba-fogyasztás energiaigényét és időtartamát vizsgálhatod. A blokk mozgatható, a jobb széle pedig kihúzható.</p>
 
       {plan && start && endTimestamp && <div className="planner-simple-result">
         <div className="data-quality-note planner-assumptions">

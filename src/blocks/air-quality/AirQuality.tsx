@@ -196,6 +196,11 @@ export function AirQuality({ endpoint, enabled, refreshSeconds }: { endpoint: st
             <h4>Romlik vagy javul?</h4>
             {trend.points.length ? <svg viewBox="0 0 350 122" role="img" aria-label={`${pollutantLabel} időszaki trend; ${trend.points.length} megfigyelt idősáv`}>
               <line x1="35" x2="315" y1="92" y2="92" stroke="currentColor" opacity=".5" />
+              {trendSegments.slice(1).map((segment, index) => {
+                const previous = trendSegments[index].at(-1)!;
+                const next = segment[0];
+                return <line key={`gap-${index}`} x1={trendX(previous.point.timestamp)} y1={trendY(previous.value)} x2={trendX(next.point.timestamp)} y2={trendY(next.value)} stroke="#f1c76d" strokeWidth="1.8" strokeDasharray="5 5" opacity=".7" vectorEffect="non-scaling-stroke"><title>Mérési hézag; a szaggatott szakasz nem mért érték.</title></line>;
+              })}
               {trendSegments.map((segment, index) => <g key={index}>
                 <polyline points={segment.map(({ point, value }) => `${trendX(point.timestamp)},${trendY(value)}`).join(" ")} fill="none" stroke="#f1c76d" strokeWidth="2.5" vectorEffect="non-scaling-stroke" />
                 {segment.length === 1 && <circle cx={trendX(segment[0].point.timestamp)} cy={trendY(segment[0].value)} r="3" fill="#f1c76d" />}
@@ -204,7 +209,7 @@ export function AirQuality({ endpoint, enabled, refreshSeconds }: { endpoint: st
               <text x="315" y="14" fill="currentColor" fontSize="11" textAnchor="end">µg/m³</text>
             </svg> : <p>Nincs megfigyelt idősáv ehhez a településhez.</p>}
             <small>{trend.sensorCount} hozzárendelt mérő · {number.format(trend.sampleCount)} érvényes minta · becsült lefedettség: {trend.coveragePct === undefined ? "nem számítható" : `${number.format(trend.coveragePct)}%`}.</small>
-            <small>A pontok a rendelkezésre álló mérők idősávátlagai; hiányzó idősávok nem kapnak nulla értéket. A lefedettség becslése a {data?.samplingIntervalMinutes ?? 20} perces névleges mintaközt feltételezi.</small>
+            <small>A pontok a rendelkezésre álló mérők idősávátlagai; a szaggatott szakaszok mérési hézagokat kötnek át, nem mért értékek. A hiányzó idősávok nem kapnak nulla értéket. A lefedettség becslése a {data?.samplingIntervalMinutes ?? 20} perces névleges mintaközt feltételezi.</small>
           </section>
           <div className="air-quality__stations">
             {selectedStations.map((station) => <div key={station.id}>
