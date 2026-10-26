@@ -14,7 +14,7 @@ import { isValidClimateValues } from "../shared/climateValidity.mjs";
 import { fetchAirQuality } from "./air-quality.mjs";
 import { mergeDashboard, mergeEnergyMix, retainNews, sourceWarning } from "./retained-data.mjs";
 import { TIME_ZONE, dateKey, dateTimeFormatter } from "../shared/timeZone.mjs";
-import { SUNGROW_FLOW_SCHEMA, powerKwList, extractDeviceSamples, batteryFlowKw, isCurrentSungrowDay, integratePowerDay } from "./sungrow-power.mjs";
+import { SUNGROW_FLOW_SCHEMA, powerKwList, devicePointUnits, extractDeviceSamples, batteryFlowKw, isCurrentSungrowDay, integratePowerDay } from "./sungrow-power.mjs";
 
 // Provider calendar dates and Sungrow's zone-less timestamps belong to Bulgaria,
 // including local runs on Windows. Stored ISO timestamps still represent UTC.
@@ -218,6 +218,7 @@ function findBatteryDevice(root) {
     const psKey = textValue(deepFind(device, ["psKey"]));
     if (psKey) return {
       psKey,
+      units: devicePointUnits(pointData),
       charge: "p13126",
       discharge: "p13150",
       soc,
@@ -237,7 +238,7 @@ function findGridMeterDevice(root) {
     if (!Array.isArray(pointData)) return [];
     const ids = new Set(pointData.map((point) => textValue(deepFind(point, ["pointId"]))).filter(Boolean));
     const psKey = textValue(deepFind(device, ["psKey"]));
-    return psKey && ids.has("p8018") ? [{ psKey, power: "p8018" }] : [];
+    return psKey && ids.has("p8018") ? [{ psKey, power: "p8018", units: devicePointUnits(pointData) }] : [];
   });
 
   return candidates.find((device) => /_7(?:_|$)/.test(device.psKey)) ?? candidates[0] ?? null;
@@ -250,7 +251,7 @@ function extractBatterySamples(root, batteryDevice) {
     [batteryDevice.soc, "soc"],
     [batteryDevice.temperature, "temperatureC"],
     [batteryDevice.voltage, "voltageV"],
-  ].filter(([pointId]) => pointId)), parseSungrowTimestamp).map((sample) => ({
+  ].filter(([pointId]) => pointId)), parseSungrowTimestamp, batteryDevice.units).map((sample) => ({
     ...sample,
     chargeKw: Number.isFinite(sample.chargeKw) ? Math.abs(sample.chargeKw) : sample.chargeKw,
     dischargeKw: Number.isFinite(sample.dischargeKw) ? Math.abs(sample.dischargeKw) : sample.dischargeKw,
@@ -487,6 +488,7 @@ async function getBatteryTelemetry(devices, date = now) {
   }
 
   const required = [batteryDevice.charge, batteryDevice.discharge, batteryDevice.soc];
+  if (localDateKey(date) === localDateKey(now)) console.log(`Sungrow akkumulátor-pontok egysége: töltés ${batteryDevice.units[batteryDevice.charge] ?? "ismeretlen"}, leadás ${batteryDevice.units[batteryDevice.discharge] ?? "ismeretlen"}.`);
   const optional = localDateKey(date) === localDateKey(now)
     ? [batteryDevice.temperature, batteryDevice.voltage].filter(Boolean) : [];
   try {
@@ -497,8 +499,8 @@ async function getBatteryTelemetry(devices, date = now) {
         return queryDeviceTelemetry(batteryDevice.psKey, required, date);
       });
     const samples = normalizeBatterySoc(extractBatterySamples(response, batteryDevice), batteryDevice.soc);
-    console.log(`Sungrow akkumulátor (${localDateKey(date)}): ${samples.length} minta, mérésenkénti mértékegységgel.`);
-    return { samples, complete: samples.length > 0 };
+    console.log(`Sungrow akkumulátor (${localDateKey(date)}): ${samples.length} minta, ellenőrzött mértékegységgel.`);
+    return { samples, complete: samples.some((sample) => Number.isFinite(sample.chargeKw) && Number.isFinite(sample.dischargeKw)) };
   } catch (error) {
     console.error(`Sungrow akkumulátor (${localDateKey(date)}): ${error.message}`);
     return { samples: [], complete: false };
@@ -512,10 +514,12 @@ async function getGridTelemetry(devices, date = now) {
     return { samples: [], complete: Boolean(devices) };
   }
 
+  if (localDateKey(date) === localDateKey(now)) console.log(`Sungrow hálózati pont egysége: ${meterDevice.units[meterDevice.power] ?? "ismeretlen"}.`);
+
   try {
     const response = await queryDeviceTelemetry(meterDevice.psKey, [meterDevice.power], date);
-    const samples = extractDeviceSamples(response, { [meterDevice.power]: "gridKw" }, parseSungrowTimestamp);
-    console.log(`Sungrow hálózat (${localDateKey(date)}): ${samples.length} minta, mérésenkénti mértékegységgel.`);
+    const samples = extractDeviceSamples(response, { [meterDevice.power]: "gridKw" }, parseSungrowTimestamp, meterDevice.units);
+    console.log(`Sungrow hálózat (${localDateKey(date)}): ${samples.length} minta, ellenőrzött mértékegységgel.`);
     return { samples, complete: samples.length > 0 };
   } catch (error) {
     console.error(`Sungrow hálózat (${localDateKey(date)}): ${error.message}`);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-  SUNGROW_FLOW_SCHEMA, powerKw, powerKwList, extractDeviceSamples,
+  SUNGROW_FLOW_SCHEMA, powerKw, powerKwList, devicePointUnits, extractDeviceSamples,
   batteryFlowKw, isCurrentSungrowDay,
 } from "../scripts/sungrow-power.mjs";
 
@@ -64,6 +64,32 @@ test("GoSungrow scalar wrappers and explicit per-value units are supported", () 
   assert.equal(powerKw({ value_float: 80 }, { string: "W" }), 0.08);
   assert.equal(powerKw({ value: 0.08, unit: "kW" }, "W"), 0.08);
   assert.equal(powerKw({ value_string: "-92" }, " w "), -0.092);
+});
+
+test("empty sample units use the matching device-point metadata, not an inferred scale", () => {
+  const pointUnits = devicePointUnits([
+    { point_id: { point: "p8018" }, unit: { string: "W" } },
+    { point_id: { value: "p13126" }, unit: { value: "kW" } },
+    { point_id: "p13150", unit: "W" },
+  ]);
+  assert.deepEqual(pointUnits, { p8018: "W", p13126: "kW", p13150: "W" });
+  const samples = extractDeviceSamples({ result_data: { data: [
+    { time_stamp: "2026-10-26T05:15:00Z", points: {
+      p8018: { value: 80, unit: "" },
+      p13126: { value: 0.2, unit: "" },
+      p13150: { value: 92, unit: "W" },
+    } },
+    { time_stamp: "2026-10-26T05:20:00Z", points: {
+      p8018: { value: 0.08, unit: "kW" },
+    } },
+  ] } }, { p8018: "gridKw", p13126: "chargeKw", p13150: "dischargeKw" }, parseTimestamp, pointUnits);
+  assert.equal(samples[0].gridKw, 0.08);
+  assert.equal(samples[0].chargeKw, 0.2);
+  assert.equal(samples[0].dischargeKw, 0.092);
+  assert.equal(samples[1].gridKw, 0.08, "a minta saját egysége elsőbbséget élvez");
+  assert.equal(powerKw({ value: 80, unit: "" }, "W"), 0.08);
+  assert.throws(() => powerKw({ value: 80, unit: "V" }, "W"), /mértékegység/);
+  assert.throws(() => powerKw({ value: 80, unit: "" }, ""), /mértékegység/);
 });
 
 test("unknown units fail visibly rather than guessing from the amount", () => {
