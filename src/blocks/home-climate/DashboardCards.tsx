@@ -79,12 +79,16 @@ function ClimateCard({ data, climateHistory, climateSeries, nowMs, climatePeriod
           </div>
           {change.status === "ok" && <small className="climate-trend">Kb. 3 óra alatt: {signedChange(change.humidityDeltaPoints, 1)} százalékpont</small>}
         </div>
+        <details className="climate-dewpoint">
+          <summary title="A harmatpont magyarázata">
+            <span>Harmatpont <small>becslés</small></span>
+            <strong>{dewPoint === null ? "—" : `${formatFixedNumber(dewPoint, 1)} °C`}</strong>
+            <span className="climate-dewpoint__info" aria-hidden="true">i</span>
+          </summary>
+          <p>{dewPoint === null ? "Friss mérés szükséges." : "A levegő telítődési hőmérséklete; falhőmérséklet nélkül nem páralecsapódás-jelzés."}</p>
+        </details>
       </div>
       {change.status !== "ok" && <p className="climate-trend-unavailable">3 órás változás: {change.status === "stale" ? "nincs friss lekérdezés" : "hiányos mérési előzmény"}.</p>}
-      <div className="climate-dewpoint">
-        <span>Harmatpont <small>becslés</small> <strong>{dewPoint === null ? "—" : `${formatFixedNumber(dewPoint, 1)} °C`}</strong></span>
-        <small>{dewPoint === null ? "Friss mérés szükséges." : "A levegő telítődési hőmérséklete; falhőmérséklet nélkül nem páralecsapódás-jelzés."}</small>
-      </div>
       {closestWeatherTwin && <div className="weather-twins">
         <span>Éppen mint</span>
         <button type="button" aria-describedby={tooltipWeatherTwins.length ? "weather-twins-tooltip" : undefined}>
