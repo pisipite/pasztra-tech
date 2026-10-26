@@ -203,6 +203,9 @@
 [data-theme="dark"] .weather-twins__tooltip { color: var(--dark-text); border-color: var(--dark-border); background: var(--dark-raised); }
 [data-theme="dark"] .weather-twins__tooltip::after { border-color: var(--dark-border); background: var(--dark-raised); }
 [data-theme="dark"] .weather-twins__tooltip small { color: var(--dark-muted); }
+[data-theme="dark"] .climate-dewpoint { border-color: var(--dark-border); }
+[data-theme="dark"] .climate-dewpoint > span { color: var(--dark-text); }
+[data-theme="dark"] .climate-dewpoint strong { color: var(--series-humidity); }
 
 /* National mix: the left donut is already dark; darken the timeline beside it. */
 [data-theme="dark"] .bulgaria-mix__history { color: var(--dark-text); background: #142f39; }

@@ -479,7 +479,9 @@ function App() {
         <SolarForecast data={data} />
         <DashboardCards
           data={data}
+          climateHistory={climateHistory}
           climateSeries={climateSeries}
+          nowMs={clock}
           climatePeriod={climatePeriod}
           climateAnchor={climateAnchor}
           climateCustomStart={climateCustomStart}

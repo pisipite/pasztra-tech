@@ -6,10 +6,13 @@ import type { ClimatePoint, DashboardData, PeriodKey } from "../../types";
 import { BackToTop } from "../../components/BackToTop";
 import { ClimateChart } from "./ClimateChart";
 import { DataFreshness } from "../../components/DataFreshness";
+import { dewPointC, recentClimateChange } from "../../../shared/climateInsights.mjs";
 
 type Props = {
   data: DashboardData;
+  climateHistory: ClimatePoint[];
   climateSeries: ClimatePoint[];
+  nowMs: number;
   climatePeriod: PeriodKey;
   climateAnchor: Date;
   climateCustomStart: string;
@@ -31,7 +34,7 @@ const climatePeriods: { key: PeriodKey; label: string }[] = [
   { key: "custom", label: "Egyéb" },
 ];
 
-function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateLoading, loading, refreshLabel, onRefresh, onClimatePeriodChange, onClimateStep, onClimateCustomChange }: Pick<Props, "data" | "climateSeries" | "climatePeriod" | "climateAnchor" | "climateCustomStart" | "climateCustomEnd" | "climateLoading" | "loading" | "refreshLabel" | "onRefresh" | "onClimatePeriodChange" | "onClimateStep" | "onClimateCustomChange">) {
+function ClimateCard({ data, climateHistory, climateSeries, nowMs, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, climateLoading, loading, refreshLabel, onRefresh, onClimatePeriodChange, onClimateStep, onClimateCustomChange }: Props) {
   const [temperatureVisible, setTemperatureVisible] = useState(true);
   const [humidityVisible, setHumidityVisible] = useState(true);
   const validDevices = data.govee.devices.filter((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
@@ -47,6 +50,12 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
   const weatherTwins = data.govee.weatherTwins ?? [];
   const closestWeatherTwin = weatherTwins[0];
   const tooltipWeatherTwins = weatherTwins.slice(0, 6);
+  const change = recentClimateChange(climateHistory, activeDevice, nowMs);
+  const dewPoint = change.status === "stale" ? null : dewPointC(activeDevice.temperatureC, activeDevice.humidityPct);
+  const signedChange = (value: number, digits: number) => {
+    const rounded = Number(value.toFixed(digits));
+    return rounded === 0 ? "0" : `${rounded > 0 ? "+" : "−"}${formatNumber(Math.abs(rounded), digits)}`;
+  };
 
   return (
     <article className="card climate-card" id="klima">
@@ -56,14 +65,25 @@ function ClimateCard({ data, climateSeries, climatePeriod, climateAnchor, climat
         <button className="refresh-button section-header__tools" onClick={onRefresh} disabled={loading} title="Az oldal összes adatának frissítése"><span aria-hidden="true">↻ </span>{refreshLabel}</button>
       </div>
       <div className="climate-reading">
-        <div className="temperature"><strong>{formatFixedNumber(activeDevice.temperatureC, 1)}°</strong><span>C</span></div>
-        <div className="humidity-reading">
-          <svg className="humidity-drop" viewBox="0 0 34 44" aria-hidden="true">
-            <path className="humidity-drop__body" d="M17 2.8C14.7 8.5 5.2 18.7 5.2 27.1c0 7.2 5.1 12.2 11.8 12.2s11.8-5 11.8-12.2C28.8 18.7 19.3 8.5 17 2.8Z" />
-            <path className="humidity-drop__glint" d="M11.1 28.5c.5 3.1 2.5 5.1 5.3 5.7" />
-          </svg>
-          <div><strong>{formatNumber(activeDevice.humidityPct, 1)}%</strong><span>pára</span></div>
+        <div className="climate-metric">
+          <div className="temperature"><strong>{formatFixedNumber(activeDevice.temperatureC, 1)}°</strong><span>C</span></div>
+          {change.status === "ok" && <small className="climate-trend">Kb. 3 óra alatt: {signedChange(change.temperatureDeltaC, 1)} °C</small>}
         </div>
+        <div className="climate-metric climate-metric--humidity">
+          <div className="humidity-reading">
+            <svg className="humidity-drop" viewBox="0 0 34 44" aria-hidden="true">
+              <path className="humidity-drop__body" d="M17 2.8C14.7 8.5 5.2 18.7 5.2 27.1c0 7.2 5.1 12.2 11.8 12.2s11.8-5 11.8-12.2C28.8 18.7 19.3 8.5 17 2.8Z" />
+              <path className="humidity-drop__glint" d="M11.1 28.5c.5 3.1 2.5 5.1 5.3 5.7" />
+            </svg>
+            <div><strong>{formatNumber(activeDevice.humidityPct, 1)}%</strong><span>pára</span></div>
+          </div>
+          {change.status === "ok" && <small className="climate-trend">Kb. 3 óra alatt: {signedChange(change.humidityDeltaPoints, 1)} százalékpont</small>}
+        </div>
+      </div>
+      {change.status !== "ok" && <p className="climate-trend-unavailable">3 órás változás: {change.status === "stale" ? "nincs friss lekérdezés" : "hiányos mérési előzmény"}.</p>}
+      <div className="climate-dewpoint">
+        <span>Harmatpont <small>becslés</small> <strong>{dewPoint === null ? "—" : `${formatFixedNumber(dewPoint, 1)} °C`}</strong></span>
+        <small>{dewPoint === null ? "Friss mérés szükséges." : "A levegő telítődési hőmérséklete; falhőmérséklet nélkül nem páralecsapódás-jelzés."}</small>
       </div>
       {closestWeatherTwin && <div className="weather-twins">
         <span>Éppen mint</span>

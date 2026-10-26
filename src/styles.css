@@ -2183,3 +2183,15 @@ section[id] { scroll-margin-top: 76px; }
 .mix-value-list li strong { font-family: "DM Mono", monospace; font-size: 11px; }
 .mix-value-list li small { width: 38px; text-align: right; color: rgba(248,234,198,.7); }
 @media (max-width: 700px) { .comparison-metrics { grid-template-columns: 1fr; } .forecast-summary { grid-template-columns: 1fr; } .forecast-summary > div { border-right: 0; border-top: 1px solid #d9cdbb; } .forecast-summary > div:first-child { border-top: 0; } }
+
+.climate-metric { display: grid; align-content: start; gap: 10px; }
+.climate-metric--humidity .climate-trend { padding-left: clamp(20px, 3vw, 38px); }
+.climate-trend, .climate-trend-unavailable { color: var(--muted); font: 500 12px/1.4 "Manrope", sans-serif; }
+.climate-trend { font-variant-numeric: tabular-nums; }
+.climate-trend-unavailable { margin: -8px 0 13px; }
+.climate-dewpoint { display: flex; align-items: baseline; flex-wrap: wrap; gap: 5px 14px; padding: 12px 0 17px; border-top: 1px solid var(--line); color: var(--muted); font: 500 11px/1.5 "Manrope", sans-serif; }
+.climate-dewpoint > span { color: var(--ink); white-space: nowrap; }
+.climate-dewpoint > span > small { margin-left: 3px; color: var(--muted); font-size: 10px; }
+.climate-dewpoint strong { margin-left: 7px; color: var(--poster-blue); font: 500 15px "DM Mono", monospace; }
+.climate-dewpoint > small { font-size: 11px; }
+.climate-dewpoint + .weather-twins { margin-top: 0; }
