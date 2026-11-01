@@ -31,3 +31,4 @@ yarn-error.log*
 /outputs/
 /work/
 /.data-history/
+/public/data/personal-sensor.json

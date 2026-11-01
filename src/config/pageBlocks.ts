@@ -12,6 +12,7 @@ export const PAGE_BLOCKS: PageBlockDefinition[] = [
   { id: "energia", navigationLabel: "Energiafolyam", codeLocation: "blocks/energy-flow", dataFile: "dashboard-{range}.json" },
   { id: "elojelzes", navigationLabel: "Előrejelzés", codeLocation: "blocks/forecast", dataFile: "dashboard-{range}.json" },
   { id: "klima", navigationLabel: "Hőmérséklet", codeLocation: "blocks/home-climate", dataFile: "govee-history.json" },
+  { id: "sajat-szenzor", navigationLabel: "Saját szenzor", codeLocation: "blocks/personal-sensor", dataFile: "personal-sensor.json" },
   { id: "fogyasztasi-proba", navigationLabel: "Interaktív próba", codeLocation: "blocks/planner", dataFile: "dashboard-{range}.json" },
   { id: "napallas", navigationLabel: "Napállás", codeLocation: "blocks/sun-position" },
   { id: "szallo-por", navigationLabel: "Szálló por", codeLocation: "blocks/air-quality", dataFile: "air-quality.json" },

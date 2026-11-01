@@ -12,6 +12,7 @@ import { addHungarianNewsTranslations } from "./news-translation.mjs";
 import { normalizeGoveeTemperature, repairClimateHistory } from "./govee-temperature.mjs";
 import { isValidClimateValues } from "../shared/climateValidity.mjs";
 import { fetchAirQuality } from "./air-quality.mjs";
+import { fetchPersonalSensor } from "./personal-sensor.mjs";
 import { mergeDashboard, mergeEnergyMix, retainNews, sourceWarning } from "./retained-data.mjs";
 import { TIME_ZONE, dateKey, dateTimeFormatter } from "../shared/timeZone.mjs";
 import { SUNGROW_FLOW_SCHEMA, powerKwList, devicePointUnits, extractDeviceSamples, batteryFlowKw, isCurrentSungrowDay, integratePowerDay } from "./sungrow-power.mjs";
@@ -1398,13 +1399,14 @@ async function optionalSource(name, fetcher) {
 
 const previousNews = await readPublished("energy-news");
 const previousMix = await readPublished("bulgaria-energy-mix");
-const [sungrow, govee, forecast, bulgariaMix, energyNews, airQuality] = await Promise.all([
+const [sungrow, govee, forecast, bulgariaMix, energyNews, airQuality, personalSensor] = await Promise.all([
   optionalSource("Sungrow", getSungrow),
   optionalSource("Govee", getGovee),
   optionalSource("Előrejelzés", getSolarForecast),
   optionalSource("Bulgária energiamix", getBulgariaEnergyMix),
   optionalSource("Bolgár energiahírek", async () => addHungarianNewsTranslations(await fetchEnergyNews(now), { previousItems: previousNews?.items, requestedUrl: "" })),
   optionalSource("Szálló por", () => fetchAirQuality(now)),
+  optionalSource("Saját szenzor", () => fetchPersonalSensor(now)),
 ]);
 const weatherTwins = govee?.devices[0]
   ? await optionalSource("Időjárási ikervárosok", () => getWeatherTwins(govee.devices[0].temperatureC, govee.devices[0].humidityPct))
@@ -1456,5 +1458,5 @@ if (newsOutput) {
 }
 
 await writeFile(resolve("public/config.js"), `window.SOLAR_HOME_CONFIG = {\n  mode: "live",\n  endpoint: "./data/dashboard-{range}.json",\n  refreshSeconds: 300\n};\n`, "utf8");
-const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo", bulgariaMix && (bulgariaMix.sourceName ?? "energiamix"), energyNews && "bolgár sajtó", airQuality?.stations.length && "Sensor.Community"].filter(Boolean);
+const activeSources = [sungrow && "Sungrow", govee && "Govee", forecast && "Open-Meteo", bulgariaMix && (bulgariaMix.sourceName ?? "energiamix"), energyNews && "bolgár sajtó", airQuality?.stations.length && "Sensor.Community", personalSensor?.points.length && "Saját szenzor"].filter(Boolean);
 console.log(`Élő dashboard-adatok elkészítve (${activeSources.join(" + ")}).`);

@@ -26,6 +26,7 @@ async function snapshot(t) {
   await write(root, "public/data/dashboard-today.json", { source: "live", updatedAt: now.toISOString(), solar: { todayKwh: 102.2 } });
   await write(root, "public/data/dashboard-day-2025-06-01.json", { source: "live", updatedAt: "2025-06-01T09:00:00Z" });
   await write(root, "public/data/energy-news.json", { items: [{ titleHu: "Magyar cím" }], sources: [] });
+  await write(root, "public/data/personal-sensor.json", { sensorId: "esp8266-13753058", points: [{ timestamp: now.toISOString(), pm25: 4.2 }] });
   const manifest = await assemblePublication({ root, commit, now });
   return { root, manifest };
 }
@@ -72,6 +73,7 @@ test("cache eviction restores every manifest data file from Pages, including old
   assert.equal(result.buildRequired, true);
   assert.ok(requested.includes("data/dashboard-day-2025-06-01.json"));
   assert.equal(JSON.parse(await readFile(join(root, "public/data/energy-news.json"))).items[0].titleHu, "Magyar cím");
+  assert.equal(JSON.parse(await readFile(join(root, "public/data/personal-sensor.json"))).points[0].pm25, 4.2);
 });
 
 test("corrupt remote data stops publication without replacing any working data", async (t) => {

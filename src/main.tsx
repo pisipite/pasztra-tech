@@ -7,6 +7,7 @@ import {
   RegionalTransport,
   ConsumptionPlanner,
   DashboardCards,
+  PersonalSensor,
   EnergyAnalytics,
   EnergyNews,
   makeDemoBulgariaEnergyMix,
@@ -494,6 +495,8 @@ function App() {
           refreshLabel={manualRefreshLabel}
           onRefresh={triggerManualRefresh}
         />
+
+        <PersonalSensor endpoint={settings.endpoint} loading={manualRefreshBusy} refreshLabel={manualRefreshLabel} onRefresh={triggerManualRefresh} />
 
         <ConsumptionPlanner data={data} />
 

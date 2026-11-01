@@ -52,7 +52,7 @@
 :root[data-theme="dark"] .intro__shade { background: linear-gradient(90deg, #071b248f, transparent 65%), linear-gradient(0deg, #071b2470, transparent 60%); }
 
 /* A single panel rhythm; no decorative tape, offset shadows or patterned charts. */
-:root :is(.energy-analysis, .forecast-card, .climate-card, .planner-card, .sun-horizon-card, .air-quality, .regional-transport, .energy-news, .bulgaria-mix) {
+:root :is(.energy-analysis, .forecast-card, .climate-card, .personal-sensor, .planner-card, .sun-horizon-card, .air-quality, .regional-transport, .energy-news, .bulgaria-mix) {
   margin: 0 0 var(--section-space); padding: var(--panel-space);
   border: 1px solid var(--surface-border); border-radius: var(--panel-radius);
   color: var(--text-primary); background: var(--surface-card);

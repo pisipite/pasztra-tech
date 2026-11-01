@@ -10,7 +10,7 @@ const manifestName = "publication.json";
 const schemaVersion = 1;
 // Geographical boundaries and other repo-owned assets are NOT runtime data:
 // restoring them over a code update would undo the user's changes.
-const dataPathPattern = /^data\/(dashboard-(today|7d|30d|year|day-\d{4}-\d{2}-\d{2})|govee-history|bulgaria-energy-mix|energy-news|air-quality|transport-live)\.json$/;
+const dataPathPattern = /^data\/(dashboard-(today|7d|30d|year|day-\d{4}-\d{2}-\d{2})|govee-history|bulgaria-energy-mix|energy-news|air-quality|personal-sensor|transport-live)\.json$/;
 const digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
 
 async function readJson(path) {
@@ -89,7 +89,7 @@ async function restorePublishedData(baseUrl, publicDir, fetcher, manifestBytes =
 
   // One-time migration from the old workflow, which had no manifest. 404 means
   // a source was never published; other errors must not silently discard it.
-  const names = ["dashboard-today", "dashboard-7d", "dashboard-30d", "dashboard-year", "govee-history", "bulgaria-energy-mix", "energy-news", "air-quality", "transport-live"];
+  const names = ["dashboard-today", "dashboard-7d", "dashboard-30d", "dashboard-year", "govee-history", "bulgaria-energy-mix", "energy-news", "air-quality", "personal-sensor", "transport-live"];
   let latest;
   for (const name of names) {
     const bytes = await publicJson(baseUrl, `data/${name}.json`, fetcher);

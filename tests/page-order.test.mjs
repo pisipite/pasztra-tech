@@ -9,6 +9,7 @@ test("a menü és a tényleges blokkok ugyanabban a sorrendben vannak", async ()
     ["energia", "EnergyAnalytics"],
     ["elojelzes", "SolarForecast"],
     ["klima", "DashboardCards"],
+    ["sajat-szenzor", "PersonalSensor"],
     ["fogyasztasi-proba", "ConsumptionPlanner"],
     ["napallas", "SunHorizon"],
     ["szallo-por", "AirQuality"],
