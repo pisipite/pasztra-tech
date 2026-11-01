@@ -160,11 +160,13 @@
 }
 [data-theme="dark"] :is(.forecast-summary strong, .sun-horizon-readings strong, .planner-summary strong, .planner-result-head h3, .planner-battery-impact h3, .planner-explanation h3, .battery-status-panel b, .solar-card .card__head, .solar-card .battery-status-panel, .solar-card .energy-flow strong) { color: var(--dark-text); }
 [data-theme="dark"] :is(.forecast-summary span, .forecast-summary small, .sun-horizon-readings span, .sun-horizon-readings small, .planner-summary span, .planner-summary small, .planner-battery-impact > p, .planner-explanation > p, .device-row span, .power-reading p, .energy-flow span, .battery-status-panel span, .battery-status-panel p, .battery-status-panel .battery-details small) { color: var(--dark-muted); }
-[data-theme="dark"] :is(.planner-simple-inputs > label span, .planner-simple-inputs .planner-energy-input, .planner-source-list > div, .planner-battery-fields label span, .planner-device-fields label > span, .planner-device-fields input, .planner-device-fields select, .planner-timeline-wrap, .planner-timeline, .planner-battery-day, .planner-device, .planner-explanation .planner-caveat) {
+[data-theme="dark"] :is(.planner-simple-inputs > label span, .planner-simple-inputs .planner-energy-input, .planner-appliance-input select, .planner-source-list > div, .planner-battery-fields label span, .planner-device-fields label > span, .planner-device-fields input, .planner-device-fields select, .planner-timeline-wrap, .planner-timeline, .planner-battery-day, .planner-device, .planner-explanation .planner-caveat) {
   color: var(--dark-text);
   border-color: var(--dark-border);
   background: var(--dark-raised);
 }
+[data-theme="dark"] .planner-appliance-input select:focus-visible { outline-color: var(--poster-yellow); }
+[data-theme="dark"] .planner-simple-inputs .planner-appliance-input { color: var(--dark-muted); }
 [data-theme="dark"] :is(.planner-simple-inputs input, .planner-battery-fields input, .planner-device-fields input, .planner-device-fields select, .planner-source-list strong, .planner-source-list small, .planner-battery-impact dd, .planner-explanation dd, .planner-battery-settings summary b, .planner-battery-settings > p strong) { color: var(--dark-text); }
 [data-theme="dark"] :is(.planner-timeline, .planner-summary > div, .planner-battery-impact dl div, .planner-explanation dl > div) { border-color: var(--dark-border); }
 [data-theme="dark"] .planner-timeline { background-image: repeating-linear-gradient(90deg, transparent 0 calc(16.666% - 1px), rgba(184,211,207,.12) calc(16.666% - 1px) 16.666%); }

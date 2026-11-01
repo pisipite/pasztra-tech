@@ -88,7 +88,7 @@ function ClimateCard({ data, climateHistory, climateSeries, nowMs, climatePeriod
           <p>{dewPoint === null ? "Friss mérés szükséges." : "A levegő telítődési hőmérséklete; falhőmérséklet nélkül nem páralecsapódás-jelzés."}</p>
         </details>
       </div>
-      {change.status !== "ok" && <p className="climate-trend-unavailable">3 órás változás: {change.status === "stale" ? "nincs friss lekérdezés" : "hiányos mérési előzmény"}.</p>}
+      {change.status === "stale" && <p className="climate-trend-unavailable">3 órás változás: nincs friss lekérdezés.</p>}
       {closestWeatherTwin && <div className="weather-twins">
         <span>Éppen mint</span>
         <button type="button" aria-describedby={tooltipWeatherTwins.length ? "weather-twins-tooltip" : undefined}>

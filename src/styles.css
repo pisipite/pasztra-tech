@@ -1715,10 +1715,13 @@ main { max-width: 1500px; padding-top: 28px; }
 .planner-auto:hover { background: #27604d; }
 
 .planner-card--simple { max-width: none; }
-.planner-simple-inputs { display: grid; grid-template-columns: minmax(260px, 1.15fr) minmax(170px, .65fr) minmax(360px, 1.7fr); align-items: end; gap: 12px; margin: 28px 0 12px; }
+.planner-simple-inputs { display: grid; grid-template-columns: minmax(155px, .75fr) minmax(220px, 1.15fr) minmax(130px, .65fr) minmax(300px, 1.7fr); align-items: end; gap: 12px; margin: 28px 0 12px; }
 .planner-simple-inputs > label { display: grid; gap: 5px; color: #837662; font-size: 7px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .planner-simple-inputs > label span { display: flex; align-items: center; gap: 5px; min-height: 38px; box-sizing: border-box; padding: 8px 10px; border: 1px solid #d8cab4; border-radius: 8px 3px 9px 5px; color: #756954; background: #fffaf0; font-size: 9px; text-transform: none; }
 .planner-simple-inputs input { width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font: 600 11px "DM Mono", monospace; }
+.planner-simple-inputs .planner-appliance-input { font-size: 10px; }
+.planner-appliance-input select { width: 100%; min-width: 0; min-height: 38px; padding: 8px 10px; border: 1px solid #d8cab4; border-radius: 8px 3px 9px 5px; color: var(--ink); background: #fffaf0; cursor: pointer; font: 600 12px "DM Mono", monospace; }
+.planner-appliance-input select:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; }
 .planner-simple-inputs .planner-day-tabs { justify-self: end; }
 .planner-simple-inputs .planner-energy-input { gap: 7px; padding: 12px 15px 13px; border: 2px solid #ca8e34; border-radius: 14px 4px 15px 7px; background: linear-gradient(135deg, #fffaf0, #f6e5c5); box-shadow: 0 8px 20px rgba(139,91,27,.12); }
 .planner-energy-input > small { color: #7a6240; font-size: 8px; }

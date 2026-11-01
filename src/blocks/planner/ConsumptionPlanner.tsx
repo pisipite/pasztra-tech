@@ -4,6 +4,8 @@ import { BackToTop } from "../../components/BackToTop";
 import { formatFixedNumber, formatNumber } from "../../formatUtils";
 import { addCalendarDays, dateKey, dateParts, dateTimeFormatter, dayTicks, parseLocalDateTime, startOfDay } from "../../timeZone";
 import { recentSoc } from "../../observationQuality";
+import { APPLIANCE_PRESETS, findAppliancePreset, restoreApplianceSelection } from "./appliancePresets";
+import type { ApplianceSelection } from "./appliancePresets";
 
 type DayOffset = 0 | 1 | 2;
 
@@ -176,15 +178,17 @@ function makePlan(trial: TrialLoad, slots: PlannerSlot[], baseLoadKw: number, ba
 }
 
 function loadStoredState() {
-  const fallback = { trial: defaultTrial(), manualStart: undefined as number | undefined, batterySettings: DEFAULT_BATTERY_SETTINGS, baseLoadKw: .25 };
+  const fallback = { trial: defaultTrial(), manualStart: undefined as number | undefined, batterySettings: DEFAULT_BATTERY_SETTINGS, baseLoadKw: .25, appliance: "custom" as ApplianceSelection };
   try {
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "null");
     if (!stored || typeof stored !== "object") return fallback;
+    const trial = { ...fallback.trial, ...stored.trial } as TrialLoad;
     return {
-      trial: { ...fallback.trial, ...stored.trial } as TrialLoad,
+      trial,
       manualStart: Number.isFinite(stored.manualStart) ? Number(stored.manualStart) : undefined,
       batterySettings: { ...DEFAULT_BATTERY_SETTINGS, ...stored.batterySettings } as BatterySettings,
       baseLoadKw: Number.isFinite(stored.baseLoadKw) ? Number(stored.baseLoadKw) : fallback.baseLoadKw,
+      appliance: restoreApplianceSelection(stored.appliance, trial),
     };
   } catch {
     return fallback;
@@ -199,6 +203,7 @@ function dominantSource(plan: Plan) {
 export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   const initial = useMemo(() => loadStoredState(), []);
   const [trial, setTrial] = useState(initial.trial);
+  const [appliance, setAppliance] = useState<ApplianceSelection>(initial.appliance);
   const [manualStart, setManualStart] = useState<number | undefined>(initial.manualStart);
   const [batterySettings, setBatterySettings] = useState(initial.batterySettings);
   const [baseLoadKw, setBaseLoadKw] = useState(initial.baseLoadKw);
@@ -226,8 +231,8 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
   const plan = useMemo(() => makePlan(trial, slots, baseLoadKw, batterySettings, startSocPct, manualStart), [baseLoadKw, batterySettings, manualStart, slots, startSocPct, trial]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ trial, manualStart, batterySettings, baseLoadKw }));
-  }, [baseLoadKw, batterySettings, manualStart, trial]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ trial, manualStart, batterySettings, baseLoadKw, appliance }));
+  }, [appliance, baseLoadKw, batterySettings, manualStart, trial]);
 
   if (!forecast || forecast.days.length < 3 || !slots.length) {
     return <article className="planner-card card" id="fogyasztasi-proba"><header className="planner-head section-header"><div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Interaktív próba</p><BackToTop /></div><h2>Fogyasztási próba</h2><p className="planner-empty">A következő 72 órás termelési előrejelzéssel együtt válik elérhetővé.</p></div></header></article>;
@@ -288,12 +293,14 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
     const startMinute = elapsedMinutes(start.timestamp);
     const pointerMinute = Math.max(startMinute + 15, Math.min(dayMinutes, (clientX - bounds.left) / bounds.width * dayMinutes));
     const durationMinutes = Math.max(15, Math.round((pointerMinute - startMinute) / 15) * 15);
+    if (durationMinutes !== trial.durationMinutes) setAppliance("custom");
     setTrial((current) => current.durationMinutes === durationMinutes ? current : { ...current, durationMinutes });
   };
 
   const resizeBy = (minutes: number) => {
     if (!start) return;
     const startMinute = elapsedMinutes(start.timestamp);
+    if (Math.max(15, Math.min(dayMinutes - startMinute, trial.durationMinutes + minutes)) !== trial.durationMinutes) setAppliance("custom");
     setTrial((current) => ({ ...current, durationMinutes: Math.max(15, Math.min(dayMinutes - startMinute, current.durationMinutes + minutes)) }));
   };
 
@@ -314,8 +321,18 @@ export function ConsumptionPlanner({ data }: { data: DashboardData }) {
       </header>
 
       <div className="planner-simple-inputs">
-        <label className="planner-energy-input"><small>Ennyi energiát szeretnék felhasználni</small><span><input aria-label="Felhasznált energia kilowattórában" type="number" min="0.1" max="100" step="0.1" value={trial.energyKwh} onChange={(event) => updateTrial({ energyKwh: Math.max(.1, Number(event.target.value)) })} /><b>kWh</b></span></label>
-        <label className="planner-duration-input">Időtartam<span><input type="number" min="0.25" max="24" step="0.25" value={trial.durationMinutes / 60} onChange={(event) => updateTrial({ durationMinutes: Math.max(15, Math.round(Number(event.target.value) * 4) * 15) })} /> óra</span><small>A blokk jobb szélével is állítható.</small></label>
+        <label className="planner-appliance-input">Készülék
+          <select value={appliance} onChange={(event) => {
+            const preset = findAppliancePreset(event.target.value);
+            setAppliance(preset?.id ?? "custom");
+            if (preset) updateTrial({ energyKwh: preset.energyKwh, durationMinutes: preset.durationMinutes });
+          }}>
+            <option value="custom">Egyéni</option>
+            {APPLIANCE_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+          </select>
+        </label>
+        <label className="planner-energy-input"><small>Ennyi energiát szeretnék felhasználni</small><span><input aria-label="Felhasznált energia kilowattórában" type="number" min="0.1" max="100" step="0.1" value={trial.energyKwh} onChange={(event) => { setAppliance("custom"); updateTrial({ energyKwh: Math.max(.1, Number(event.target.value)) }); }} /><b>kWh</b></span></label>
+        <label className="planner-duration-input">Időtartam<span><input type="number" min="0.25" max="24" step="0.25" value={trial.durationMinutes / 60} onChange={(event) => { setAppliance("custom"); updateTrial({ durationMinutes: Math.max(15, Math.round(Number(event.target.value) * 4) * 15) }); }} /> óra</span><small>A blokk jobb szélével is állítható.</small></label>
         <div className="planner-day-tabs" role="tablist" aria-label="Tervezési nap">
           {forecast.days.slice(0, 3).map((day, index) => <button key={day.date} role="tab" aria-selected={trial.dayOffset === index} className={trial.dayOffset === index ? "active" : ""} onClick={() => updateTrial({ dayOffset: index as DayOffset })}>{formatDay(day.date, day.label)}</button>)}
         </div>
