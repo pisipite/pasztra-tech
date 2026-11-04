@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useMemo, useState, type PointerEvent } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type PointerEvent } from "react";
 import { BackToTop } from "../../components/BackToTop";
 import { DATA_FILES } from "../../config/dataFiles";
 import { dataFileUrl, fetchFreshJson } from "../../dashboardApi";
 import { dateInputValue, isCurrentPeriod, periodLabel } from "../../dateUtils";
 import { formatNumber } from "../../formatUtils";
 import { observationSegments } from "../../observationQuality";
-import { dateTimeFormatter, dayTicks } from "../../timeZone";
+import { dateParts, dateTimeFormatter, dayTicks } from "../../timeZone";
 import type { PeriodKey } from "../../types";
 import { usePeriodSelection } from "../../usePeriodSelection";
 import { recentSensorTrend, sensorChartData } from "./sensorData";
+import { lastDailyParticulate, PARTICULATE_LIMITS, PARTICULATE_SOURCES, pm10DailyLimit, pm10LimitForDay, WHO_PM25_DAILY_GUIDELINE } from "./particulateReference";
 import type { PersonalSensorData, SensorMetric } from "./types";
 import "./personalSensor.css";
 
@@ -32,6 +33,7 @@ const PERIODS: Array<{ key: PeriodKey; label: string }> = [
 ];
 const measuredTime = dateTimeFormatter({ month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 const shortDate = dateTimeFormatter({ month: "short", day: "numeric" });
+const fullDate = dateTimeFormatter({ year: "numeric", month: "short", day: "numeric" });
 const safeTime = (value?: string | null) => value && Number.isFinite(Date.parse(value)) ? measuredTime.format(new Date(value)) : "—";
 
 type Props = { endpoint: string; loading: boolean; refreshLabel: string; onRefresh: () => void };
@@ -78,6 +80,10 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh }: P
   };
 
   const chart = useMemo(() => sensorChartData(data?.points ?? [], period, anchor, customStart, customEnd, clock), [data, period, anchor, customStart, customEnd, clock]);
+  const dailyParticulate = useMemo(() => ({
+    pm25: lastDailyParticulate(data?.points ?? [], "pm25", chart.start, chart.end, clock, data?.bucketMinutes ?? 10),
+    pm10: lastDailyParticulate(data?.points ?? [], "pm10", chart.start, chart.end, clock, data?.bucketMinutes ?? 10),
+  }), [data, chart.start, chart.end, clock]);
   const trends = useMemo(() => Object.fromEntries(METRICS.map((metric) => [metric.key,
     recentSensorTrend(data?.points ?? [], metric.key, data?.latest?.[metric.key], clock),
   ])) as Record<SensorMetric, ReturnType<typeof recentSensorTrend>>, [data, clock]);
@@ -103,6 +109,12 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh }: P
     : Array.from({ length: 5 }, (_, index) => ({ ratio: index / 4, label: shortDate.format(new Date(chart.start + span * index / 4 - (index === 4 ? 1 : 0))) }));
   const lastUpdate = data?.updatedAt && Number.isFinite(Date.parse(data.updatedAt)) ? Date.parse(data.updatedAt) : NaN;
   const fresh = Number.isFinite(lastUpdate) && clock - lastUpdate <= 30 * 60_000 && clock >= lastUpdate;
+  const isParticulate = selected === "pm25" || selected === "pm10";
+  const dailyLimit = dailyParticulate.pm10.dayStart === null ? pm10DailyLimit(dateParts(chart.start).year) : pm10LimitForDay(dailyParticulate.pm10.dayStart);
+  const particulateRows = [
+    { label: "PM2,5", result: dailyParticulate.pm25, referenceLabel: "WHO-ajánlás · 24 óra", reference: WHO_PM25_DAILY_GUIDELINE, note: "Nem jogszabályi határérték." },
+    { label: "PM10", result: dailyParticulate.pm10, referenceLabel: "EU-határérték · 24 óra", reference: dailyLimit.pm10Daily, note: "A határérték évente korlátozott számú napon léphető túl." },
+  ];
 
   return <article className="personal-sensor card" id="sajat-szenzor">
     <div className="section-header">
@@ -155,6 +167,50 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh }: P
         <text x={left} y={height - 3} className="personal-sensor__axis">{visible[0].unit} · bolgár idő</text>
       </svg>
     </div>}
+    {isParticulate && <section className="personal-sensor__reference" aria-label="Szálló por napi átlagai és viszonyítási értékei">
+      <div className="personal-sensor__reference-summary">
+        {particulateRows.map((row) => <Fragment key={row.label}>
+          <div className="personal-sensor__reference-reading">
+            <span>{row.label} · becsült napi átlag</span>
+            {row.result.average === null ? <strong>Nem számítható</strong> : <strong>{formatNumber(row.result.average, 1)} <small>µg/m³</small></strong>}
+            <small>{row.result.dayStart === null ? "Az időszakban még nincs lezárt nap." : `${fullDate.format(new Date(row.result.dayStart))} · ${formatNumber(row.result.coverage * 100, 0)}% adatlefedettség`}</small>
+          </div>
+          <div className="personal-sensor__reference-limit">
+            <span>{row.label} · {row.referenceLabel}</span>
+            <strong>{formatNumber(row.reference, 0)} <small>µg/m³</small></strong>
+            <small>{row.result.average === null ? "Az összevetéshez legalább 75% lefedettség kell." : `A becsült napi átlag ${row.result.average > row.reference ? "felette van" : row.result.average === row.reference ? "eléri" : "alatta van"}.`} {row.note}</small>
+          </div>
+        </Fragment>)}
+      </div>
+      <details className="personal-sensor__reference-details">
+        <summary>Határértékek és értelmezés</summary>
+        <div className="personal-sensor__reference-content">
+          <h4>Mit mutatnak a fenti értékek?</h4>
+          <p>A bal oldalon a kiválasztott időszak utolsó lezárt bolgár naptári napjának becsült átlaga látható. A jobb oldalon a PM2,5-höz a WHO napi ajánlása, a PM10-hez az EU napi határértéke szerepel. A pillanatnyi mérés, a napi átlag és az éves átlag nem ugyanaz.</p>
+          <p>Az átlag a rendelkezésre álló 10 perces mérésekből készül. Csak akkor jelenítjük meg, ha az adott napon az idősávok legalább 75%-ában van mérés. Ez az oldal saját, tájékoztató szabálya, nem helyettesíti a hatósági adatminőségi követelményeket; a folyamatban lévő nap még nem kap napi átlagot.</p>
+
+          <h4>Uniós határértékek</h4>
+          <p>A táblázat napi és naptári éves átlagokra vonatkozik, nem egy-egy pillanatnyi értékre. Minden szám µg/m³-ben értendő.</p>
+          <table className="personal-sensor__limits">
+            <caption>Az uniós határértékek összehasonlítása</caption>
+            <thead><tr><th scope="col">Szennyező és időtáv</th><th scope="col">2029 végéig</th><th scope="col">2030-tól</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">PM2,5 · napi átlag</th><td>Nincs uniós napi határérték</td><td><strong>{PARTICULATE_LIMITS.from2030.pm25Daily}</strong><small>Legfeljebb {PARTICULATE_LIMITS.from2030.pm10Days} nap/év lehet felette.</small></td></tr>
+              <tr><th scope="row">PM2,5 · éves átlag</th><td><strong>{PARTICULATE_LIMITS.current.pm25Annual}</strong></td><td><strong>{PARTICULATE_LIMITS.from2030.pm25Annual}</strong></td></tr>
+              <tr><th scope="row">PM10 · napi átlag</th><td><strong>{PARTICULATE_LIMITS.current.pm10Daily}</strong><small>Legfeljebb {PARTICULATE_LIMITS.current.pm10Days} nap/év lehet felette.</small></td><td><strong>{PARTICULATE_LIMITS.from2030.pm10Daily}</strong><small>Legfeljebb {PARTICULATE_LIMITS.from2030.pm10Days} nap/év lehet felette.</small></td></tr>
+              <tr><th scope="row">PM10 · éves átlag</th><td><strong>{PARTICULATE_LIMITS.current.pm10Annual}</strong></td><td><strong>{PARTICULATE_LIMITS.from2030.pm10Annual}</strong></td></tr>
+            </tbody>
+          </table>
+          <p>A bolgár hatóság a PM2,5-re külön {PARTICULATE_LIMITS.bulgarianIndicativePm25Annual} µg/m³-es indikatív éves értéket is feltüntet. Ez tájékoztató érték, nem azonos a {PARTICULATE_LIMITS.current.pm25Annual} µg/m³-es uniós éves határértékkel.</p>
+          <p>A napi határérték feletti napok száma egész évre vonatkozik: egyetlen magas napi átlag önmagában nem jelenti az éves megengedett napok számának túllépését.</p>
+
+          <h4>WHO-ajánlás a PM2,5-re</h4>
+          <p>A WHO 24 órás ajánlása {WHO_PM25_DAILY_GUIDELINE} µg/m³. Ez egészségügyi irányérték, nem jogszabályi határérték. Az ajánlás az év napi átlagainak 99. percentilisét használja: ez nagyjából évi 3–4 ennél magasabb napnak felel meg. Egyetlen nap átlaga nem az éves percentilis.</p>
+          <p>A saját szenzor tájékoztató mérése nem hatósági értékelés vagy riasztás. Egy érték alatt sem feltétlenül kockázatmentes a levegő.</p>
+          <p>Forrás: <a href={PARTICULATE_SOURCES.bulgaria} target="_blank" rel="noreferrer">bolgár légminőségi rendelet</a> · <a href={PARTICULATE_SOURCES.eu} target="_blank" rel="noreferrer">EU 2024/2881 irányelv</a> · <a href={PARTICULATE_SOURCES.who} target="_blank" rel="noreferrer">WHO-ajánlás</a>.</p>
+        </div>
+      </details>
+    </section>}
     <p className="personal-sensor__footnote">Forrás: <a href={data?.sourceUrl ?? "https://sensor.community/"} target="_blank" rel="noreferrer">Madavi{data?.sensorId ? ` · ${data.sensorId}` : ""}</a>. A Sensor.Community érzékelő saját mérései; a légnyomás nem tengerszintre átszámított. {chart.resolution !== "sample" && "Az átlagok a rendelkezésre álló mintákból készülnek. "}Az adathiányokat nem kötjük össze. {data?.points.length ? `Az első tárolt idősáv: ${safeTime(data.points[0].timestamp)}. ` : ""}Lekérdezés: {safeTime(data?.checkedAt)} · bolgár idő.</p>
   </article>;
 }

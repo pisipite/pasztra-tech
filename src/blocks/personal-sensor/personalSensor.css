@@ -38,8 +38,34 @@
 .personal-sensor__axis { fill: var(--text-secondary); font: 11px "DM Mono", monospace; }
 .personal-sensor__cursor { stroke: var(--text-secondary); stroke-width: 1; stroke-dasharray: 4 4; }
 .personal-sensor__empty { display: grid; min-height: 170px; place-items: center; color: var(--text-secondary); border: 1px dashed var(--surface-border); border-radius: 8px; font-size: 13px; }
+.personal-sensor__reference { margin-top: 14px; border: 1px solid var(--surface-border); border-radius: 8px; background: var(--surface-inset); }
+.personal-sensor__reference-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.personal-sensor__reference-reading, .personal-sensor__reference-limit { display: grid; align-content: start; gap: 5px; padding: 15px 18px; }
+.personal-sensor__reference-limit { border-left: 1px solid var(--surface-border); }
+.personal-sensor__reference-summary > div:nth-child(n+3) { border-top: 1px solid var(--surface-border); }
+.personal-sensor__reference-summary span { color: var(--text-secondary); font-size: 11px; font-weight: 700; }
+.personal-sensor__reference-summary strong { color: var(--text-primary); font: 600 20px/1.2 "DM Mono", monospace; }
+.personal-sensor__reference-summary strong small { font: 500 11px "Manrope", sans-serif; }
+.personal-sensor__reference-summary > div > small { color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
+.personal-sensor__reference-details { border-top: 1px solid var(--surface-border); }
+.personal-sensor__reference-details summary { padding: 10px 18px; color: var(--text-primary); cursor: pointer; font-size: 12px; font-weight: 700; }
+.personal-sensor__reference-details summary:focus-visible { outline: 2px solid var(--personal-pressure); outline-offset: -2px; }
+.personal-sensor__reference-content { padding: 0 18px 13px; color: var(--text-secondary); font-size: 12px; line-height: 1.6; }
+.personal-sensor__reference-content p { margin: 0 0 10px; }
+.personal-sensor__reference-content p:last-child { margin-bottom: 0; }
+.personal-sensor__reference-content h4 { margin: 18px 0 6px; color: var(--text-primary); font-size: 13px; line-height: 1.4; }
+.personal-sensor__reference-content h4:first-child { margin-top: 3px; }
+.personal-sensor__limits { width: 100%; margin: 10px 0 12px; border-collapse: collapse; table-layout: fixed; text-align: left; font-size: 12px; }
+.personal-sensor__limits caption { padding-bottom: 6px; color: var(--text-secondary); text-align: left; font-size: 11px; }
+.personal-sensor__limits th, .personal-sensor__limits td { padding: 8px; border-bottom: 1px solid var(--surface-border); vertical-align: top; overflow-wrap: anywhere; }
+.personal-sensor__limits thead th { color: var(--text-secondary); font-size: 11px; }
+.personal-sensor__limits tbody th { color: var(--text-primary); font-weight: 700; }
+.personal-sensor__limits td strong, .personal-sensor__limits td small { display: block; }
+.personal-sensor__limits td strong { color: var(--text-primary); font-size: 13px; }
+.personal-sensor__limits td small { margin-top: 2px; color: var(--text-secondary); font-size: 11px; line-height: 1.4; }
+.personal-sensor__reference-content a { color: var(--text-primary); text-underline-offset: 3px; }
 .personal-sensor__footnote { margin: 14px 0 0; color: var(--text-secondary); font-size: 11px; line-height: 1.6; }
 .personal-sensor__footnote a { color: var(--text-primary); text-underline-offset: 3px; }
 @media (max-width: 1050px) { .personal-sensor__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } .personal-sensor__metric:nth-child(5) .personal-sensor__info-panel { right: auto; left: 0; } .personal-sensor__metric:nth-child(3n) .personal-sensor__info-panel { right: 0; left: auto; } }
 @media (max-width: 700px) { .personal-sensor__axis { font-size: 18px; } }
-@media (max-width: 620px) { .personal-sensor__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .personal-sensor__metric-select { padding: 13px; } .personal-sensor__metric:nth-child(3n) .personal-sensor__info-panel { right: auto; left: 0; } .personal-sensor__metric:nth-child(2n) .personal-sensor__info-panel { right: 0; left: auto; } .personal-sensor__chart svg { min-height: 160px; } }
+@media (max-width: 620px) { .personal-sensor__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .personal-sensor__metric-select { padding: 13px; } .personal-sensor__metric:nth-child(3n) .personal-sensor__info-panel { right: auto; left: 0; } .personal-sensor__metric:nth-child(2n) .personal-sensor__info-panel { right: 0; left: auto; } .personal-sensor__chart svg { min-height: 160px; } .personal-sensor__reference-reading, .personal-sensor__reference-limit { padding: 12px 10px; } .personal-sensor__reference-summary strong { font-size: 16px; overflow-wrap: anywhere; } .personal-sensor__limits { font-size: 11px; } .personal-sensor__limits th, .personal-sensor__limits td { padding: 7px 5px; } }
