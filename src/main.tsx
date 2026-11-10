@@ -496,7 +496,7 @@ function App() {
           onRefresh={triggerManualRefresh}
         />
 
-        <PersonalSensor endpoint={settings.endpoint} loading={manualRefreshBusy} refreshLabel={manualRefreshLabel} onRefresh={triggerManualRefresh} />
+        <PersonalSensor endpoint={settings.endpoint} loading={manualRefreshBusy} refreshLabel={manualRefreshLabel} onRefresh={triggerManualRefresh} forecast={source !== "demo" && !data.warnings?.some((warning) => warning.source === "Előrejelzés") ? data.forecast : undefined} />
 
         <ConsumptionPlanner data={data} />
 

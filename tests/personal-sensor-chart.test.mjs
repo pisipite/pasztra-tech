@@ -13,7 +13,7 @@ async function moduleUrl(path, replacements) {
 const timeUrl = new URL("../shared/timeZone.mjs", import.meta.url).href;
 const dateUrl = await moduleUrl("../src/dateUtils.ts", { "./timeZone": timeUrl });
 const sensorUrl = await moduleUrl("../src/blocks/personal-sensor/sensorData.ts", { "../../timeZone": timeUrl, "../../dateUtils": dateUrl });
-const { sensorChartData, recentSensorTrend, localWeatherOutlook } = await import(sensorUrl);
+const { sensorChartData, recentSensorTrend, localWeatherOutlook, precipitationOutlook } = await import(sensorUrl);
 const points = [
   { timestamp: "2026-10-30T10:00:00Z", pm25: 0, temperature: 0, pressure: 1000 },
   { timestamp: "2026-10-30T10:10:00Z", pm25: 6, temperature: 2 },
@@ -79,4 +79,16 @@ test("local outlook requires a fresh, well-covered three-hour pressure history",
   assert.match(localWeatherOutlook(points.slice(5), latest, end), /Nincs elegendő/);
   assert.match(localWeatherOutlook(points, latest, end + 31 * 60_000), /Nincs elegendő/);
   assert.match(localWeatherOutlook(points.filter((_, i) => i < 5 || i > 10), latest, end), /Nincs elegendő/);
+});
+
+test("precipitation uses a verified next full hour, preserving zero and rejecting stale or missing forecasts", () => {
+  const now = Date.parse("2026-11-10T12:20:00Z");
+  const forecast = { updatedAt: new Date(now).toISOString(), days: [{ points: [
+    { timestamp: "2026-11-10T13:00:00Z", precipitationProbabilityPct: 80, precipitationProbabilityVerified: true },
+    { timestamp: "2026-11-10T14:00:00Z", precipitationProbabilityPct: 0, precipitationProbabilityVerified: true },
+  ] }] };
+  assert.deepEqual(precipitationOutlook([], {}, forecast, now).interval, { start: Date.parse("2026-11-10T13:00:00Z"), end: Date.parse("2026-11-10T14:00:00Z"), probability: 0 });
+  assert.equal(precipitationOutlook([], {}, forecast, now + 7 * 3_600_000).interval, null);
+  assert.equal(precipitationOutlook([], {}, { ...forecast, days: [{ points: [{ timestamp: "2026-11-10T14:00:00Z", precipitationProbabilityPct: null, precipitationProbabilityVerified: true }] }] }, now).interval, null);
+  assert.equal(precipitationOutlook([], {}, { ...forecast, days: [{ points: [{ timestamp: "2026-11-10T14:00:00Z", precipitationProbabilityPct: 0 }] }] }, now).interval, null, "old ambiguous zero is not treated as a verified forecast");
 });

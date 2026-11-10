@@ -43,7 +43,8 @@ export interface SolarForecastPoint {
   expectedPowerKw: number;
   irradianceWm2: number;
   cloudCoverPct: number;
-  precipitationProbabilityPct: number;
+  precipitationProbabilityPct: number | null;
+  precipitationProbabilityVerified?: boolean;
 }
 
 export interface SolarForecastDay {

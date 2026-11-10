@@ -59,7 +59,8 @@ export function SolarForecast({ data }: Props) {
   const actualSegments = observationSegments(actual, (point) => point.value, 15 * 60_000);
   const daylightPoints = selectedDay.points.filter((point) => point.irradianceWm2 > 0);
   const averageCloud = daylightPoints.length ? daylightPoints.reduce((sum, point) => sum + point.cloudCoverPct, 0) / daylightPoints.length : 0;
-  const rainChance = Math.max(0, ...selectedDay.points.map((point) => point.precipitationProbabilityPct));
+  const rainValues = selectedDay.points.map((point) => point.precipitationProbabilityPct).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const rainChance = rainValues.length ? Math.max(...rainValues) : null;
   const peakIrradiance = Math.max(0, ...selectedDay.points.map((point) => point.irradianceWm2));
   const active: SolarForecastPoint | undefined = hovered === null ? undefined : selectedDay.points[hovered];
   const gridValues = [0, maximum / 2, maximum];
@@ -85,7 +86,7 @@ export function SolarForecast({ data }: Props) {
       <details className="chart-details"><summary>Meteorológiai részletek és feltételezések</summary>
         <div className="forecast-summary">
           <div><span>Nappali felhőzet</span><strong>{formatFixedNumber(averageCloud, 0)}%</strong></div>
-          <div><span>Csapadék esélye</span><strong>{formatFixedNumber(rainChance, 0)}%</strong></div>
+          <div><span>Csapadék esélye</span><strong>{rainChance === null ? "–" : `${formatFixedNumber(rainChance, 0)}%`}</strong></div>
           <div><span>Csúcsbesugárzás</span><strong>{formatFixedNumber(peakIrradiance, 0)} W/m²</strong></div>
         </div>
         <label>Feltételezett háttérfogyasztás <input type="number" min="0" max="20" step="0.05" value={baseLoad} onChange={(event) => setBaseLoad(Math.max(0, Math.min(20, Number(event.target.value) || 0)))} /> kW</label>
@@ -111,7 +112,7 @@ export function SolarForecast({ data }: Props) {
           </g>)}
           {active && <><line className="forecast-hover" x1={x(active)} x2={x(active)} y1={margin.top} y2={margin.top + plotHeight} /><circle cx={x(active)} cy={y(active.expectedPowerKw)} r="4" className="forecast-marker" /></>}
         </svg>
-        {active && <div className="forecast-tooltip"><strong>{formatTime(active.timestamp)}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{formatFixedNumber(active.precipitationProbabilityPct, 0)}%</b></span></div>}
+        {active && <div className="forecast-tooltip"><strong>{formatTime(active.timestamp)}</strong><span>Várható <b>{formatFixedNumber(active.expectedPowerKw, 2)} kW</b></span><span>Besugárzás <b>{formatFixedNumber(active.irradianceWm2, 0)} W/m²</b></span><span>Felhőzet <b>{formatFixedNumber(active.cloudCoverPct, 0)}%</b></span><span>Csapadék <b>{active.precipitationProbabilityPct == null ? "–" : `${formatFixedNumber(active.precipitationProbabilityPct, 0)}%`}</b></span></div>}
       </div>
       <p className="chart-footnote">5 kWp rendszer · becsült 27° dőlés · dél–délnyugati tájolás</p>
       <p className="forecast-note">Az előrejelzés időjárási modellből készült becslés; a helyi hegyoldal árnyékolása eltérést okozhat.</p>

@@ -822,7 +822,8 @@ async function getSolarForecast() {
       expectedPowerKw: Math.min(systemKwp, systemKwp * (gti / 1000) * performanceRatio),
       irradianceWm2: gti,
       cloudCoverPct: numberValue(cloudCover[index]),
-      precipitationProbabilityPct: numberValue(precipitation[index]),
+      precipitationProbabilityPct: typeof precipitation[index] === "number" && Number.isFinite(precipitation[index]) && precipitation[index] >= 0 && precipitation[index] <= 100 ? precipitation[index] : null,
+      precipitationProbabilityVerified: true,
     };
     const day = groups.get(date) ?? [];
     day.push(point);

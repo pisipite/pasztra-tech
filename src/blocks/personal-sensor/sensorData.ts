@@ -1,6 +1,6 @@
 import { dateFromInput, endOfWeek, startOfWeek, timestampInPeriod } from "../../dateUtils";
 import { addCalendarDays, addCalendarMonths, dateKey, startOfDay } from "../../timeZone";
-import type { PeriodKey } from "../../types";
+import type { PeriodKey, SolarForecast } from "../../types";
 import type { PersonalSensorData, SensorMetric, SensorPoint } from "./types";
 
 export const SENSOR_METRICS: SensorMetric[] = ["pm25", "pm10", "temperature", "humidity", "pressure"];
@@ -47,6 +47,27 @@ export function localWeatherOutlook(points: SensorPoint[], latest: PersonalSenso
   const humidityText = humidity ? (humidity.delta >= 2 ? "nőtt a páratartalom" : humidity.delta <= -2 ? "csökkent a páratartalom" : "alig változott a páratartalom") : null;
   const observed = [tempText, humidityText].filter(Boolean).join(", és ");
   return `${pressureText} ${observed ? `Az elmúlt órában ${observed}; ez nem csapadék-előrejelzés.` : "A mérések alapján csapadék nem jelezhető előre biztosan."}`;
+}
+
+export function precipitationOutlook(points: SensorPoint[], latest: PersonalSensorData["latest"], forecast: SolarForecast | undefined, now = Date.now()) {
+  const pressure = recentSensorTrend(points, "pressure", latest.pressure, now, 180);
+  const humidity = recentSensorTrend(points, "humidity", latest.humidity, now);
+  const local = !pressure ? "A helyi légnyomásváltozáshoz nincs elegendő friss mérés."
+    : pressure.delta <= -.5 && humidity && humidity.delta >= 2 ? "A csökkenő légnyomás és a növekvő páratartalom csapadékosabb időre utalhat."
+    : pressure.delta <= -.5 ? "A csökkenő légnyomás változékonyabb időre utalhat."
+    : pressure.delta >= .5 ? "A légnyomás emelkedik; ez önmagában nem zárja ki a csapadékot."
+    : "A légnyomás alig változott; ebből nem következik biztos csapadék.";
+  const updated = Date.parse(forecast?.updatedAt ?? "");
+  if (!forecast || !Number.isFinite(updated) || updated > now || now - updated > 6 * 3_600_000) return { local, interval: null };
+  // Open-Meteo's probability is for the hour ending at the timestamp.
+  const candidates = forecast.days.flatMap((day) => day.points).flatMap((point) => {
+    const end = Date.parse(point.timestamp), value = point.precipitationProbabilityPct;
+    return point.precipitationProbabilityVerified === true && Number.isFinite(end) && end - 3_600_000 >= now
+      && typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100
+      ? [{ start: end - 3_600_000, end, probability: value }] : [];
+  }).sort((a, b) => a.start - b.start);
+  const interval = candidates[0];
+  return { local, interval: interval && interval.start - now <= 3_600_000 ? interval : null };
 }
 
 export function sensorPeriodBounds(period: PeriodKey, anchor: Date, from: string, to: string): [number, number] {
