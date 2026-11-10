@@ -1,7 +1,7 @@
 import { dateFromInput, endOfWeek, startOfWeek, timestampInPeriod } from "../../dateUtils";
 import { addCalendarDays, addCalendarMonths, dateKey, startOfDay } from "../../timeZone";
 import type { PeriodKey } from "../../types";
-import type { SensorMetric, SensorPoint } from "./types";
+import type { PersonalSensorData, SensorMetric, SensorPoint } from "./types";
 
 export const SENSOR_METRICS: SensorMetric[] = ["pm25", "pm10", "temperature", "humidity", "pressure"];
 
@@ -9,12 +9,12 @@ export const SENSOR_METRICS: SensorMetric[] = ["pm25", "pm10", "temperature", "h
 // claim that values moved continuously in the same direction for an hour.
 export function recentSensorTrend(
   points: SensorPoint[], metric: SensorMetric,
-  latest: { value: number; timestamp: string } | undefined, now = Date.now(),
+  latest: { value: number; timestamp: string } | undefined, now = Date.now(), windowMinutes = 60,
 ): { delta: number; from: string; to: string } | null {
   const latestMs = Date.parse(latest?.timestamp ?? "");
   if (!latest || !Number.isFinite(latest.value) || !Number.isFinite(latestMs)
     || latestMs > now || now - latestMs > 30 * 60_000) return null;
-  const target = latestMs - 60 * 60_000;
+  const target = latestMs - windowMinutes * 60_000;
   const samples = points.flatMap((point) => {
     const timestamp = point.observedAt?.[metric];
     const time = Date.parse(timestamp ?? "");
@@ -30,6 +30,23 @@ export function recentSensorTrend(
   const interval = samples.filter((sample) => sample.time >= baseline.time);
   if (interval.length < 4 || interval.some((sample, index) => index > 0 && sample.time - interval[index - 1].time > 25 * 60_000)) return null;
   return { delta: latest.value - baseline.value, from: baseline.timestamp, to: latest.timestamp };
+}
+
+// A local pressure tendency is a weak signal, not a meteorological forecast.
+export function localWeatherOutlook(points: SensorPoint[], latest: PersonalSensorData["latest"], now = Date.now()): string {
+  const pressure = recentSensorTrend(points, "pressure", latest.pressure, now, 180);
+  if (!pressure) return "Nincs elegendő friss, összefüggő mérés a légnyomás háromórás változásához.";
+  const pressureText = pressure.delta <= -0.5
+    ? "A légnyomás csökkent az elmúlt körülbelül három órában, ami változékonyabb idővel is együtt járhat."
+    : pressure.delta >= 0.5
+      ? "A légnyomás emelkedett az elmúlt körülbelül három órában, ami tartósabb időjárással is együtt járhat."
+      : "A légnyomás az elmúlt körülbelül három órában alig változott, ebből nem következik biztos időjárás-változás.";
+  const temperature = recentSensorTrend(points, "temperature", latest.temperature, now);
+  const humidity = recentSensorTrend(points, "humidity", latest.humidity, now);
+  const tempText = temperature ? (temperature.delta >= .3 ? "melegedett" : temperature.delta <= -.3 ? "hűlt" : "alig változott a hőmérséklet") : null;
+  const humidityText = humidity ? (humidity.delta >= 2 ? "nőtt a páratartalom" : humidity.delta <= -2 ? "csökkent a páratartalom" : "alig változott a páratartalom") : null;
+  const observed = [tempText, humidityText].filter(Boolean).join(", és ");
+  return `${pressureText} ${observed ? `Az elmúlt órában ${observed}; ez nem csapadék-előrejelzés.` : "A mérések alapján csapadék nem jelezhető előre biztosan."}`;
 }
 
 export function sensorPeriodBounds(period: PeriodKey, anchor: Date, from: string, to: string): [number, number] {

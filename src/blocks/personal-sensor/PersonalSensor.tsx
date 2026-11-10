@@ -8,7 +8,7 @@ import { observationSegments } from "../../observationQuality";
 import { dateParts, dateTimeFormatter, dayTicks } from "../../timeZone";
 import type { PeriodKey } from "../../types";
 import { usePeriodSelection } from "../../usePeriodSelection";
-import { recentSensorTrend, sensorChartData } from "./sensorData";
+import { localWeatherOutlook, recentSensorTrend, sensorChartData } from "./sensorData";
 import { lastDailyParticulate, PARTICULATE_LIMITS, PARTICULATE_SOURCES, pm10DailyLimit, pm10LimitForDay, WHO_PM25_DAILY_GUIDELINE } from "./particulateReference";
 import type { PersonalSensorData, SensorMetric } from "./types";
 import "./personalSensor.css";
@@ -87,6 +87,7 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh }: P
   const trends = useMemo(() => Object.fromEntries(METRICS.map((metric) => [metric.key,
     recentSensorTrend(data?.points ?? [], metric.key, data?.latest?.[metric.key], clock),
   ])) as Record<SensorMetric, ReturnType<typeof recentSensorTrend>>, [data, clock]);
+  const weatherOutlook = useMemo(() => localWeatherOutlook(data?.points ?? [], data?.latest ?? {}, clock), [data, clock]);
   const visible = selected === "pm25" || selected === "pm10" ? METRICS.slice(0, 2) : METRICS.filter((metric) => metric.key === selected);
   const amounts = chart.data.flatMap((point) => visible.map((metric) => point[metric.key])).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   const width = 1000, height = 285, left = 64, right = 24, top = 24, bottom = 224;
@@ -127,6 +128,7 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh }: P
     </div>
     <div className="personal-sensor__intro"><button className="refresh-button" disabled={busy || loading} onClick={() => void refresh()}><span aria-hidden="true">↻ </span>{busy ? "Frissítés…" : import.meta.env.DEV ? "Frissítés" : refreshLabel}</button></div>
     {(message || data?.error) && <p className="personal-sensor__message" role="status">{message || "A forrás nem válaszolt teljesen; a korábban rögzített mérések láthatók."}</p>}
+    <div className="personal-sensor__weather"><strong>Várható időjárás · helyi tendencia</strong><p>{weatherOutlook}</p></div>
     <div className="personal-sensor__metrics" aria-label="Mért értékek">
       {METRICS.map((metric) => {
         const latest = data?.latest?.[metric.key];

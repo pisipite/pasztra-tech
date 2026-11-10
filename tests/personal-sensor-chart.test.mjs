@@ -13,7 +13,7 @@ async function moduleUrl(path, replacements) {
 const timeUrl = new URL("../shared/timeZone.mjs", import.meta.url).href;
 const dateUrl = await moduleUrl("../src/dateUtils.ts", { "./timeZone": timeUrl });
 const sensorUrl = await moduleUrl("../src/blocks/personal-sensor/sensorData.ts", { "../../timeZone": timeUrl, "../../dateUtils": dateUrl });
-const { sensorChartData, recentSensorTrend } = await import(sensorUrl);
+const { sensorChartData, recentSensorTrend, localWeatherOutlook } = await import(sensorUrl);
 const points = [
   { timestamp: "2026-10-30T10:00:00Z", pm25: 0, temperature: 0, pressure: 1000 },
   { timestamp: "2026-10-30T10:10:00Z", pm25: 6, temperature: 2 },
@@ -60,4 +60,23 @@ test("one-hour change compares matching real samples and accepts zero Celsius", 
   assert.equal(recentSensorTrend(history.filter((_, index) => index < 2 || index > 4), "temperature", latestTemp, end), null, "large gaps suppress the trend");
   assert.equal(recentSensorTrend(history.slice(2), "temperature", latestTemp, end), null, "the baseline must be close to an hour ago");
   assert.equal(recentSensorTrend(history.map(({ observedAt, ...point }) => point), "temperature", latestTemp, end), null, "bucket time is not the real measurement time");
+});
+
+test("local outlook requires a fresh, well-covered three-hour pressure history", () => {
+  const end = Date.parse("2026-10-30T12:00:00Z");
+  const points = Array.from({ length: 19 }, (_, index) => {
+    const timestamp = new Date(end - (18 - index) * 10 * 60_000).toISOString();
+    return { timestamp, pressure: 1000 - index / 10, temperature: 10 + index / 10, humidity: 60 - index / 2,
+      observedAt: { pressure: timestamp, temperature: timestamp, humidity: timestamp } };
+  });
+  const timestamp = points.at(-1).timestamp;
+  const latest = { pressure: { value: 998.2, timestamp }, temperature: { value: 11.8, timestamp }, humidity: { value: 51, timestamp } };
+  const text = localWeatherOutlook(points, latest, end);
+  assert.match(text, /légnyomás csökkent/);
+  assert.match(text, /melegedett/);
+  assert.match(text, /csökkent a páratartalom/);
+  assert.match(text, /nem csapadék-előrejelzés/);
+  assert.match(localWeatherOutlook(points.slice(5), latest, end), /Nincs elegendő/);
+  assert.match(localWeatherOutlook(points, latest, end + 31 * 60_000), /Nincs elegendő/);
+  assert.match(localWeatherOutlook(points.filter((_, i) => i < 5 || i > 10), latest, end), /Nincs elegendő/);
 });
