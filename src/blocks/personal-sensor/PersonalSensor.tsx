@@ -6,9 +6,10 @@ import { dateInputValue, isCurrentPeriod, periodLabel } from "../../dateUtils";
 import { formatNumber } from "../../formatUtils";
 import { observationSegments } from "../../observationQuality";
 import { dateParts, dateTimeFormatter, dayTicks } from "../../timeZone";
-import type { PeriodKey, SolarForecast } from "../../types";
+import type { PeriodKey } from "../../types";
 import { usePeriodSelection } from "../../usePeriodSelection";
-import { precipitationOutlook, recentSensorTrend, sensorChartData } from "./sensorData";
+import { recentSensorTrend, sensorChartData } from "./sensorData";
+import { SensorClimateHighlights } from "./SensorClimateHighlights";
 import { lastDailyParticulate, PARTICULATE_LIMITS, PARTICULATE_SOURCES, pm10DailyLimit, pm10LimitForDay, WHO_PM25_DAILY_GUIDELINE } from "./particulateReference";
 import type { PersonalSensorData, SensorMetric } from "./types";
 import "./personalSensor.css";
@@ -36,9 +37,9 @@ const shortDate = dateTimeFormatter({ month: "short", day: "numeric" });
 const fullDate = dateTimeFormatter({ year: "numeric", month: "short", day: "numeric" });
 const safeTime = (value?: string | null) => value && Number.isFinite(Date.parse(value)) ? measuredTime.format(new Date(value)) : "—";
 
-type Props = { endpoint: string; loading: boolean; refreshLabel: string; onRefresh: () => void; forecast?: SolarForecast };
+type Props = { endpoint: string; loading: boolean; refreshLabel: string; onRefresh: () => void };
 
-export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh, forecast }: Props) {
+export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh }: Props) {
   const selection = usePeriodSelection();
   const { period, anchor, customStart, customEnd } = selection;
   const [data, setData] = useState<PersonalSensorData | null>(null);
@@ -87,9 +88,11 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh, for
   const trends = useMemo(() => Object.fromEntries(METRICS.map((metric) => [metric.key,
     recentSensorTrend(data?.points ?? [], metric.key, data?.latest?.[metric.key], clock),
   ])) as Record<SensorMetric, ReturnType<typeof recentSensorTrend>>, [data, clock]);
-  const weatherOutlook = useMemo(() => precipitationOutlook(data?.points ?? [], data?.latest ?? {}, forecast, clock), [data, forecast, clock]);
   const visible = selected === "pm25" || selected === "pm10" ? METRICS.slice(0, 2) : METRICS.filter((metric) => metric.key === selected);
-  const amounts = chart.data.flatMap((point) => visible.map((metric) => point[metric.key])).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+  const amounts = chart.data.flatMap((point) => visible.flatMap(({ key }) => {
+    const range = point.ranges?.[key], value = point[key];
+    return range ? [range.min, range.max] : value === undefined ? [] : [value];
+  }));
   const width = 1000, height = 285, left = 64, right = 24, top = 24, bottom = 224;
   const span = Math.max(1, chart.end - chart.start);
   const x = (timestamp: string) => left + (Date.parse(timestamp) - chart.start) / span * (width - left - right);
@@ -99,10 +102,11 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh, for
   const maximum = Math.max(minimum + 1, high + margin);
   const y = (value: number) => bottom - (value - minimum) / (maximum - minimum) * (bottom - top);
   const active = hovered === null ? undefined : chart.data[hovered];
-  const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
+  const pointerMove = (event: PointerEvent<SVGSVGElement>) => {
     if (!chart.data.length) return;
-    const box = event.currentTarget.getBoundingClientRect();
-    const cursor = (event.clientX - box.left) / box.width * width;
+    const transform = event.currentTarget.getScreenCTM();
+    if (!transform) return;
+    const cursor = new DOMPoint(event.clientX, event.clientY).matrixTransform(transform.inverse()).x;
     const index = chart.data.reduce((best, point, index) => Math.abs(x(point.timestamp) - cursor) < Math.abs(x(chart.data[best].timestamp) - cursor) ? index : best, 0);
     setHovered(Math.abs(x(chart.data[index].timestamp) - cursor) < 18 ? index : null);
   };
@@ -122,13 +126,13 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh, for
       <div className="section-header__lead"><div className="section-kicker"><p className="eyebrow">Saját szenzor</p><BackToTop /></div><h2>Környezeti mérések</h2><p className="personal-sensor__status"><span className={fresh ? "is-fresh" : ""} />{data ? fresh ? "Friss mérés" : "Korábbi mérés" : "Adatkapcsolat ellenőrzése"} · {data?.sensorName ?? "SDS011 + BME280"}</p></div>
       <div className="period-control-stack section-header__tools">
         <div className="period-tabs" role="tablist" aria-label="A szenzor időszaka">{PERIODS.map((item) => <button key={item.key} role="tab" aria-selected={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { selection.selectPeriod(item.key); setHovered(null); }}>{item.label}</button>)}</div>
-        <div className="period-stepper"><button onClick={() => selection.step(-1)} aria-label="Előző időszak">←</button><strong>{periodLabel(period, anchor, customStart, customEnd)}</strong><button onClick={() => selection.step(1)} disabled={period !== "custom" && isCurrentPeriod(period, anchor)} aria-label="Következő időszak">→</button></div>
+        <div className="period-stepper"><button onClick={() => { selection.step(-1); setHovered(null); }} aria-label="Előző időszak">←</button><strong>{periodLabel(period, anchor, customStart, customEnd)}</strong><button onClick={() => { selection.step(1); setHovered(null); }} disabled={period !== "custom" && isCurrentPeriod(period, anchor)} aria-label="Következő időszak">→</button></div>
         {period === "custom" && <div className="custom-range period-control-stack__custom"><label><span>Kezdőnap</span><input type="date" value={customStart} max={customEnd} onChange={(event) => selection.setCustomRange(event.target.value, customEnd)} /></label><span aria-hidden="true">→</span><label><span>Zárónap</span><input type="date" value={customEnd} min={customStart} max={dateInputValue(new Date())} onChange={(event) => selection.setCustomRange(customStart, event.target.value)} /></label></div>}
       </div>
     </div>
     <div className="personal-sensor__intro"><button className="refresh-button" disabled={busy || loading} onClick={() => void refresh()}><span aria-hidden="true">↻ </span>{busy ? "Frissítés…" : import.meta.env.DEV ? "Frissítés" : refreshLabel}</button></div>
     {(message || data?.error) && <p className="personal-sensor__message" role="status">{message || "A forrás nem válaszolt teljesen; a korábban rögzített mérések láthatók."}</p>}
-    <div className="personal-sensor__weather"><strong>Várható időjárás · helyi mérés és előrejelzés</strong><p>{weatherOutlook.local} {weatherOutlook.interval ? `Az Open-Meteo ${safeTime(new Date(weatherOutlook.interval.start).toISOString())} és ${safeTime(new Date(weatherOutlook.interval.end).toISOString())} között ${formatNumber(weatherOutlook.interval.probability, 0)}% csapadékesélyt jelez (bolgár idő).` : "Friss órás csapadék-előrejelzés nem áll rendelkezésre."}</p></div>
+    <SensorClimateHighlights data={data} clock={clock} />
     <div className="personal-sensor__metrics" aria-label="Mért értékek">
       {METRICS.map((metric) => {
         const latest = data?.latest?.[metric.key];
@@ -158,12 +162,32 @@ export function PersonalSensor({ endpoint, loading, refreshLabel, onRefresh, for
         </div>;
       })}
     </div>
-    <div className="personal-sensor__chart-head"><div><h3>{visible.length === 2 ? "Szálló por" : visible[0].label} alakulása</h3><span>{chart.resolution === "sample" ? "10 perces idősávok utolsó mérése" : chart.resolution === "hour" ? "Óránkénti átlag" : "Napi átlag"}</span></div><div className="personal-sensor__legend">{visible.map((metric) => <span key={metric.key}><i style={{ backgroundColor: metric.color }} />{metric.label}</span>)}</div></div>
-    {!amounts.length ? <div className="personal-sensor__empty">Erre az időszakra nincs mért adat.</div> : <div className="personal-sensor__chart" onPointerMove={pointerMove} onPointerDown={pointerMove} onPointerLeave={() => setHovered(null)}>
-      <div className="personal-sensor__readout">{active ? <><strong>{chart.resolution === "day" ? "Nap" : "Idősáv kezdete"}: {safeTime(active.timestamp)}</strong>{visible.map((metric) => <span key={metric.key}>{metric.label}: {typeof active[metric.key] === "number" ? `${formatNumber(active[metric.key]!, 1)} ${metric.unit}` : "nincs mérés"}</span>)}</> : <span>Mutass vagy érints az ábrára a részletekért.</span>}</div>
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${visible.map((metric) => metric.label).join(" és ")} időbeli alakulása; az adathiányok üresek`}>
+    <div className="personal-sensor__chart-head"><div><h3>{visible.length === 2 ? "Szálló por" : visible[0].label} alakulása</h3><span>{period === "month" ? "Napi átlag · sáv: mért minimum–maximum" : chart.resolution === "sample" ? "10 perces idősávok utolsó mérése" : chart.resolution === "hour" ? "Óránkénti átlag" : "Napi átlag"}</span></div><div className="personal-sensor__legend">{visible.map((metric) => <span key={metric.key}><i style={{ backgroundColor: metric.color }} />{metric.label}</span>)}</div></div>
+    {!amounts.length ? <div className="personal-sensor__empty">Erre az időszakra nincs mért adat.</div> : <div className="personal-sensor__chart">
+      <div className="personal-sensor__readout">{active ? <>
+        <strong>{chart.resolution === "day" ? fullDate.format(new Date(active.timestamp)) : `Idősáv kezdete: ${safeTime(active.timestamp)}`}</strong>
+        {visible.map(({ key, label, unit }) => {
+          const value = active[key], range = active.ranges?.[key];
+          return <span key={key}>{label}: {value === undefined ? "nincs mérés" : range
+            ? `átlag ${formatNumber(value, 1)} ${unit} · min. ${formatNumber(range.min, 1)} / max. ${formatNumber(range.max, 1)} ${unit}`
+            : `${formatNumber(value, 1)} ${unit}`}</span>;
+        })}
+      </> : <span>Mutass vagy érints az ábrára a részletekért.</span>}</div>
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${visible.map((metric) => metric.label).join(" és ")} időbeli alakulása; az adathiányok üresek`} onPointerMove={pointerMove} onPointerDown={pointerMove} onPointerLeave={() => setHovered(null)}>
         {[0, .5, 1].map((ratio) => { const value = minimum + (maximum - minimum) * ratio; return <g key={ratio}><line x1={left} x2={width - right} y1={y(value)} y2={y(value)} className="personal-sensor__grid" /><text x={left - 12} y={y(value) + 4} textAnchor="end" className="personal-sensor__axis">{formatNumber(value, 1)}</text></g>; })}
-        {visible.map((metric) => observationSegments(chart.data, (point) => point[metric.key], chart.gapMs).map((segment, index) => <g key={`${metric.key}-${index}`}><polyline points={segment.map(({ point, value }) => `${x(point.timestamp)},${y(value)}`).join(" ")} fill="none" stroke={metric.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />{segment.length === 1 && <circle cx={x(segment[0].point.timestamp)} cy={y(segment[0].value)} r="4" fill={metric.color} />}</g>))}
+        {visible.map(({ key, color }) => observationSegments(chart.data, (point) => point[key], chart.gapMs).map((segment, index) => {
+          const range = segment[0].point.ranges?.[key];
+          const firstX = x(segment[0].point.timestamp);
+          const polygon = (edge: "min" | "max", entries: typeof segment) => entries.map(({ point, value }) => `${x(point.timestamp)},${y(point.ranges?.[key]?.[edge] ?? value)}`).join(" ");
+          return <g key={`${key}-${index}`}>
+            {range && (segment.length > 1
+              ? <polygon points={`${polygon("max", segment)} ${polygon("min", [...segment].reverse())}`} fill={color} opacity=".17" />
+              : <line x1={firstX} x2={firstX} y1={y(range.min)} y2={y(range.max)} stroke={color} strokeWidth="5" opacity=".25" vectorEffect="non-scaling-stroke" />)}
+            {segment.length > 1
+              ? <polyline points={segment.map(({ point, value }) => `${x(point.timestamp)},${y(value)}`).join(" ")} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              : <circle cx={firstX} cy={y(segment[0].value)} r="4" fill={color} />}
+          </g>;
+        }))}
         {active && <line x1={x(active.timestamp)} x2={x(active.timestamp)} y1={top} y2={bottom} className="personal-sensor__cursor" />}
         {ticks.map((tick, index) => <text key={index} x={left + tick.ratio * (width - left - right)} y={height - 21} textAnchor={index === 0 ? "start" : index === ticks.length - 1 ? "end" : "middle"} className="personal-sensor__axis">{tick.label}</text>)}
         <text x={left} y={height - 3} className="personal-sensor__axis">{visible[0].unit} · bolgár idő</text>

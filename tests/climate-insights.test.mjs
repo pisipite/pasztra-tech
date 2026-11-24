@@ -1,6 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { dewPointC, recentClimateChange } from "../shared/climateInsights.mjs";
+import { dewPointC, freshSensorClimate, recentClimateChange } from "../shared/climateInsights.mjs";
+
+test("own climate comparison requires fresh, close measurements and accepts zero Celsius", () => {
+  const time = Date.parse("2026-11-01T13:00:00Z");
+  const reading = (value, offset = 0) => ({ value, timestamp: new Date(time + offset * 60_000).toISOString() });
+  const temperature = reading(0);
+  assert.deepEqual(freshSensorClimate({ temperature, humidity: reading(55, -2) }, time), { temperatureC: 0, humidityPct: 55 });
+  assert.equal(freshSensorClimate({ temperature, humidity: reading(55, -6) }, time), null);
+  assert.equal(freshSensorClimate({ temperature, humidity: reading(55, 1) }, time), null);
+  assert.equal(freshSensorClimate({ temperature, humidity: reading(0) }, time), null);
+  assert.equal(freshSensorClimate({ temperature, humidity: reading(55) }, time + 31 * 60_000), null);
+});
 
 const NOW = Date.parse("2026-10-26T12:00:00Z");
 const current = { temperatureC: 21.5, humidityPct: 58, updatedAt: new Date(NOW).toISOString() };

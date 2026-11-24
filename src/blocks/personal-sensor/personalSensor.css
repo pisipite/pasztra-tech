@@ -7,9 +7,24 @@
 .personal-sensor__intro { display: flex; justify-content: flex-end; align-items: center; gap: 16px; margin: 6px 0 16px; }
 .personal-sensor__message { color: var(--text-secondary); font-size: 13px; line-height: 1.5; }
 .personal-sensor__message { padding: 10px 14px; border-left: 3px solid var(--personal-pm25); background: var(--surface-inset); }
-.personal-sensor__weather { margin: 0 0 14px; padding: 12px 16px; border-left: 3px solid var(--personal-pressure); background: var(--surface-inset); color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
-.personal-sensor__weather strong { color: var(--text-primary); }
-.personal-sensor__weather p { margin: 4px 0 0; }
+.personal-sensor__highlights { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; margin-block: 0 14px; }
+.personal-sensor__highlight { position: relative; min-width: 0; border: 1px solid var(--surface-border); border-radius: 8px; background: var(--surface-inset); color: var(--text-secondary); font-size: 13px; }
+.personal-sensor__highlight > :is(summary, button), .personal-sensor__highlight--unavailable { padding: 10px 14px; line-height: 1.5; }
+.personal-sensor__highlight > :is(summary, button) { border-radius: inherit; cursor: pointer; }
+.personal-sensor__highlight > button { border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+.personal-sensor__highlight > button::after { content: "▾"; padding-inline-start: 8px; }
+.personal-sensor__highlight strong, .personal-sensor__highlight a { color: var(--text-primary); }
+.personal-sensor__highlight small { margin-inline-start: 5px; }
+.personal-sensor__highlight-content { max-width: 410px; padding: 4px 14px 12px; font-size: 12px; line-height: 1.55; }
+.personal-sensor__highlight-content p { margin: 0 0 6px; }
+.personal-sensor__highlight-content p:last-child { margin-bottom: 0; }
+.personal-sensor__twins .personal-sensor__highlight-content { position: absolute; z-index: 14; top: 100%; left: 0; width: min(340px, calc(100vw - 64px)); padding: 12px 14px; border: 1px solid var(--surface-border); border-radius: 8px; background: var(--surface-card); box-shadow: 0 8px 24px #0003; }
+.personal-sensor__twins ol { margin: 8px 0 0; padding-inline-start: 20px; }
+.personal-sensor__twins li { padding: 5px 0; }
+.personal-sensor__twins li + li { border-top: 1px solid var(--surface-border); }
+.personal-sensor__twins li > span { display: block; }
+.personal-sensor__twins li:first-child { color: var(--text-primary); }
+@media (max-width: 700px) { .personal-sensor__twins .personal-sensor__highlight-content { position: static; box-shadow: none; border: 0; width: auto; } }
 .personal-sensor__metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .personal-sensor__metric { position: relative; min-width: 0; border: 1px solid var(--surface-border); border-radius: 8px; color: var(--text-primary); background: var(--surface-inset); }
 .personal-sensor__metric.is-selected { border-color: var(--personal-pressure); box-shadow: inset 0 -3px var(--personal-pressure); }

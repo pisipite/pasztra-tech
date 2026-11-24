@@ -7,6 +7,16 @@ const TARGET_TOLERANCE_MS = 35 * 60_000;
 const LATEST_TOLERANCE_MS = 30 * 60_000;
 const MAX_SAMPLE_GAP_MS = HOUR_MS;
 
+export function freshSensorClimate(latest, nowMs = Date.now()) {
+  const temperature = latest?.temperature;
+  const humidity = latest?.humidity;
+  if (!isValidClimateValues(temperature?.value, humidity?.value)) return null;
+  const times = [temperature, humidity].map(({ timestamp }) => Date.parse(timestamp));
+  if (!Number.isFinite(nowMs) || times.some((time) => !Number.isFinite(time) || time > nowMs || nowMs - time > 30 * 60_000)
+    || Math.abs(times[0] - times[1]) > 5 * 60_000) return null;
+  return { temperatureC: temperature.value, humidityPct: humidity.value };
+}
+
 export function dewPointC(temperatureC, humidityPct) {
   if (!isValidClimateValues(temperatureC, humidityPct) || temperatureC <= -45 || temperatureC >= 80) return null;
   // Magnus approximation: the air's dew point, not a wall-surface temperature.

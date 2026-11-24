@@ -3,6 +3,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { unzipSync } from "fflate";
 import { PERSONAL_SENSOR_SOURCE as SOURCE } from "./data-sources/personal-sensor-source.mjs";
+import { freshSensorClimate } from "../shared/climateInsights.mjs";
+import { getWeatherTwins } from "./weather-twins.mjs";
 
 const metrics = ["pm25", "pm10", "temperature", "humidity", "pressure"];
 const bucketMs = SOURCE.bucketMinutes * 60_000;
@@ -156,12 +158,16 @@ export async function fetchPersonalSensor(now = new Date(), options = {}) {
   }
   const updatedAt = Object.values(latest).map((item) => item.timestamp).sort().at(-1) ?? null;
   const fresh = updatedAt && now.getTime() - Date.parse(updatedAt) <= 30 * 60_000;
+  const climate = freshSensorClimate(latest, now.getTime());
+  const weatherTwins = climate ? await getWeatherTwins(climate, now, {
+    fetchImpl, cacheFile: resolve(dirname(historyFile), "weather-city-conditions.json"),
+  }).catch(() => []) : [];
   const result = {
     source: "Madavi", sensorId: SOURCE.chipId, sensorName: SOURCE.name,
     sourceUrl: new URL(`csvfiles.php?sensor=${encodeURIComponent(SOURCE.chipId)}`, SOURCE.archiveBase).href,
     checkedAt: now.toISOString(), updatedAt,
     status: !points.length ? "unavailable" : error || !fresh ? "stale" : "ok",
-    error, bucketMinutes: SOURCE.bucketMinutes, latest, points,
+    error, bucketMinutes: SOURCE.bucketMinutes, latest, points, weatherTwins,
     collection: { archiveChecks },
   };
   await Promise.all([mkdir(dirname(historyFile), { recursive: true }), mkdir(dirname(outputFile), { recursive: true })]);

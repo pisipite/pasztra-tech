@@ -4,7 +4,6 @@ export { BulgariaEnergyMix } from "./bulgaria-energy/BulgariaEnergyMix";
 export { makeDemoBulgariaEnergyMix } from "./bulgaria-energy/energyMixData";
 export { EnergyAnalytics } from "./energy-flow/EnergyAnalytics";
 export { SolarForecast } from "./forecast/SolarForecast";
-export { DashboardCards } from "./home-climate/DashboardCards";
 export { PersonalSensor } from "./personal-sensor/PersonalSensor";
 export { EnergyNews } from "./news/EnergyNews";
 export { makeDemoEnergyNews } from "./news/newsData";

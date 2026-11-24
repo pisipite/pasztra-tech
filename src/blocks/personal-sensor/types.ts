@@ -8,6 +8,17 @@ export interface SensorPoint {
   pressure?: number;
   observedAt?: Partial<Record<SensorMetric, string>>;
 }
+export interface SensorChartPoint extends SensorPoint {
+  ranges?: Partial<Record<SensorMetric, { min: number; max: number }>>;
+}
+export interface SensorWeatherTwin {
+  city: string;
+  country: string;
+  locative: string;
+  temperatureC: number;
+  humidityPct: number;
+  observedAt: number;
+}
 export interface PersonalSensorData {
   sensorId: string;
   sensorName: string;
@@ -20,4 +31,5 @@ export interface PersonalSensorData {
   bucketMinutes: number;
   latest: Partial<Record<SensorMetric, { value: number; timestamp: string }>>;
   points: SensorPoint[];
+  weatherTwins?: SensorWeatherTwin[];
 }

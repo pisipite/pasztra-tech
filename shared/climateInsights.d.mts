@@ -15,4 +15,5 @@ export type ClimateChange =
   | { status: "ok"; temperatureDeltaC: number; humidityDeltaPoints: number; from: string; to: string };
 
 export function dewPointC(temperatureC: number, humidityPct: number): number | null;
+export function freshSensorClimate(latest: Partial<Record<"temperature" | "humidity", { value: number; timestamp: string }>> | undefined, nowMs?: number): Pick<CurrentClimateReading, "temperatureC" | "humidityPct"> | null;
 export function recentClimateChange(history: ClimateHistorySample[], current: CurrentClimateReading, nowMs?: number): ClimateChange;

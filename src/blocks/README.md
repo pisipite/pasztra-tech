@@ -13,7 +13,6 @@ helyi segédfüggvényeit és mintaadatait ugyanabban a mappában kell tartani.
 | `#kozlekedes` | `transport/` | Délnyugat-Bulgária közlekedési térképe és adatforrás-állapota |
 | `#fogyasztasi-proba` | `planner/` | Interaktív fogyasztástervező |
 | `#napallas` | `sun-position/` | Napállás és horizont |
-| `#klima` | `home-climate/` | Govee hőmérséklet- és páratartalom-kártya |
 | `#sajat-szenzor` | `personal-sensor/` | A saját SDS011/BME280 mérő öt adatsora; forrás: `scripts/data-sources/personal-sensor-source.mjs` |
 
 A navigáció és a karbantartói blokklista a `src/config/pageBlocks.ts` fájlban

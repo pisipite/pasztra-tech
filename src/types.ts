@@ -44,7 +44,6 @@ export interface SolarForecastPoint {
   irradianceWm2: number;
   cloudCoverPct: number;
   precipitationProbabilityPct: number | null;
-  precipitationProbabilityVerified?: boolean;
 }
 
 export interface SolarForecastDay {
@@ -200,15 +199,6 @@ export interface GoveeDevice {
   updatedAt: string;
 }
 
-export interface WeatherTwin {
-  city: string;
-  country: string;
-  locative: string;
-  temperatureC: number;
-  humidityPct: number;
-  score: number;
-}
-
 export interface DataConnection {
   connected: boolean;
   stale?: boolean;
@@ -228,7 +218,6 @@ export interface DashboardData {
   govee: {
     devices: GoveeDevice[];
     chart: ClimatePoint[];
-    weatherTwins?: WeatherTwin[];
   };
   forecast?: SolarForecast;
 }

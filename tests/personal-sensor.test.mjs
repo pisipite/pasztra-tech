@@ -66,6 +66,9 @@ test("collector backfills the archive and preserves measurements during an outag
     if (path.includes("csvfiles.php")) return new Response(html);
     if (path.endsWith(todayPath)) return new Response(csv);
     if (path.endsWith(zipPath)) return new Response(archive);
+    if (url.hostname === "api.open-meteo.com") return Response.json(url.searchParams.get("latitude").split(",").map((_, index) => ({
+      current: { temperature_2m: index === 1 ? 1.5 : 15, relative_humidity_2m: 44, time: Date.parse("2026-10-30T20:00:00Z") / 1000 },
+    })));
     throw new Error("Unexpected URL");
   };
   const first = await fetchPersonalSensor(now, { historyFile, outputFile, fetchImpl });
@@ -73,9 +76,12 @@ test("collector backfills the archive and preserves measurements during an outag
   assert.equal(first.points.length, 2);
   assert.equal(first.latest.pm25.value, 4.75);
   assert.equal(first.latest.temperature.value, 1.5);
+  assert.equal(first.weatherTwins[0].city, "Athén");
+  assert.equal(first.weatherTwins.length, 6);
   assert.equal(first.collection.archiveChecks[zipPath], true);
   const second = await fetchPersonalSensor(new Date(now.getTime() + 60_000), { historyFile, outputFile, fetchImpl: async () => { throw new Error("offline"); } });
   assert.equal(second.status, "stale");
   assert.equal(second.points.length, 2);
+  assert.deepEqual(second.weatherTwins, first.weatherTwins, "the current city conditions stay available through the cache");
   assert.equal(JSON.parse(await readFile(outputFile, "utf8")).latest.pm25.value, 4.75);
 });

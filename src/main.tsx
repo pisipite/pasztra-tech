@@ -1,4 +1,4 @@
-import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { SettingsPanel } from "./components/SettingsPanel";
 import {
@@ -6,7 +6,6 @@ import {
   AirQuality,
   RegionalTransport,
   ConsumptionPlanner,
-  DashboardCards,
   PersonalSensor,
   EnergyAnalytics,
   EnergyNews,
@@ -15,7 +14,7 @@ import {
   SolarForecast,
   SunHorizon,
 } from "./blocks";
-import { climatePointsForPeriod, isValidClimateValues } from "./climateData";
+import { isValidClimateValues } from "./climateData";
 import { PAGE_BLOCKS } from "./config/pageBlocks";
 import { DATA_FILES } from "./config/dataFiles";
 import { repairClimateHistory } from "../scripts/govee-temperature.mjs";
@@ -78,10 +77,6 @@ function startPolling(load: () => void, refreshSeconds: number) {
 function App() {
   const energySelection = usePeriodSelection();
   const { period, anchor, customStart, customEnd } = energySelection;
-  const climateSelection = usePeriodSelection();
-  const { period: climatePeriod, anchor: climateAnchor, customStart: climateCustomStart, customEnd: climateCustomEnd } = climateSelection;
-  const [climateHistory, setClimateHistory] = useState(() => makeDemoData("today").govee.chart);
-  const [climateLoading, setClimateLoading] = useState(false);
   const [settings, setSettings] = useState<DashboardSettings>(getInitialSettings);
   const [data, setData] = useState(() => makeDemoData("today"));
   const [bulgariaMix, setBulgariaMix] = useState(makeDemoBulgariaEnergyMix);
@@ -132,27 +127,6 @@ function App() {
     }
   }, []);
 
-  const loadClimateHistory = useCallback(async (currentSettings: DashboardSettings, currentPeriod: PeriodKey, currentAnchor: Date, from?: string, to?: string) => {
-    const currentRange = rangeForPeriod(currentPeriod, from, to);
-    if (!currentSettings.live || !currentSettings.endpoint) {
-      setClimateHistory(makeDemoData(currentRange).govee.chart);
-      return;
-    }
-    setClimateLoading(true);
-    try {
-      const history = await fetchFreshJson<DashboardData["govee"]["chart"]>(dataFileUrl(currentSettings.endpoint, DATA_FILES.climateHistory));
-      if (!Array.isArray(history)) throw new Error("Érvénytelen klímaelőzmény.");
-      setClimateHistory(repairClimateHistory(history));
-    } catch {
-      try {
-        const dashboard = await fetchFreshJson<DashboardData>(dashboardUrl(currentSettings.endpoint, currentPeriod, currentAnchor, from, to));
-        if (Array.isArray(dashboard.govee?.chart)) setClimateHistory(repairClimateHistory(dashboard.govee.chart));
-      } catch { /* keep the last known climate history */ }
-    } finally {
-      setClimateLoading(false);
-    }
-  }, []);
-
   const loadBulgariaMix = useCallback(async (currentSettings: DashboardSettings) => {
     if (!currentSettings.live || !currentSettings.endpoint) {
       setBulgariaMix(makeDemoBulgariaEnergyMix());
@@ -184,9 +158,6 @@ function App() {
   useEffect(() => startPolling(() => void loadData(period, settings, anchor, customStart, customEnd), settings.refreshSeconds),
     [period, anchor, customStart, customEnd, settings, loadData]);
 
-  useEffect(() => startPolling(() => void loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd), settings.refreshSeconds),
-    [climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, settings, loadClimateHistory]);
-
   useEffect(() => startPolling(() => void loadBulgariaMix(settings), settings.refreshSeconds),
     [settings, loadBulgariaMix]);
 
@@ -215,10 +186,6 @@ function App() {
     return () => document.removeEventListener("keydown", closeOnEscape);
   }, [navigationOpen]);
 
-  const climateSeries = useMemo(
-    () => climatePointsForPeriod(climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
-    [climateHistory, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd],
-  );
   const activeDevice = data.govee.devices.find((device) => isValidClimateValues(device.temperatureC, device.humidityPct));
   const source = data.source ?? (!settings.live || !settings.endpoint ? "demo" : "live");
   const solarConnected = connectionIsFresh(data.connections?.solar, source === "live" && data.solar.status === "online", data.updatedAt, clock);
@@ -354,7 +321,6 @@ function App() {
         setData(withRepairedClimate(freshData));
         await Promise.all([
           loadData(period, settings, anchor, customStart, customEnd),
-          loadClimateHistory(settings, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd),
           loadBulgariaMix(settings),
           loadEnergyNews(settings),
         ]);
@@ -377,7 +343,7 @@ function App() {
       }
     })();
     return () => controller.abort();
-  }, [refreshSession, settings, period, anchor, customStart, customEnd, climatePeriod, climateAnchor, climateCustomStart, climateCustomEnd, loadData, loadClimateHistory, loadBulgariaMix, loadEnergyNews, updateRefreshSession]);
+  }, [refreshSession, settings, period, anchor, customStart, customEnd, loadData, loadBulgariaMix, loadEnergyNews, updateRefreshSession]);
 
   useEffect(() => {
     if (document.visibilityState !== "visible" || !settings.live || !settings.endpoint || !settings.githubToken) return;
@@ -478,25 +444,7 @@ function App() {
         />
 
         <SolarForecast data={data} />
-        <DashboardCards
-          data={data}
-          climateHistory={climateHistory}
-          climateSeries={climateSeries}
-          nowMs={clock}
-          climatePeriod={climatePeriod}
-          climateAnchor={climateAnchor}
-          climateCustomStart={climateCustomStart}
-          climateCustomEnd={climateCustomEnd}
-          climateLoading={climateLoading}
-          onClimatePeriodChange={climateSelection.selectPeriod}
-          onClimateStep={climateSelection.step}
-          onClimateCustomChange={climateSelection.setCustomRange}
-          loading={manualRefreshBusy}
-          refreshLabel={manualRefreshLabel}
-          onRefresh={triggerManualRefresh}
-        />
-
-        <PersonalSensor endpoint={settings.endpoint} loading={manualRefreshBusy} refreshLabel={manualRefreshLabel} onRefresh={triggerManualRefresh} forecast={source !== "demo" && !data.warnings?.some((warning) => warning.source === "Előrejelzés") ? data.forecast : undefined} />
+        <PersonalSensor endpoint={settings.endpoint} loading={manualRefreshBusy} refreshLabel={manualRefreshLabel} onRefresh={triggerManualRefresh} />
 
         <ConsumptionPlanner data={data} />
 
